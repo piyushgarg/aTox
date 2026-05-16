@@ -9,7 +9,7 @@ import android.media.AudioManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
-import im.tox.tox4j.av.exceptions.ToxavCallControlException
+
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ltd.evilcorp.core.vo.Contact
 import ltd.evilcorp.core.vo.PublicKey
+import ltd.evilcorp.core.vo.FINGERPRINT_LEN
 import ltd.evilcorp.domain.av.AudioCapture
 import ltd.evilcorp.domain.tox.Tox
 
@@ -50,7 +51,7 @@ class CallManager @Inject constructor(private val tox: Tox, private val scope: C
         val calls = mutableSetOf<Contact>().apply { addAll(_pendingCalls.value) }
         calls.addAll(_pendingCalls.value)
         if (calls.add(from)) {
-            Log.i(TAG, "Added pending call ${from.publicKey.take(8)}")
+            Log.i(TAG, "Added pending call ${from.publicKey.take(FINGERPRINT_LEN)}")
             _pendingCalls.value = calls
         }
     }
@@ -77,6 +78,16 @@ class CallManager @Inject constructor(private val tox: Tox, private val scope: C
     }
 
     fun endCall(publicKey: PublicKey) {
+        terminate(publicKey)
+
+        try {
+            tox.endCall(publicKey)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error ending call: $e")
+        }
+    }
+
+    fun terminate(publicKey: PublicKey) {
         val state = inCall.value
         if (state is CallState.InCall && state.publicKey == publicKey) {
             audioManager?.mode = AudioManager.MODE_NORMAL
@@ -84,14 +95,6 @@ class CallManager @Inject constructor(private val tox: Tox, private val scope: C
         }
 
         removePendingCall(publicKey)
-
-        try {
-            tox.endCall(publicKey)
-        } catch (e: ToxavCallControlException) {
-            if (e.code() != ToxavCallControlException.Code.FRIEND_NOT_IN_CALL) {
-                throw e
-            }
-        }
     }
 
     fun startSendingAudio(): Boolean {

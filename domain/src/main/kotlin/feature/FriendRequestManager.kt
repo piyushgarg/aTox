@@ -29,7 +29,7 @@ class FriendRequestManager @Inject constructor(
     private val tox: Tox,
 ) {
     fun getAll(): Flow<List<FriendRequest>> = friendRequestRepository.getAll()
-    fun get(id: PublicKey): Flow<FriendRequest> = friendRequestRepository.get(id.string())
+    fun get(id: PublicKey): Flow<FriendRequest?> = friendRequestRepository.get(id.string())
 
     fun accept(friendRequest: FriendRequest) = scope.launch {
         val acceptTime = Date().time

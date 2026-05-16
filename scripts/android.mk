@@ -1,43 +1,49 @@
-ANDROID_NDK_HOME ?= $(SRCDIR)/$(NDK_DIR)
-NDK_HOME := $(ANDROID_NDK_HOME)
+# NDK_HOME and CMAKE should be passed from environment or Gradle
+NDK_HOME ?= $(ANDROID_NDK_HOME)
+ifeq ($(NDK_HOME),)
+$(error ANDROID_NDK_HOME or NDK_HOME must be set)
+endif
+
+# Detect host OS for toolchain
+HOST_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+ifeq ($(HOST_OS),darwin)
+    HOST_ARCH := darwin-x86_64
+else
+    HOST_ARCH := linux-x86_64
+endif
 
 DLLEXT		:= .so
-TOOLCHAIN	:= $(NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64
+TOOLCHAIN	:= $(NDK_HOME)/toolchains/llvm/prebuilt/$(HOST_ARCH)
 SYSROOT		:= $(TOOLCHAIN)/sysroot
 PREFIX		:= $(DESTDIR)/$(TARGET)
 TOOLCHAIN_FILE	:= $(SRCDIR)/$(TARGET).cmake
 TOOLCHAIN_CLANG_BIN	:= $(TOOLCHAIN)/bin/$(TARGET)$(NDK_API)
 TOOLCHAIN_BIN	:= $(TOOLCHAIN)/bin/llvm
-PROTOC		:= $(DESTDIR)/host/bin/protoc
+CMAKE ?= cmake
 
-export CC		:= $(TOOLCHAIN_CLANG_BIN)-clang
-export CXX		:= $(TOOLCHAIN_CLANG_BIN)-clang++
+export CC		:= $(TOOLCHAIN_CLANG_BIN)-clang --sysroot=$(SYSROOT)
+export CXX		:= $(TOOLCHAIN_CLANG_BIN)-clang++ --sysroot=$(SYSROOT)
 export AR 		:= $(TOOLCHAIN_BIN)-ar
+export RANLIB	:= $(TOOLCHAIN_BIN)-ranlib
 export LD 		:= $(CC)
 export AS		:= $(TOOLCHAIN_BIN)-as
 export STRIP	:= $(TOOLCHAIN_BIN)-strip
 export NM		:= $(TOOLCHAIN_BIN)-nm
-export LDFLAGS		:= -static-libstdc++ -llog
+export CFLAGS		:= -fPIC
+export CXXFLAGS		:= -fPIC
+export LDFLAGS		:= --sysroot=$(SYSROOT) -static-libstdc++
 export PKG_CONFIG_LIBDIR:= $(PREFIX)/lib/pkgconfig
 export PKG_CONFIG_PATH	:= $(PREFIX)/lib/pkgconfig
 export PATH		:= $(TOOLCHAIN)/bin:$(PATH)
-export TOX4J_PLATFORM	:= $(TARGET)
 
-ifeq ($(TARGET),i686-linux-android)
-undefine AS
-else ifeq ($(TARGET),x86_64-linux-android)
-undefine AS
-endif
 
-protobuf_CONFIGURE	:= --prefix=$(PREFIX) --host=$(TARGET) --with-sysroot=$(SYSROOT) --disable-shared --with-protoc=$(PROTOC)
-libsodium_CONFIGURE	:= --prefix=$(PREFIX) --host=$(TARGET) --with-sysroot=$(SYSROOT) --disable-shared
-opus_CONFIGURE		:= --prefix=$(PREFIX) --host=$(TARGET) --with-sysroot=$(SYSROOT) --disable-shared
+libsodium_CONFIGURE	:= --prefix=$(PREFIX) --host=$(TARGET) --with-sysroot=$(SYSROOT) --disable-shared CFLAGS="-fPIC" CXXFLAGS="-fPIC"
+opus_CONFIGURE		:= --prefix=$(PREFIX) --host=$(TARGET) --with-sysroot=$(SYSROOT) --disable-shared CFLAGS="-fPIC" CXXFLAGS="-fPIC"
 # TODO(robinlinden): Investigate how to get neon-asm working for armv7a again.
-libvpx_CONFIGURE	:= --prefix=$(PREFIX) --libc=$(SYSROOT) --target=$(VPX_TARGET) --disable-examples --disable-unit-tests --enable-pic --disable-neon-asm
-toxcore_CONFIGURE	:= -DCMAKE_INSTALL_PREFIX:PATH=$(PREFIX) -DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) -DANDROID_CPU_FEATURES=$(NDK_HOME)/sources/android/cpufeatures/cpu-features.c -DENABLE_STATIC=ON -DENABLE_SHARED=OFF
-tox4j_CONFIGURE		:= -DCMAKE_INSTALL_PREFIX:PATH=$(PREFIX) -DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) -DANDROID_CPU_FEATURES=$(NDK_HOME)/sources/android/cpufeatures/cpu-features.c
+libvpx_CONFIGURE	:= --prefix=$(PREFIX) --libc=$(SYSROOT) --target=$(VPX_TARGET) --disable-examples --disable-unit-tests --enable-pic --disable-neon-asm --extra-cflags="--sysroot=$(SYSROOT) -fPIC" --extra-cxxflags="--sysroot=$(SYSROOT) -fPIC" --extra-ldflags="--sysroot=$(SYSROOT) -llog"
+toxcore_CONFIGURE	:= -DCMAKE_INSTALL_PREFIX:PATH=$(PREFIX) -DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) -DANDROID_CPU_FEATURES=$(NDK_HOME)/sources/android/cpufeatures/cpu-features.c -DENABLE_STATIC=ON -DENABLE_SHARED=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 
-build: $(PREFIX)/tox4j.stamp $(foreach i,jvm-macros jvm-toxcore-api tox4j-c,$(DESTDIR)/$i.stamp)
+build: $(PREFIX)/toxcore.stamp
 
 test: build
 	@echo "No tests for Android builds"

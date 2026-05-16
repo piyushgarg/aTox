@@ -13,7 +13,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.RemoteInput
 import androidx.core.content.IntentCompat
-import im.tox.tox4j.av.exceptions.ToxavAnswerException
+
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -132,7 +132,7 @@ class ActionReceiver : BroadcastReceiver() {
         try {
             callManager.startCall(pk)
             notificationHelper.showOngoingCallNotification(contact)
-        } catch (e: ToxavAnswerException) {
+        } catch (e: Exception) {
             Log.e(TAG, e.toString())
             return
         }

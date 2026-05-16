@@ -6,8 +6,8 @@ package ltd.evilcorp.atox.tox
 
 import android.content.Context
 import android.util.Log
-import im.tox.tox4j.av.enums.ToxavFriendCallState
-import im.tox.tox4j.core.enums.ToxFileControl
+import ltd.evilcorp.domain.tox.enums.ToxavFriendCallState
+import ltd.evilcorp.domain.tox.enums.ToxFileControl
 import java.net.URLConnection
 import java.util.Date
 import javax.inject.Inject
@@ -40,7 +40,7 @@ import ltd.evilcorp.domain.feature.FileTransferManager
 import ltd.evilcorp.domain.tox.Tox
 import ltd.evilcorp.domain.tox.ToxAvEventListener
 import ltd.evilcorp.domain.tox.ToxEventListener
-import ltd.evilcorp.domain.tox.toMessageType
+import ltd.evilcorp.core.vo.FINGERPRINT_LEN
 
 private const val MAX_ACTIVE_FRIEND_REQUESTS = 32
 private const val TAG = "EventListenerCallbacks"
@@ -52,7 +52,6 @@ private fun isImage(filename: String) = try {
     false
 }
 
-private const val FINGERPRINT_LEN = 8
 private fun String.fingerprint() = this.take(FINGERPRINT_LEN)
 
 @Singleton
@@ -131,7 +130,7 @@ class EventListenerCallbacks @Inject constructor(
 
             if (chatManager.activeChat != publicKey) {
                 scope.launch {
-                    val contact = tryGetContact(publicKey, "Message") ?: return@launch
+                    val contact = tryGetContact(publicKey, "Message") ?: Contact(publicKey)
                     notifyMessage(contact, msg)
                 }
                 contactRepository.setHasUnreadMessages(publicKey, true)
@@ -154,7 +153,7 @@ class EventListenerCallbacks @Inject constructor(
             if (kind == FileKind.Data.ordinal) {
                 if (chatManager.activeChat != publicKey) {
                     scope.launch {
-                        val contact = tryGetContact(publicKey, "FileRecv") ?: return@launch
+                        val contact = tryGetContact(publicKey, "FileRecv") ?: Contact(publicKey)
                         val msg = ctx.getString(R.string.notification_file_transfer, name)
                         notifyMessage(contact, msg)
                     }
@@ -189,7 +188,7 @@ class EventListenerCallbacks @Inject constructor(
         callHandler = { pk, audioEnabled, videoEnabled ->
             Log.e(TAG, "call ${pk.fingerprint()} $audioEnabled $videoEnabled")
             scope.launch {
-                val contact = tryGetContact(pk, "Call") ?: return@launch
+                val contact = tryGetContact(pk, "Call") ?: Contact(pk)
                 notificationHelper.showPendingCallNotification(tox.getStatus(), contact)
                 callManager.addPendingCall(contact)
             }
@@ -197,12 +196,12 @@ class EventListenerCallbacks @Inject constructor(
 
         callStateHandler = { pk, callState ->
             Log.e(TAG, "callState ${pk.fingerprint()} $callState")
-            if (callState.contains(ToxavFriendCallState.FINISHED) || callState.contains(ToxavFriendCallState.ERROR)) {
+            if (callState.contains(ToxavFriendCallState.Finished) || callState.contains(ToxavFriendCallState.Error)) {
                 audioPlayer?.stop()
                 audioPlayer?.release()
                 audioPlayer = null
                 notificationHelper.dismissCallNotification(PublicKey(pk))
-                callManager.endCall(PublicKey(pk))
+                callManager.terminate(PublicKey(pk))
             }
         }
 

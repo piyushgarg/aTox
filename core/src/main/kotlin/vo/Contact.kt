@@ -8,7 +8,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-// These enums are 1:1 mappings of the enums in tox4j.
+// These enums are 1:1 mappings of the Tox protocol connection/user status values.
 enum class ConnectionStatus {
     None,
     TCP,

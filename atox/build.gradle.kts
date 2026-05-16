@@ -14,6 +14,7 @@ kotlin {
 android {
     namespace = "ltd.evilcorp.atox"
     compileSdk = libs.versions.sdk.target.get().toInt()
+    ndkVersion = "30.0.14904198"
     defaultConfig {
         applicationId = "ltd.evilcorp.atox"
         minSdk = libs.versions.sdk.min.get().toInt()
@@ -28,7 +29,7 @@ android {
         }
         getByName("release") {
             isMinifyEnabled = true
-            proguardFiles("proguard-tox4j.pro", getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
     signingConfigs {
@@ -45,11 +46,6 @@ android {
     }
     lint {
         disable += setOf("GoogleAppIndexingWarning", "MissingTranslation")
-    }
-    packaging {
-        // Work around scala-compiler and scala-library (via tox4j) trying to place files in the
-        // same place.
-        resources.excludes.add("rootdoc.txt")
     }
 }
 

@@ -24,7 +24,7 @@ interface FriendRequestDao {
     fun loadAll(): Flow<List<FriendRequest>>
 
     @Query("SELECT * FROM friend_requests WHERE public_key == :publicKey")
-    fun load(publicKey: String): Flow<FriendRequest>
+    fun load(publicKey: String): Flow<FriendRequest?>
 
     @Query("SELECT COUNT(public_key) FROM friend_requests")
     fun count(): Int

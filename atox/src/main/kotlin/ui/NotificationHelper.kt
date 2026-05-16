@@ -50,6 +50,7 @@ import ltd.evilcorp.core.vo.Contact
 import ltd.evilcorp.core.vo.FriendRequest
 import ltd.evilcorp.core.vo.PublicKey
 import ltd.evilcorp.core.vo.UserStatus
+import ltd.evilcorp.domain.tox.FINGERPRINT_LEN
 
 private const val TAG = "NotificationHelper"
 
@@ -303,11 +304,9 @@ class NotificationHelper @Inject constructor(private val context: Context) {
     }
 
     fun showPendingCallNotification(status: UserStatus, c: Contact) {
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
+        val permission = ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+        Log.i(TAG, "showPendingCallNotification: pk=${c.publicKey.take(8)}, status=$status, permission=$permission")
+        if (permission != PackageManager.PERMISSION_GRANTED) {
             Log.w(TAG, "Call pending, notifications disallowed")
             return
         }
@@ -328,7 +327,7 @@ class NotificationHelper @Inject constructor(private val context: Context) {
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setSmallIcon(android.R.drawable.ic_menu_call)
             .setContentTitle(context.getString(R.string.incoming_call))
-            .setContentText(context.getString(R.string.incoming_call_from, c.name))
+            .setContentText(context.getString(R.string.incoming_call_from, c.name.ifEmpty { c.publicKey.take(FINGERPRINT_LEN) }))
             .addAction(
                 NotificationCompat.Action
                     .Builder(

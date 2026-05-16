@@ -4,10 +4,10 @@
 
 package ltd.evilcorp.domain.tox
 
-import im.tox.tox4j.core.enums.ToxConnection
-import im.tox.tox4j.core.enums.ToxFileKind
-import im.tox.tox4j.core.enums.ToxMessageType
-import im.tox.tox4j.core.enums.ToxUserStatus
+import ltd.evilcorp.domain.tox.enums.ToxConnection
+import ltd.evilcorp.domain.tox.enums.ToxFileKind
+import ltd.evilcorp.domain.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.tox.enums.ToxUserStatus
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

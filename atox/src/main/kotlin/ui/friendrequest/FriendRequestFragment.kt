@@ -40,6 +40,7 @@ class FriendRequestFragment : BaseFragment<FragmentFriendRequestBinding>(Fragmen
         }
 
         vm.byId(PublicKey(requireStringArg(FRIEND_REQUEST_PUBLIC_KEY))).observe(viewLifecycleOwner) {
+            if (it == null) return@observe
             friendRequest = it
             from.text = it.publicKey
             message.text = it.message

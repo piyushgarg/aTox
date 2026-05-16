@@ -8,8 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
-import im.tox.tox4j.core.exceptions.ToxNewException
-import im.tox.tox4j.crypto.exceptions.ToxDecryptionException
+
 import javax.inject.Inject
 import ltd.evilcorp.atox.ToxService
 import ltd.evilcorp.atox.settings.Settings
@@ -45,12 +44,9 @@ class ToxStarter @Inject constructor(
         try {
             tox.isBootstrapNeeded = true
             tox.start(options, password, eventListener, avEventListener)
-        } catch (e: ToxNewException) {
-            Log.e(TAG, e.message)
+        } catch (e: Exception) {
+            Log.e(TAG, e.message ?: "Unknown error")
             return testToxSave(options, password)
-        } catch (e: ToxDecryptionException) {
-            Log.e(TAG, e.message)
-            return ToxSaveStatus.Encrypted
         }
 
         // This can stay alive across core restarts and it doesn't work well when toxcore resets its numbers

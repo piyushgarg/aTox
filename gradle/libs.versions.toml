@@ -4,6 +4,7 @@ sdk-target = "35"
 
 ksp = "2.3.6"
 android-plugin = "9.0.1"
+ndk = "30.0.14904198"
 
 coroutines = "1.10.2"
 # TODO(robinlinden): dagger 2.56.x (last tested 2.56.2) results in:
@@ -16,8 +17,11 @@ espresso = "3.7.0"
 lifecycle = "2.9.3"
 navigation = "2.9.4"
 room = "2.7.2" # >=2.8.0 needs minSdk 23.
-tox4j-android = "0.2.20"
-tox4j-core = "0.2.3"
+libsodium = "1.0.20-RELEASE"
+opus = "1.4"
+libvpx = "v1.14.1"
+toxcore = "v0.2.20"
+
 
 [plugins]
 kotlinKsp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
@@ -60,12 +64,6 @@ nayuki-qrcodegen = "io.nayuki:qrcodegen:1.8.0"
 square-leakcanary = "com.squareup.leakcanary:leakcanary-android:2.14"
 square-picasso = "com.squareup.picasso:picasso:2.8"
 
-tox4j-android-aarch64 = { module = "org.toktok:tox4j-c_aarch64-linux-android", version.ref = "tox4j-android" }
-tox4j-android-arm = { module = "org.toktok:tox4j-c_armv7a-linux-androideabi", version.ref = "tox4j-android" }
-tox4j-android-i686 = { module = "org.toktok:tox4j-c_i686-linux-android", version.ref = "tox4j-android" }
-tox4j-android-amd64 = { module = "org.toktok:tox4j-c_x86_64-linux-android", version.ref = "tox4j-android" }
-tox4j-api = { module = "org.toktok:tox4j-api_2.11", version.ref = "tox4j-core" }
-tox4j-c = { module = "org.toktok:tox4j-c_2.11", version.ref = "tox4j-core" }
 
 test-espresso-contrib = { module = "androidx.test.espresso:espresso-contrib", version.ref = "espresso" }
 test-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }

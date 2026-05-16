@@ -11,7 +11,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.core.net.toUri
-import im.tox.tox4j.core.enums.ToxFileControl
+import ltd.evilcorp.domain.tox.enums.ToxFileControl
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile

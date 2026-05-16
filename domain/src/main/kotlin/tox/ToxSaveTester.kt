@@ -4,10 +4,6 @@
 
 package ltd.evilcorp.domain.tox
 
-import im.tox.tox4j.core.exceptions.ToxNewException
-import im.tox.tox4j.impl.jni.ToxCoreImpl
-import im.tox.tox4j.impl.jni.ToxCryptoImpl
-
 enum class ToxSaveStatus {
     Ok,
     BadFormat,
@@ -22,27 +18,24 @@ enum class ToxSaveStatus {
     SaveNotFound,
 }
 
-fun testToxSave(options: SaveOptions, password: String?): ToxSaveStatus = try {
-    val toxOptions = if (password == null) {
-        options.toToxOptions()
-    } else {
-        val salt = ToxCryptoImpl.getSalt(options.saveData)
-        val passkey = ToxCryptoImpl.passKeyDeriveWithSalt(password.toByteArray(), salt)
-        options.copy(saveData = ToxCryptoImpl.decrypt(options.saveData, passkey)).toToxOptions()
-    }
-    val t = ToxCoreImpl(toxOptions)
-    t.close()
-    ToxSaveStatus.Ok
-} catch (e: ToxNewException) {
-    when (e.code()!!) {
-        ToxNewException.Code.LOAD_BAD_FORMAT -> ToxSaveStatus.BadFormat
-        ToxNewException.Code.LOAD_ENCRYPTED -> ToxSaveStatus.Encrypted
-        ToxNewException.Code.MALLOC -> ToxSaveStatus.OutOfMemory
-        ToxNewException.Code.NULL -> ToxSaveStatus.Null
-        ToxNewException.Code.PORT_ALLOC -> ToxSaveStatus.PortAlloc
-        ToxNewException.Code.PROXY_BAD_HOST -> ToxSaveStatus.BadProxyHost
-        ToxNewException.Code.PROXY_BAD_PORT -> ToxSaveStatus.BadProxyPort
-        ToxNewException.Code.PROXY_BAD_TYPE -> ToxSaveStatus.BadProxyType
-        ToxNewException.Code.PROXY_NOT_FOUND -> ToxSaveStatus.ProxyNotFound
+fun testToxSave(options: SaveOptions, password: String?): ToxSaveStatus {
+    val native = NativeTox()
+    return try {
+        val saveData = if (password != null && options.saveData != null) {
+            val salt = native.getSalt(options.saveData) ?: return ToxSaveStatus.BadFormat
+            val passkey = native.passKeyDeriveWithSalt(password.toByteArray(), salt)
+                ?: return ToxSaveStatus.OutOfMemory
+            native.passDecrypt(options.saveData, passkey) ?: return ToxSaveStatus.Encrypted
+        } else {
+            options.saveData
+        }
+        val toxPtr = native.toxNew(saveData)
+        if (toxPtr == 0L) {
+            return ToxSaveStatus.BadFormat
+        }
+        native.toxKill(toxPtr)
+        ToxSaveStatus.Ok
+    } catch (e: Exception) {
+        ToxSaveStatus.BadFormat
     }
 }

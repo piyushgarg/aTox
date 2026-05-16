@@ -5,14 +5,8 @@
 package ltd.evilcorp.domain.tox
 
 import android.util.Log
-import im.tox.tox4j.av.enums.ToxavCallControl
-import im.tox.tox4j.core.enums.ToxFileControl
-import im.tox.tox4j.core.exceptions.ToxFileControlException
-import im.tox.tox4j.core.exceptions.ToxFileSendChunkException
-import im.tox.tox4j.core.exceptions.ToxFriendAddException
-import im.tox.tox4j.core.exceptions.ToxFriendCustomPacketException
-import im.tox.tox4j.impl.jni.ToxAvImpl
-import im.tox.tox4j.impl.jni.ToxCoreImpl
+import ltd.evilcorp.domain.tox.enums.ToxavCallControl
+import ltd.evilcorp.domain.tox.enums.ToxFileControl
 import kotlin.random.Random
 import ltd.evilcorp.core.vo.FileKind
 import ltd.evilcorp.core.vo.MessageType
@@ -42,14 +36,17 @@ class ToxWrapper(
     private val avEventListener: ToxAvEventListener,
     options: SaveOptions,
 ) {
-    private val tox: ToxCoreImpl =
-        ToxCoreImpl(
-            options.toToxOptions()
-                .also { Log.i(TAG, "Starting Tox with options $it") },
-        )
-    private val av: ToxAvImpl = ToxAvImpl(tox)
+    private val nativeTox = NativeTox()
+    private val nativeToxAv = NativeToxAv()
+    private var toxPtr: Long = 0
+    private var toxavPtr: Long = 0
 
     init {
+        val sd = options.saveData
+        toxPtr = nativeTox.toxNew(sd)
+        if (toxPtr != 0L) {
+            toxavPtr = nativeToxAv.toxavNew(toxPtr)
+        }
         updateContactMapping()
     }
 
@@ -60,134 +57,136 @@ class ToxWrapper(
     }
 
     fun bootstrap(address: String, port: Int, publicKey: ByteArray) {
-        tox.bootstrap(address, port, publicKey)
-        tox.addTcpRelay(address, port, publicKey)
+        nativeTox.toxBootstrap(toxPtr, address, port, publicKey)
+        nativeTox.toxAddTcpRelay(toxPtr, address, port, publicKey)
     }
 
     fun stop() {
-        av.close()
-        tox.close()
+        nativeToxAv.toxavKill(toxavPtr)
+        nativeTox.toxKill(toxPtr)
+        toxavPtr = 0
+        toxPtr = 0
         Log.i(TAG, "Killed Tox")
     }
 
-    fun iterate(): Unit = tox.iterate(eventListener, Unit)
-    fun iterateAv(): Unit = av.iterate(avEventListener, Unit)
-    fun iterationInterval(): Long = tox.iterationInterval().toLong()
-    fun iterationIntervalAv(): Long = av.iterationInterval().toLong()
+    fun iterate(): Unit = nativeTox.toxIterate(toxPtr, eventListener)
+    fun iterateAv(): Unit = nativeToxAv.toxavIterate(toxavPtr, avEventListener)
+    fun iterationInterval(): Long = nativeTox.toxIterationInterval(toxPtr).toLong()
+    fun iterationIntervalAv(): Long = nativeToxAv.toxavIterationInterval(toxavPtr).toLong()
 
-    fun getName(): String = String(tox.name)
+    fun getName(): String = String(nativeTox.toxGetName(toxPtr))
     fun setName(name: String) {
-        tox.name = name.toByteArray()
+        nativeTox.toxSetName(toxPtr, name.toByteArray())
     }
 
-    fun getStatusMessage(): String = String(tox.statusMessage)
+    fun getStatusMessage(): String = String(nativeTox.toxGetStatusMessage(toxPtr))
     fun setStatusMessage(statusMessage: String) {
-        tox.statusMessage = statusMessage.toByteArray()
+        nativeTox.toxSetStatusMessage(toxPtr, statusMessage.toByteArray())
     }
 
-    fun getToxId() = ToxID.fromBytes(tox.address)
-    fun getPublicKey() = PublicKey.fromBytes(tox.publicKey)
-    fun getNospam(): Int = tox.nospam
+    fun getToxId() = ToxID.fromBytes(nativeTox.toxGetAddress(toxPtr))
+    fun getPublicKey() = PublicKey.fromBytes(nativeTox.toxGetPublicKey(toxPtr))
+    fun getNospam(): Int = nativeTox.toxGetNospam(toxPtr)
     fun setNospam(value: Int) {
-        tox.nospam = value
+        nativeTox.toxSetNospam(toxPtr, value)
     }
 
-    fun getSaveData() = tox.savedata
+    fun getSaveData() = nativeTox.toxGetSavedata(toxPtr)
 
     fun addContact(toxId: ToxID, message: String) {
-        tox.addFriend(toxId.bytes(), message.toByteArray())
+        nativeTox.toxAddFriend(toxPtr, toxId.bytes(), message.toByteArray())
         updateContactMapping()
     }
 
     fun deleteContact(pk: PublicKey) {
         Log.i(TAG, "Deleting ${pk.fingerprint()}")
-        tox.friendList.find { PublicKey.fromBytes(tox.getFriendPublicKey(it)) == pk }?.let { friend ->
-            tox.deleteFriend(friend)
-        } ?: Log.e(
-            TAG,
-            "Tried to delete nonexistent contact, this can happen if the database is out of sync with the Tox save",
-        )
-
+        val friendNumber = nativeTox.toxFriendByPublicKey(toxPtr, pk.bytes())
+        if (friendNumber != -1) {
+            nativeTox.toxDeleteFriend(toxPtr, friendNumber)
+        } else {
+            Log.e(TAG, "Tried to delete nonexistent contact, this can happen if the database is out of sync with the Tox save")
+        }
         updateContactMapping()
     }
 
     fun getContacts(): List<Pair<PublicKey, Int>> {
-        val friendNumbers = tox.friendList
+        val friendNumbers = nativeTox.toxGetFriendList(toxPtr)
         Log.i(TAG, "Loading ${friendNumbers.size} friends")
         return List(friendNumbers.size) {
-            Pair(PublicKey.fromBytes(tox.getFriendPublicKey(friendNumbers[it])), friendNumbers[it])
+            Pair(PublicKey.fromBytes(nativeTox.toxGetFriendPublicKey(toxPtr, friendNumbers[it])), friendNumbers[it])
         }
     }
 
-    fun sendMessage(publicKey: PublicKey, message: String, type: MessageType): Int = tox.friendSendMessage(
+    fun sendMessage(publicKey: PublicKey, message: String, type: MessageType): Int = nativeTox.toxFriendSendMessage(
+        toxPtr,
         contactByKey(publicKey),
-        type.toToxType(),
-        0,
+        type.toToxType().ordinal,
         message.toByteArray(),
     )
 
-    fun acceptFriendRequest(pk: PublicKey) = try {
-        tox.addFriendNorequest(pk.bytes())
-        updateContactMapping()
-    } catch (e: ToxFriendAddException) {
-        Log.e(TAG, "Exception while accepting friend request $pk: $e")
+    fun acceptFriendRequest(pk: PublicKey) {
+        try {
+            nativeTox.toxAddFriendNorequest(toxPtr, pk.bytes())
+            updateContactMapping()
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception while accepting friend request $pk: $e")
+        }
     }
 
-    fun startFileTransfer(pk: PublicKey, fileNumber: Int) = try {
-        tox.fileControl(contactByKey(pk), fileNumber, ToxFileControl.RESUME)
-    } catch (e: ToxFileControlException) {
-        Log.e(TAG, "Error starting ft ${pk.fingerprint()} $fileNumber\n$e")
+    fun startFileTransfer(pk: PublicKey, fileNumber: Int) {
+        try {
+            nativeTox.toxFileControl(toxPtr, contactByKey(pk), fileNumber, ToxFileControl.RESUME.ordinal)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting ft ${pk.fingerprint()} $fileNumber\n$e")
+        }
     }
 
-    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = try {
-        tox.fileControl(contactByKey(pk), fileNumber, ToxFileControl.CANCEL)
-    } catch (e: ToxFileControlException) {
-        Log.e(TAG, "Error stopping ft ${pk.fingerprint()} $fileNumber\n$e")
+    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) {
+        try {
+            nativeTox.toxFileControl(toxPtr, contactByKey(pk), fileNumber, ToxFileControl.CANCEL.ordinal)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping ft ${pk.fingerprint()} $fileNumber\n$e")
+        }
     }
 
-    fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String) = try {
-        tox.fileSend(contactByKey(pk), fileKind.toToxtype(), fileSize, Random.nextBytes(32), fileName.toByteArray())
-    } catch (e: ToxFileControlException) {
-        Log.e(TAG, "Error sending ft $fileName ${pk.fingerprint()}\n$e")
+    fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String): Int {
+        return try {
+            nativeTox.toxFileSend(toxPtr, contactByKey(pk), fileKind.toToxtype(), fileSize, Random.nextBytes(32), fileName.toByteArray())
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending ft $fileName ${pk.fingerprint()}\n$e")
+            -1
+        }
     }
 
     fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> = try {
-        tox.fileSendChunk(contactByKey(pk), fileNo, pos, data)
+        nativeTox.toxFileSendChunk(toxPtr, contactByKey(pk), fileNo, pos, data)
         Result.success(Unit)
-    } catch (e: ToxFileSendChunkException) {
+    } catch (e: Exception) {
         Log.e(TAG, "Error sending chunk $pos:${data.size} to ${pk.fingerprint()} $fileNo\n$e")
         Result.failure(e)
     }
 
-    fun setTyping(publicKey: PublicKey, typing: Boolean) = tox.setTyping(contactByKey(publicKey), typing)
+    fun setTyping(publicKey: PublicKey, typing: Boolean) = nativeTox.toxSetTyping(toxPtr, contactByKey(publicKey), typing)
 
-    fun getStatus() = tox.status.toUserStatus()
+    fun getStatus() = UserStatus.entries[nativeTox.toxGetSelfUserStatus(toxPtr)]
     fun setStatus(status: UserStatus) {
-        tox.status = status.toToxType()
+        nativeTox.toxSetSelfUserStatus(toxPtr, status.toToxType().ordinal)
     }
 
     fun sendLosslessPacket(pk: PublicKey, packet: ByteArray): CustomPacketError = try {
-        tox.friendSendLosslessPacket(contactByKey(pk), packet)
+        nativeTox.toxFriendSendLosslessPacket(toxPtr, contactByKey(pk), packet)
         CustomPacketError.Success
-    } catch (e: ToxFriendCustomPacketException) {
-        when (e.code()) {
-            ToxFriendCustomPacketException.Code.EMPTY -> CustomPacketError.Empty
-            ToxFriendCustomPacketException.Code.FRIEND_NOT_CONNECTED -> CustomPacketError.FriendNotConnected
-            ToxFriendCustomPacketException.Code.FRIEND_NOT_FOUND -> CustomPacketError.FriendNotFound
-            ToxFriendCustomPacketException.Code.INVALID -> CustomPacketError.Invalid
-            ToxFriendCustomPacketException.Code.NULL -> CustomPacketError.Null
-            ToxFriendCustomPacketException.Code.SENDQ -> CustomPacketError.Sendq
-            ToxFriendCustomPacketException.Code.TOO_LONG -> CustomPacketError.TooLong
-            null -> TODO()
-        }
+    } catch (e: Exception) {
+        Log.e(TAG, "Error sending lossless packet: $e")
+        CustomPacketError.Invalid
     }
 
-    private fun contactByKey(pk: PublicKey): Int = tox.friendByPublicKey(pk.bytes())
+    private fun contactByKey(pk: PublicKey): Int = nativeTox.toxFriendByPublicKey(toxPtr, pk.bytes())
 
     // ToxAv, probably move these.
-    fun startCall(pk: PublicKey) = av.call(contactByKey(pk), AUDIO_BIT_RATE, 0)
-    fun answerCall(pk: PublicKey) = av.answer(contactByKey(pk), AUDIO_BIT_RATE, 0)
-    fun endCall(pk: PublicKey) = av.callControl(contactByKey(pk), ToxavCallControl.CANCEL)
+    fun startCall(pk: PublicKey) = nativeToxAv.toxavCall(toxavPtr, contactByKey(pk), AUDIO_BIT_RATE, 0)
+    fun answerCall(pk: PublicKey) = nativeToxAv.toxavAnswer(toxavPtr, contactByKey(pk), AUDIO_BIT_RATE, 0)
+    fun endCall(pk: PublicKey) = nativeToxAv.toxavCallControl(toxavPtr, contactByKey(pk), ToxavCallControl.CANCEL.ordinal)
     fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) =
-        av.audioSendFrame(contactByKey(pk), pcm, pcm.size, channels, samplingRate)
+        nativeToxAv.toxavAudioSendFrame(toxavPtr, contactByKey(pk), pcm, pcm.size, channels, samplingRate)
 }

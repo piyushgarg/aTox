@@ -20,6 +20,7 @@ import ltd.evilcorp.atox.databinding.FriendRequestItemBinding
 import ltd.evilcorp.atox.ui.AvatarImageView
 import ltd.evilcorp.core.vo.Contact
 import ltd.evilcorp.core.vo.FriendRequest
+import ltd.evilcorp.core.vo.FINGERPRINT_LEN
 
 enum class ContactListItemType {
     FriendRequest,
@@ -81,8 +82,8 @@ class ContactAdapter(private val inflater: LayoutInflater, private val context: 
                 contacts[position - friendRequests.size].run {
                     name = name.ifEmpty { context.getString(R.string.contact_default_name) }
 
-                    val shortId = publicKey.take(8)
-                    vh.publicKey.text = String.format("%s %s", shortId.take(4), shortId.takeLast(4))
+                    val shortId = publicKey.take(FINGERPRINT_LEN)
+                    vh.publicKey.text = String.format("%s %s", shortId.take(shortId.length / 2), shortId.takeLast(shortId.length / 2))
                     vh.name.text = name
                     vh.lastMessage.text = if (lastMessage != 0L) {
                         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)

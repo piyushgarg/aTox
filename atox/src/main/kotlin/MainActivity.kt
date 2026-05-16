@@ -12,12 +12,20 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.bundleOf
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import ltd.evilcorp.atox.di.ViewModelFactory
 import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.ui.NotificationHelper
+import ltd.evilcorp.atox.ui.chat.CONTACT_PUBLIC_KEY
 import ltd.evilcorp.atox.ui.contactlist.ARG_ADD_CONTACT
 import ltd.evilcorp.atox.ui.contactlist.ARG_SHARE
+import ltd.evilcorp.core.vo.PublicKey
+import ltd.evilcorp.domain.feature.CallManager
+import ltd.evilcorp.domain.tox.FINGERPRINT_LEN
 
 private const val TAG = "MainActivity"
 private const val SCHEME = "tox:"
@@ -32,6 +40,12 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var settings: Settings
+    @Inject
+    lateinit var callManager: CallManager
+    @Inject
+    lateinit var notificationHelper: NotificationHelper
+
+    private var incomingCallDialog: android.app.AlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         (application as App).component.inject(this)
@@ -49,6 +63,39 @@ class MainActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContentView(R.layout.activity_main)
+
+        lifecycleScope.launch {
+            callManager.pendingCalls.collect { calls ->
+                if (calls.isEmpty()) {
+                    incomingCallDialog?.dismiss()
+                    incomingCallDialog = null
+                    return@collect
+                }
+
+                if (incomingCallDialog != null) return@collect
+
+                val contact = calls.first()
+                incomingCallDialog = android.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle(R.string.incoming_call)
+                    .setMessage(getString(R.string.incoming_call_from, contact.name.ifEmpty { contact.publicKey.take(FINGERPRINT_LEN) }))
+                    .setPositiveButton(R.string.accept) { _, _ ->
+                        val pk = PublicKey(contact.publicKey)
+                        callManager.startCall(pk)
+                        notificationHelper.showOngoingCallNotification(contact)
+                        notificationHelper.dismissCallNotification(pk)
+                        supportFragmentManager.findFragmentById(R.id.nav_host_fragment)?.findNavController()?.navigate(
+                            R.id.callFragment,
+                            bundleOf(CONTACT_PUBLIC_KEY to contact.publicKey),
+                        )
+                    }
+                    .setNegativeButton(R.string.reject) { _, _ ->
+                        callManager.endCall(PublicKey(contact.publicKey))
+                        notificationHelper.dismissCallNotification(PublicKey(contact.publicKey))
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+        }
 
         // Only handle intent the first time it triggers the app.
         if (savedInstanceState != null) return

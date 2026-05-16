@@ -5,11 +5,10 @@
 
 package ltd.evilcorp.domain.tox
 
-import im.tox.tox4j.core.callbacks.ToxCoreEventListener
-import im.tox.tox4j.core.enums.ToxConnection
-import im.tox.tox4j.core.enums.ToxFileControl
-import im.tox.tox4j.core.enums.ToxMessageType
-import im.tox.tox4j.core.enums.ToxUserStatus
+import ltd.evilcorp.domain.tox.enums.ToxConnection
+import ltd.evilcorp.domain.tox.enums.ToxFileControl
+import ltd.evilcorp.domain.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.tox.enums.ToxUserStatus
 import javax.inject.Inject
 import ltd.evilcorp.core.vo.ConnectionStatus
 import ltd.evilcorp.core.vo.PublicKey
@@ -36,7 +35,7 @@ typealias SelfConnectionStatusHandler = (status: ConnectionStatus) -> Unit
 typealias FriendTypingHandler = (publicKey: String, isTyping: Boolean) -> Unit
 typealias FileChunkRequestHandler = (publicKey: String, fileNo: Int, position: Long, length: Int) -> Unit
 
-class ToxEventListener @Inject constructor() : ToxCoreEventListener<Unit> {
+class ToxEventListener @Inject constructor() {
     var contactMapping: List<Pair<PublicKey, Int>> = listOf()
 
     var friendLosslessPacketHandler: FriendLosslessPacketHandler = { _, _ -> }
@@ -57,48 +56,94 @@ class ToxEventListener @Inject constructor() : ToxCoreEventListener<Unit> {
 
     private fun keyFor(friendNo: Int) = contactMapping.find { it.second == friendNo }!!.first.string()
 
-    override fun friendLosslessPacket(friendNo: Int, data: ByteArray, s: Unit?) =
+    fun friendLosslessPacket(friendNo: Int, data: ByteArray) =
         friendLosslessPacketHandler(keyFor(friendNo), data)
 
-    override fun fileRecvControl(friendNo: Int, fileNo: Int, control: ToxFileControl, s: Unit?) =
+    fun fileRecvControl(friendNo: Int, fileNo: Int, control: ToxFileControl) =
         fileRecvControlHandler(keyFor(friendNo), fileNo, control)
 
-    override fun friendStatusMessage(friendNo: Int, message: ByteArray, s: Unit?) =
+    fun friendStatusMessage(friendNo: Int, message: ByteArray) =
         friendStatusMessageHandler(keyFor(friendNo), String(message))
 
-    override fun friendReadReceipt(friendNo: Int, messageId: Int, s: Unit?): Unit =
+    fun friendReadReceipt(friendNo: Int, messageId: Int) =
         friendReadReceiptHandler(keyFor(friendNo), messageId)
 
-    override fun friendStatus(friendNo: Int, status: ToxUserStatus, s: Unit?) =
+    fun friendStatus(friendNo: Int, status: ToxUserStatus) =
         friendStatusHandler(keyFor(friendNo), status.toUserStatus())
 
-    override fun friendConnectionStatus(friendNo: Int, status: ToxConnection, s: Unit?) =
+    fun friendConnectionStatus(friendNo: Int, status: ToxConnection) =
         friendConnectionStatusHandler(keyFor(friendNo), status.toConnectionStatus())
 
-    override fun friendRequest(publicKey: ByteArray, timeDelta: Int, message: ByteArray, s: Unit?) =
+    fun friendRequest(publicKey: ByteArray, timeDelta: Int, message: ByteArray) =
         friendRequestHandler(publicKey.bytesToHex(), timeDelta, String(message))
 
-    override fun friendMessage(friendNo: Int, type: ToxMessageType, timeDelta: Int, message: ByteArray, s: Unit?) =
+    fun friendMessage(friendNo: Int, type: ToxMessageType, timeDelta: Int, message: ByteArray) =
         friendMessageHandler(keyFor(friendNo), type, timeDelta, String(message))
 
-    override fun friendName(friendNo: Int, newName: ByteArray, s: Unit?) =
+    fun friendName(friendNo: Int, newName: ByteArray) =
         friendNameHandler(keyFor(friendNo), String(newName))
 
-    override fun fileRecvChunk(friendNo: Int, fileNo: Int, position: Long, data: ByteArray, s: Unit?) =
+    fun fileRecvChunk(friendNo: Int, fileNo: Int, position: Long, data: ByteArray) =
         fileRecvChunkHandler(keyFor(friendNo), fileNo, position, data)
 
-    override fun fileRecv(friendNo: Int, fileNo: Int, kind: Int, fileSize: Long, filename: ByteArray, s: Unit?) =
+    fun fileRecv(friendNo: Int, fileNo: Int, kind: Int, fileSize: Long, filename: ByteArray) =
         fileRecvHandler(keyFor(friendNo), fileNo, kind, fileSize, String(filename))
 
-    override fun friendLossyPacket(friendNo: Int, data: ByteArray, s: Unit?) =
+    fun friendLossyPacket(friendNo: Int, data: ByteArray) =
         friendLossyPacketHandler(keyFor(friendNo), data)
 
-    override fun selfConnectionStatus(connectionStatus: ToxConnection, s: Unit?) =
+    fun selfConnectionStatus(connectionStatus: ToxConnection) =
         selfConnectionStatusHandler(connectionStatus.toConnectionStatus())
 
-    override fun friendTyping(friendNo: Int, isTyping: Boolean, s: Unit?) =
+    fun friendTyping(friendNo: Int, isTyping: Boolean) =
         friendTypingHandler(keyFor(friendNo), isTyping)
 
-    override fun fileChunkRequest(friendNo: Int, fileNo: Int, position: Long, length: Int, s: Unit?) =
+    fun fileChunkRequest(friendNo: Int, fileNo: Int, position: Long, length: Int) =
         fileChunkRequestHandler(keyFor(friendNo), fileNo, position, length)
+
+    // JNI Bridge methods
+    fun onFriendMessage(friendNo: Int, type: Int, timeDelta: Int, message: ByteArray) =
+        friendMessage(friendNo, ToxMessageType.fromInt(type), timeDelta, message)
+
+    fun onFriendRequest(publicKey: ByteArray, timeDelta: Int, message: ByteArray) =
+        friendRequest(publicKey, timeDelta, message)
+
+    fun onFriendConnectionStatus(friendNo: Int, status: Int) =
+        friendConnectionStatus(friendNo, ToxConnection.fromInt(status))
+
+    fun onSelfConnectionStatus(status: Int) =
+        selfConnectionStatus(ToxConnection.fromInt(status))
+
+    fun onFriendStatus(friendNo: Int, status: Int) =
+        friendStatus(friendNo, ToxUserStatus.fromInt(status))
+
+    fun onFriendStatusMessage(friendNo: Int, message: ByteArray) =
+        friendStatusMessage(friendNo, message)
+
+    fun onFriendName(friendNo: Int, name: ByteArray) =
+        friendName(friendNo, name)
+
+    fun onFriendTyping(friendNo: Int, isTyping: Boolean) =
+        friendTyping(friendNo, isTyping)
+
+    fun onFriendReadReceipt(friendNo: Int, messageId: Int) =
+        friendReadReceipt(friendNo, messageId)
+
+    fun onFileRecv(friendNo: Int, fileNo: Int, kind: Int, fileSize: Long, filename: ByteArray) =
+        fileRecv(friendNo, fileNo, kind, fileSize, filename)
+
+    fun onFileRecvControl(friendNo: Int, fileNo: Int, control: Int) =
+        fileRecvControl(friendNo, fileNo, ToxFileControl.fromInt(control))
+
+    fun onFileRecvChunk(friendNo: Int, fileNo: Int, position: Long, data: ByteArray) =
+        fileRecvChunk(friendNo, fileNo, position, data)
+
+    fun onFileChunkRequest(friendNo: Int, fileNo: Int, position: Long, length: Int) =
+        fileChunkRequest(friendNo, fileNo, position, length)
+
+    fun onFriendLosslessPacket(friendNo: Int, data: ByteArray) =
+        friendLosslessPacket(friendNo, data)
+
+    fun onFriendLossyPacket(friendNo: Int, data: ByteArray) =
+        friendLossyPacket(friendNo, data)
 }

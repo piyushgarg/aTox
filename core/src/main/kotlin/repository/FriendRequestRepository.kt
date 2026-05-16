@@ -18,7 +18,7 @@ class FriendRequestRepository @Inject internal constructor(private val friendReq
 
     fun getAll(): Flow<List<FriendRequest>> = friendRequestDao.loadAll()
 
-    fun get(publicKey: String): Flow<FriendRequest> = friendRequestDao.load(publicKey)
+    fun get(publicKey: String): Flow<FriendRequest?> = friendRequestDao.load(publicKey)
 
     fun count(): Int = friendRequestDao.count()
 }

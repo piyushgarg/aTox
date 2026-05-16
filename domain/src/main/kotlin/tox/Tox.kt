@@ -6,9 +6,7 @@
 package ltd.evilcorp.domain.tox
 
 import android.util.Log
-import im.tox.tox4j.core.exceptions.ToxBootstrapException
-import im.tox.tox4j.crypto.ToxCryptoConstants
-import im.tox.tox4j.impl.jni.ToxCryptoImpl
+
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.collections.forEach as kForEach
@@ -29,6 +27,7 @@ import ltd.evilcorp.core.vo.UserStatus
 
 private const val TAG = "Tox"
 private const val SLOW_ITERATION_LIMIT_MS = 10
+private const val TOX_SALT_LENGTH = 32
 
 @Singleton
 class Tox @Inject constructor(
@@ -58,9 +57,10 @@ class Tox @Inject constructor(
         passkey = if (new.isNullOrEmpty()) {
             null
         } else {
-            val salt = ByteArray(ToxCryptoConstants.SaltLength())
+            val salt = ByteArray(TOX_SALT_LENGTH)
             Random.Default.nextBytes(salt)
-            ToxCryptoImpl.passKeyDeriveWithSalt(new.toByteArray(), salt)
+            val nativeTox = NativeTox()
+            nativeTox.passKeyDeriveWithSalt(new.toByteArray(), salt)
         }
         password = new
         save()
@@ -69,16 +69,19 @@ class Tox @Inject constructor(
     private lateinit var tox: ToxWrapper
 
     fun start(saveOption: SaveOptions, password: String?, listener: ToxEventListener, avListener: ToxAvEventListener) {
+        val nativeTox = NativeTox()
         tox = if (password == null) {
             passkey = null
             ToxWrapper(listener, avListener, saveOption)
         } else {
-            val salt = ToxCryptoImpl.getSalt(saveOption.saveData)
-            passkey = ToxCryptoImpl.passKeyDeriveWithSalt(password.toByteArray(), salt)
+            val salt = nativeTox.getSalt(saveOption.saveData ?: ByteArray(0))
+            if (salt != null) {
+                passkey = nativeTox.passKeyDeriveWithSalt(password.toByteArray(), salt)
+            }
             ToxWrapper(
                 listener,
                 avListener,
-                saveOption.copy(saveData = ToxCryptoImpl.decrypt(saveOption.saveData, passkey)),
+                saveOption.copy(saveData = if (passkey != null) nativeTox.passDecrypt(saveOption.saveData ?: ByteArray(0), passkey!!) else saveOption.saveData),
             )
         }
 
@@ -112,7 +115,7 @@ class Tox @Inject constructor(
                     try {
                         bootstrap()
                         isBootstrapNeeded = false
-                    } catch (e: ToxBootstrapException) {
+                    } catch (e: Exception) {
                         Log.e(TAG, e.toString())
                     }
                 }
@@ -146,14 +149,17 @@ class Tox @Inject constructor(
     private val saveMutex = Mutex()
     private fun save() = scope.launch {
         saveMutex.withLock {
-            val passkey = passkey
+            if (!started) return@withLock
+            val saveData = tox.getSaveData()
+            val encryptedData = if (passkey != null) {
+                val nativeTox = NativeTox()
+                nativeTox.passEncrypt(saveData, passkey!!) ?: saveData
+            } else {
+                saveData
+            }
             saveManager.save(
                 publicKey,
-                if (passkey == null) {
-                    tox.getSaveData()
-                } else {
-                    ToxCryptoImpl.encrypt(tox.getSaveData(), passkey)
-                },
+                encryptedData
             )
         }
     }
@@ -205,11 +211,11 @@ class Tox @Inject constructor(
         tox.sendMessage(publicKey, message, type)
 
     fun getSaveData(): ByteArray {
-        val passkey = passkey
-        return if (passkey == null) {
+        val pk = passkey
+        return if (pk == null) {
             tox.getSaveData()
         } else {
-            ToxCryptoImpl.encrypt(tox.getSaveData(), passkey)
+            NativeTox().passEncrypt(tox.getSaveData(), pk) ?: tox.getSaveData()
         }
     }
 

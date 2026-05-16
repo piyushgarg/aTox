@@ -1,14 +1,32 @@
-*.iml
-.DS_Store
-.externalNativeBuild
-.gradle
-.idea
-bazel-*
-build
-captures
+# Android
+.gradle/
+.kotlin/
+build/
 local.properties
+.cxx/
+*.apk
+*.aar
 
-# gradle-from-source build
-_build
-_git
-_install
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+.navigation/
+captures/
+.externalNativeBuild/
+.history/
+.editorconfig
+
+# OS
+.DS_Store
+Thumbs.db
+
+# aTox Native Build Artifacts
+_build/
+_install/
+_git/
+_downloads/
+*.zip
+*.tar.gz
+*.txt
