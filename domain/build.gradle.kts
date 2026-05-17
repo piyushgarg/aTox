@@ -142,7 +142,7 @@ tasks.register<Exec>("buildNativeDependencies") {
             logger.lifecycle("[aTox Build] Проверка и автоматическая установка make, curl, tar, patch в MSYS2...")
             val pacmanProcess = ProcessBuilder(
                 msysBashFile.absolutePath, "-c", 
-                "pacman -S --noconfirm make curl tar patch"
+                "pacman -Sy --noconfirm make curl tar patch"
             ).inheritIO().start()
             
             val pacmanExitCode = pacmanProcess.waitFor()
