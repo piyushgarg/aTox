@@ -13,12 +13,12 @@ import kotlinx.coroutines.launch
 import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.repository.FriendRequestRepository
 import ltd.evilcorp.core.repository.MessageRepository
-import ltd.evilcorp.core.vo.Contact
-import ltd.evilcorp.core.vo.FriendRequest
-import ltd.evilcorp.core.vo.Message
-import ltd.evilcorp.core.vo.MessageType
-import ltd.evilcorp.core.vo.PublicKey
-import ltd.evilcorp.core.vo.Sender
+import ltd.evilcorp.core.model.Contact
+import ltd.evilcorp.core.model.FriendRequest
+import ltd.evilcorp.core.model.Message
+import ltd.evilcorp.core.model.MessageType
+import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.core.model.Sender
 import ltd.evilcorp.domain.tox.Tox
 
 class FriendRequestManager @Inject constructor(

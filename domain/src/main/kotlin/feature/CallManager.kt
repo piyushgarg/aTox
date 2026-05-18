@@ -6,6 +6,7 @@ package ltd.evilcorp.domain.feature
 
 import android.content.Context
 import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -17,9 +18,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import ltd.evilcorp.core.vo.Contact
-import ltd.evilcorp.core.vo.PublicKey
-import ltd.evilcorp.core.vo.FINGERPRINT_LEN
+import ltd.evilcorp.core.model.Contact
+import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.core.model.FINGERPRINT_LEN
 import ltd.evilcorp.domain.av.AudioCapture
 import ltd.evilcorp.domain.tox.Tox
 
@@ -66,7 +67,46 @@ class CallManager @Inject constructor(private val tox: Tox, private val scope: C
         }
     }
 
+    private var toneGenerator: ToneGenerator? = null
+    private var isConnected = false
+
+    private fun playTone(toneType: Int, durationMs: Int = -1) {
+        scope.launch {
+            try {
+                if (toneGenerator == null) {
+                    toneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 100)
+                }
+                toneGenerator?.startTone(toneType, durationMs)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error playing tone: $e")
+            }
+        }
+    }
+
+    private fun stopTone() {
+        scope.launch {
+            try {
+                toneGenerator?.stopTone()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping tone: $e")
+            }
+        }
+    }
+
+    fun onCallConnected() {
+        if (!isConnected) {
+            isConnected = true
+            stopTone()
+            playTone(ToneGenerator.TONE_PROP_BEEP, 200)
+        }
+    }
+
     fun startCall(publicKey: PublicKey) {
+        isConnected = false
+        val isOutgoing = !pendingCalls.value.any { it.publicKey == publicKey.string() }
+        if (isOutgoing) {
+            playTone(ToneGenerator.TONE_SUP_RINGTONE)
+        }
         if (pendingCalls.value.any { it.publicKey == publicKey.string() }) {
             tox.answerCall(publicKey)
         } else {
@@ -88,6 +128,10 @@ class CallManager @Inject constructor(private val tox: Tox, private val scope: C
     }
 
     fun terminate(publicKey: PublicKey) {
+        isConnected = false
+        stopTone()
+        playTone(ToneGenerator.TONE_PROP_PROMPT, 200)
+
         val state = inCall.value
         if (state is CallState.InCall && state.publicKey == publicKey) {
             audioManager?.mode = AudioManager.MODE_NORMAL

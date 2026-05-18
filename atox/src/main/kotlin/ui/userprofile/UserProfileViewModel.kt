@@ -8,8 +8,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import javax.inject.Inject
-import ltd.evilcorp.core.vo.User
-import ltd.evilcorp.core.vo.UserStatus
+import ltd.evilcorp.core.model.User
+import ltd.evilcorp.core.model.UserStatus
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.tox.Tox
 
@@ -17,7 +17,7 @@ class UserProfileViewModel @Inject constructor(private val userManager: UserMana
     ViewModel() {
     val publicKey by lazy { tox.publicKey }
     val toxId by lazy { tox.toxId }
-    val user: LiveData<User> = userManager.get(publicKey).asLiveData()
+    val user: LiveData<User?> = userManager.get(publicKey).asLiveData()
 
     fun setName(name: String) = userManager.setName(name)
     fun setStatusMessage(statusMessage: String) = userManager.setStatusMessage(statusMessage)

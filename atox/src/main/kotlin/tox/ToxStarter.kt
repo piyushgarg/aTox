@@ -10,18 +10,18 @@ import android.os.Build
 import android.util.Log
 
 import javax.inject.Inject
-import ltd.evilcorp.atox.ToxService
+import ltd.evilcorp.atox.service.ToxService
 import ltd.evilcorp.atox.settings.Settings
-import ltd.evilcorp.core.vo.PublicKey
+import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.domain.feature.FileTransferManager
 import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.tox.SaveManager
-import ltd.evilcorp.domain.tox.SaveOptions
+import ltd.evilcorp.core.tox.save.SaveManager
+import ltd.evilcorp.core.tox.save.SaveOptions
+import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.domain.tox.Tox
-import ltd.evilcorp.domain.tox.ToxAvEventListener
-import ltd.evilcorp.domain.tox.ToxEventListener
-import ltd.evilcorp.domain.tox.ToxSaveStatus
-import ltd.evilcorp.domain.tox.testToxSave
+import ltd.evilcorp.core.tox.listener.ToxAvEventListener
+import ltd.evilcorp.core.tox.listener.ToxEventListener
+import ltd.evilcorp.core.tox.save.ToxSaveStatus
 
 private const val TAG = "ToxStarter"
 
@@ -29,6 +29,7 @@ class ToxStarter @Inject constructor(
     private val fileTransferManager: FileTransferManager,
     private val saveManager: SaveManager,
     private val userManager: UserManager,
+    private val startupSynchronizer: ToxStartupSynchronizer,
     private val listenerCallbacks: EventListenerCallbacks,
     private val tox: Tox,
     private val eventListener: ToxEventListener,
@@ -48,6 +49,8 @@ class ToxStarter @Inject constructor(
             Log.e(TAG, e.message ?: "Unknown error")
             return testToxSave(options, password)
         }
+
+        startupSynchronizer.synchronizeAfterStart()
 
         // This can stay alive across core restarts and it doesn't work well when toxcore resets its numbers
         fileTransferManager.reset()

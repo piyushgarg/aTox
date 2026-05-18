@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinKsp)
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
 }
 
 kotlin {
@@ -42,6 +43,7 @@ android {
     }
     buildFeatures {
         buildConfig = true
+        compose = true
         viewBinding = true
     }
     lint {
@@ -55,6 +57,7 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity)
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.fragment)
@@ -64,8 +67,14 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
 
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.bundles.compose)
+    implementation("androidx.compose.material:material-icons-extended")
+    debugImplementation(libs.androidx.compose.ui.tooling)
+
     implementation(libs.androidx.navigation.fragment)
     implementation(libs.androidx.navigation.ui)
+    implementation(libs.androidx.navigation.compose)
 
     implementation(libs.androidx.preference)
 
@@ -97,3 +106,4 @@ dependencies {
         }
     }
 }
+

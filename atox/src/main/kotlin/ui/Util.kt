@@ -5,20 +5,12 @@
 
 package ltd.evilcorp.atox.ui
 
-import android.content.Context
 import android.content.res.Resources
 import android.util.TypedValue
-import androidx.core.content.ContextCompat
-import ltd.evilcorp.atox.R
-import ltd.evilcorp.core.vo.ConnectionStatus
-import ltd.evilcorp.core.vo.Contact
-import ltd.evilcorp.core.vo.UserStatus
+import ltd.evilcorp.core.model.ConnectionStatus
+import ltd.evilcorp.core.model.Contact
 
-internal fun colorFromStatus(context: Context, status: UserStatus) = when (status) {
-    UserStatus.None -> ContextCompat.getColor(context, R.color.statusAvailable)
-    UserStatus.Away -> ContextCompat.getColor(context, R.color.statusAway)
-    UserStatus.Busy -> ContextCompat.getColor(context, R.color.statusBusy)
-}
+
 
 internal sealed interface Size
 

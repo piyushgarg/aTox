@@ -16,6 +16,7 @@ import android.graphics.Typeface
 import androidx.core.graphics.createBitmap
 import kotlin.math.abs
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.theme.ContactBackgroundsInts
 
 internal object AvatarFactory {
 
@@ -38,7 +39,7 @@ internal object AvatarFactory {
         val bitmap = createBitmap(size.px, size.px)
         val canvas = Canvas(bitmap)
         val rect = RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
-        val colors = resources.getIntArray(R.array.contactBackgrounds)
+        val colors = ContactBackgroundsInts
         val backgroundPaint = Paint().apply { color = colors[abs(publicKey.hashCode()).rem(colors.size)] }
 
         val textPaint = Paint().apply {

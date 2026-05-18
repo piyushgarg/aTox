@@ -1,35 +1,86 @@
-// SPDX-FileCopyrightText: 2019-2025 Robin Lindén <dev@robinlinden.eu>
-//
-// SPDX-License-Identifier: GPL-3.0-only
-
 package ltd.evilcorp.atox
 
+import android.content.ContentResolver
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
+import android.webkit.MimeTypeMap
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.bundleOf
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.fragment.findNavController
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import ltd.evilcorp.domain.feature.CallState
+import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import ltd.evilcorp.atox.appearance.AppearanceManager
+import ltd.evilcorp.atox.service.AutoAway
 import ltd.evilcorp.atox.di.ViewModelFactory
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.atox.ui.chat.CONTACT_PUBLIC_KEY
-import ltd.evilcorp.atox.ui.contactlist.ARG_ADD_CONTACT
-import ltd.evilcorp.atox.ui.contactlist.ARG_SHARE
-import ltd.evilcorp.core.vo.FINGERPRINT_LEN
-import ltd.evilcorp.core.vo.PublicKey
+import ltd.evilcorp.atox.util.PermissionManager
+import ltd.evilcorp.atox.ui.addcontact.AddContactScreen
+import ltd.evilcorp.atox.ui.addcontact.AddContactViewModel
+import ltd.evilcorp.atox.ui.call.CallScreen
+import ltd.evilcorp.atox.ui.call.CallViewModel
+import ltd.evilcorp.atox.ui.chat.ChatScreen
+import ltd.evilcorp.atox.ui.chat.ChatViewModel
+import ltd.evilcorp.atox.ui.contactlist.ContactListScreen
+import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
+import ltd.evilcorp.atox.ui.createprofile.CreateProfileScreen
+import ltd.evilcorp.atox.ui.createprofile.CreateProfileViewModel
+import ltd.evilcorp.atox.ui.settings.SettingsScreen
+import ltd.evilcorp.atox.ui.theme.AToxTheme
+import ltd.evilcorp.atox.ui.userprofile.UserProfileScreen
+import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
+import ltd.evilcorp.core.model.Contact
+import ltd.evilcorp.core.model.FileTransfer
+import ltd.evilcorp.core.model.FINGERPRINT_LEN
+import ltd.evilcorp.core.model.MessageType
+import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.core.model.UserStatus
 import ltd.evilcorp.domain.feature.CallManager
+import ltd.evilcorp.core.tox.TOX_ID_LENGTH
+import ltd.evilcorp.core.tox.ToxID
+import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import java.io.File
 
 private const val TAG = "MainActivity"
 private const val SCHEME = "tox:"
-private const val TOX_ID_LENGTH = 76
+
+const val CONTACT_PUBLIC_KEY = "contact_public_key"
+const val FOCUS_ON_MESSAGE_BOX = "focus_on_message_box"
 
 class MainActivity : AppCompatActivity() {
     @Inject
@@ -40,29 +91,51 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var settings: Settings
+
     @Inject
     lateinit var callManager: CallManager
+
     @Inject
     lateinit var notificationHelper: NotificationHelper
 
+    @Inject
+    lateinit var appearanceManager: AppearanceManager
+
+    @Inject
+    lateinit var permissionManager: PermissionManager
+
     private var incomingCallDialog: android.app.AlertDialog? = null
+    private val initialToxIdToLink = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         (application as App).component.inject(this)
 
         super.onCreate(savedInstanceState)
 
-        if (settings.disableScreenshots) {
-            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        enableEdgeToEdge()
+        updateSecureWindow(settings.disableScreenshots)
+
+        setContent {
+            val appearance by appearanceManager.appearance.collectAsState()
+            val isDarkTheme = when (appearance.themeMode) {
+                AppCompatDelegate.MODE_NIGHT_YES -> true
+                AppCompatDelegate.MODE_NIGHT_NO -> false
+                else -> resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK ==
+                    android.content.res.Configuration.UI_MODE_NIGHT_YES
+            }
+
+            LaunchedEffect(appearance, isDarkTheme) {
+                syncSystemBars(isDarkTheme)
+            }
+
+            AToxTheme(
+                darkTheme = isDarkTheme,
+                dynamicColor = appearance.dynamicColorEnabled,
+                accentColorSeedArgb = appearance.accentColorSeed
+            ) {
+                AppNavigation(appearance)
+            }
         }
-
-        AppCompatDelegate.setDefaultNightMode(settings.theme)
-
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-
-        setContentView(R.layout.activity_main)
 
         lifecycleScope.launch {
             callManager.pendingCalls.collect { calls ->
@@ -83,10 +156,6 @@ class MainActivity : AppCompatActivity() {
                         callManager.startCall(pk)
                         notificationHelper.showOngoingCallNotification(contact)
                         notificationHelper.dismissCallNotification(pk)
-                        supportFragmentManager.findFragmentById(R.id.nav_host_fragment)?.findNavController()?.navigate(
-                            R.id.callFragment,
-                            bundleOf(CONTACT_PUBLIC_KEY to contact.publicKey),
-                        )
                     }
                     .setNegativeButton(R.string.reject) { _, _ ->
                         callManager.endCall(PublicKey(contact.publicKey))
@@ -97,9 +166,269 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Only handle intent the first time it triggers the app.
-        if (savedInstanceState != null) return
-        handleIntent(intent)
+        if (savedInstanceState == null) {
+            handleIntent(intent)
+        }
+    }
+
+    private fun syncSystemBars(isDarkTheme: Boolean) {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        window.attributes = window.attributes.apply {
+            dimAmount = 0f
+        }
+        window.decorView.alpha = 1f
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !isDarkTheme
+            isAppearanceLightNavigationBars = !isDarkTheme
+        }
+    }
+
+    private fun updateSecureWindow(disableScreenshots: Boolean) {
+        if (disableScreenshots) {
+            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
+    private fun updateLocale(localeTag: String) {
+        if (appearanceManager.appearance.value.localeTag == localeTag) return
+        appearanceManager.updateLocaleTag(localeTag)
+    }
+
+    @Composable
+    private fun AppNavigation(appearance: ltd.evilcorp.atox.appearance.AppAppearance) {
+        val navController = rememberNavController()
+
+        val callState by callManager.inCall.collectAsState()
+        LaunchedEffect(callState) {
+            val state = callState
+            if (state is CallState.InCall) {
+                navController.navigate("call/${state.publicKey.string()}") {
+                    launchSingleTop = true
+                }
+            } else {
+                if (navController.currentBackStackEntry?.destination?.route?.startsWith("call/") == true) {
+                    navController.popBackStack()
+                }
+            }
+        }
+
+        // Handle link intents
+        LaunchedEffect(initialToxIdToLink.value) {
+            initialToxIdToLink.value?.let { toxId ->
+                navController.navigate("add_contact?toxId=$toxId")
+                initialToxIdToLink.value = null
+            }
+        }
+
+        NavHost(
+            navController = navController,
+            startDestination = "launch"
+        ) {
+            composable("launch") {
+                val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
+                LaunchScreen(viewModel = viewModel, navController = navController)
+            }
+
+            composable("unlock") {
+                val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
+                UnlockScreen(
+                    viewModel = viewModel,
+                    onUnlockSuccess = {
+                        navController.navigate("contact_list") {
+                            popUpTo("unlock") { inclusive = true }
+                        }
+                    },
+                    onQuit = {
+                        finish()
+                    }
+                )
+            }
+
+            composable("contact_list") {
+                val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
+                val profileViewModel: UserProfileViewModel = viewModel(factory = vmFactory)
+                val addContactViewModel: AddContactViewModel = viewModel(factory = vmFactory)
+
+                val userState = viewModel.user.observeAsState()
+                val contactsState = viewModel.contacts.observeAsState(emptyList())
+                val friendRequestsState = viewModel.friendRequests.observeAsState(emptyList())
+
+                ContactListScreen(
+                    userState = userState,
+                    contactsState = contactsState,
+                    friendRequestsState = friendRequestsState,
+                    onAddContact = { toxIdStr, message -> addContactViewModel.addContact(ToxID(toxIdStr), message) },
+                    onContactClick = { contact -> navController.navigate("chat/${contact.publicKey}") },
+                    onDeleteContact = { contact -> viewModel.deleteContact(PublicKey(contact.publicKey)) },
+                    onAcceptFriendRequest = { req -> viewModel.acceptFriendRequest(req) },
+                    onRejectFriendRequest = { req -> viewModel.rejectFriendRequest(req) },
+                    onQuitTox = {
+                        if (viewModel.quittingNeedsConfirmation()) {
+                            android.app.AlertDialog.Builder(this@MainActivity)
+                                .setTitle(R.string.quit)
+                                .setMessage(R.string.quit_confirm)
+                                .setPositiveButton(R.string.confirm) { _, _ ->
+                                    viewModel.quitTox()
+                                    finish()
+                                }
+                                .setNegativeButton(R.string.reject, null)
+                                .show()
+                        } else {
+                            viewModel.quitTox()
+                            finish()
+                        }
+                    },
+                    toxId = profileViewModel.toxId.string(),
+                    onSetName = { name -> profileViewModel.setName(name) },
+                    onSetStatusMessage = { status -> profileViewModel.setStatusMessage(status) },
+                    onSetStatus = { status -> profileViewModel.setStatus(status) },
+                    settings = settings,
+                    appearance = appearance,
+                    onThemeChanged = appearanceManager::updateThemeMode,
+                    onDynamicColorChanged = appearanceManager::updateDynamicColorEnabled,
+                    onAccentColorSeedChanged = appearanceManager::updateAccentColorSeed,
+                    onLocaleTagChanged = ::updateLocale,
+                    onDisableScreenshotsChanged = { disable ->
+                        settings.disableScreenshots = disable
+                        updateSecureWindow(disable)
+                    },
+                    onLogout = {
+                        viewModel.deleteProfileAndData()
+                        navController.navigate("launch") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    vmFactory = vmFactory
+                )
+            }
+
+            composable("create_profile") {
+                val viewModel: CreateProfileViewModel = viewModel(factory = vmFactory)
+                CreateProfileScreen(
+                    onCreateProfile = { name ->
+                        val status = viewModel.createProfile(name)
+                        if (status != ToxSaveStatus.Ok) {
+                            return@CreateProfileScreen status
+                        }
+                        navController.navigate("contact_list") {
+                            popUpTo("create_profile") { inclusive = true }
+                        }
+                        ToxSaveStatus.Ok
+                    }
+                )
+            }
+
+            composable(
+                route = "chat/{publicKey}",
+                arguments = listOf(navArgument("publicKey") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val publicKeyStr = backStackEntry.arguments?.getString("publicKey") ?: ""
+                val viewModel: ChatViewModel = viewModel(factory = vmFactory)
+
+                LaunchedEffect(publicKeyStr) {
+                    viewModel.setActiveChat(PublicKey(publicKeyStr))
+                }
+
+                val contactState = viewModel.contact.observeAsState()
+                val messagesState = viewModel.messages.observeAsState()
+                val fileTransfersState = viewModel.fileTransfers.observeAsState(emptyList())
+
+                ChatScreen(
+                    contactState = contactState,
+                    messagesState = messagesState,
+                    fileTransfersState = fileTransfersState,
+                    settings = settings,
+                    onBack = {
+                        viewModel.setActiveChat(PublicKey(""))
+                        navController.popBackStack()
+                    },
+                    onSendMessage = { content ->
+                        viewModel.send(content, MessageType.Normal)
+                    },
+                    onSendFile = { uri ->
+                        viewModel.createFt(uri)
+                    },
+                    onCallClick = {
+                        navController.navigate("call/$publicKeyStr")
+                    },
+                    onAcceptFt = { id ->
+                        viewModel.acceptFt(id)
+                    },
+                    onRejectFt = { id ->
+                        viewModel.rejectFt(id)
+                    },
+                    onCancelFt = { msg ->
+                        viewModel.delete(msg)
+                    },
+                    onSaveFt = { id, destUri ->
+                        viewModel.exportFt(id, destUri)
+                    },
+                    onOpenFile = { ft ->
+                        openFile(ft)
+                    }
+                )
+            }
+
+            composable(
+                route = "call/{publicKey}",
+                arguments = listOf(navArgument("publicKey") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val publicKeyStr = backStackEntry.arguments?.getString("publicKey") ?: ""
+                val viewModel: CallViewModel = viewModel(factory = vmFactory)
+
+                LaunchedEffect(publicKeyStr) {
+                    viewModel.setActiveContact(PublicKey(publicKeyStr))
+                    viewModel.startCall()
+                }
+
+                val contactState = viewModel.contact.observeAsState()
+                val sendingAudioState = viewModel.sendingAudio.collectAsState()
+                val speakerphoneOnState = viewModel.speakerphoneState.collectAsState()
+
+                CallScreen(
+                    contactState = contactState,
+                    sendingAudioState = sendingAudioState,
+                    speakerphoneOnState = speakerphoneOnState,
+                    permissionManager = permissionManager,
+                    onToggleMic = {
+                        if (sendingAudioState.value) {
+                            viewModel.stopSendingAudio()
+                        } else {
+                            viewModel.startSendingAudio()
+                        }
+                    },
+                    onToggleSpeaker = {
+                        viewModel.toggleSpeakerphone()
+                    },
+                    onEndCall = {
+                        viewModel.endCall()
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable(
+                route = "add_contact?toxId={toxId}",
+                arguments = listOf(navArgument("toxId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                })
+            ) { backStackEntry ->
+                val toxIdArg = backStackEntry.arguments?.getString("toxId") ?: ""
+                val viewModel: AddContactViewModel = viewModel(factory = vmFactory)
+                AddContactScreen(
+                    initialToxId = toxIdArg,
+                    onBack = { navController.popBackStack() },
+                    onAddContact = { toxIdStr, message ->
+                        viewModel.addContact(ToxID(toxIdStr), message)
+                        navController.popBackStack()
+                    }
+                )
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -132,10 +461,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        supportFragmentManager.findFragmentById(R.id.nav_host_fragment)?.findNavController()?.navigate(
-            R.id.contactListFragment,
-            bundleOf(ARG_ADD_CONTACT to data.drop(SCHEME.length)),
-        )
+        val toxId = data.drop(SCHEME.length)
+        initialToxIdToLink.value = toxId
     }
 
     private fun handleShareIntent(intent: Intent) {
@@ -151,8 +478,236 @@ class MainActivity : AppCompatActivity() {
         }
 
         Log.i(TAG, "Got text share: $data")
-        val navController =
-            supportFragmentManager.findFragmentById(R.id.nav_host_fragment)?.findNavController() ?: return
-        navController.navigate(R.id.contactListFragment, bundleOf(ARG_SHARE to data))
+    }
+
+    fun openFile(ft: FileTransfer) {
+        try {
+            val uri = ft.destination.toUri()
+            val shareUri = prepareShareUri(uri)
+
+            val mimeType = contentResolver.getType(shareUri) ?: android.webkit.MimeTypeMap.getSingleton()
+                .getMimeTypeFromExtension(File(ft.fileName).extension.lowercase()) ?: "*/*"
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(shareUri, mimeType)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            try {
+                startActivity(intent)
+            } catch (e: android.content.ActivityNotFoundException) {
+                startActivity(Intent.createChooser(intent, getString(R.string.open_with)))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open file ${ft.fileName}", e)
+            val messageRes = if (e is SecurityException) {
+                R.string.open_file_security_failure
+            } else {
+                R.string.open_file_failure
+            }
+            android.widget.Toast.makeText(this, messageRes, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun prepareShareUri(uri: Uri): Uri {
+        if (uri.scheme == ContentResolver.SCHEME_FILE) {
+            return androidx.core.content.FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                File(requireNotNull(uri.path))
+            )
+        }
+
+        if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
+            val sharedDir = File(cacheDir, "shared").apply { mkdirs() }
+            val extension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
+            val suffix = if (extension.isNotEmpty()) ".$extension" else ""
+            val stagedFile = File(sharedDir, "shared_${System.currentTimeMillis()}$suffix")
+            contentResolver.openInputStream(uri)?.use { input ->
+                stagedFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: throw IllegalStateException("Unable to open $uri for sharing")
+            return androidx.core.content.FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                stagedFile
+            )
+        }
+
+        return uri
+    }
+}
+
+@Composable
+fun LaunchScreen(
+    viewModel: ContactListViewModel,
+    navController: androidx.navigation.NavController
+) {
+    LaunchedEffect(Unit) {
+        val status = viewModel.tryLoadTox(null)
+        when (status) {
+            ToxSaveStatus.Ok -> {
+                navController.navigate("contact_list") {
+                    popUpTo("launch") { inclusive = true }
+                }
+            }
+            ToxSaveStatus.SaveNotFound -> {
+                navController.navigate("create_profile") {
+                    popUpTo("launch") { inclusive = true }
+                }
+            }
+            ToxSaveStatus.Encrypted -> {
+                navController.navigate("unlock") {
+                    popUpTo("launch") { inclusive = true }
+                }
+            }
+            else -> {
+                navController.navigate("create_profile") {
+                    popUpTo("launch") { inclusive = true }
+                }
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 4.dp
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "aTox",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.secure_connection_loading),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun UnlockScreen(
+    viewModel: ContactListViewModel,
+    onUnlockSuccess: () -> Unit,
+    onQuit: () -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var isError by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.widthIn(max = 400.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = "Lock",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.unlock_profile_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.unlock_profile_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = {
+                    password = it
+                    isError = false
+                },
+                label = { Text(stringResource(R.string.password)) },
+                singleLine = true,
+                visualTransformation = if (passwordVisible) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
+                trailingIcon = {
+                    TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Text(if (passwordVisible) stringResource(R.string.hide) else stringResource(R.string.show), fontSize = 14.sp)
+                    }
+                },
+                isError = isError,
+                supportingText = {
+                    if (isError) {
+                        Text(
+                            text = stringResource(R.string.invalid_password),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = {
+                    isLoading = true
+                    val status = viewModel.tryLoadTox(password)
+                    if (status == ToxSaveStatus.Ok) {
+                        onUnlockSuccess()
+                    } else {
+                        isError = true
+                        isLoading = false
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = password.isNotEmpty() && !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                    } else {
+                    Text(stringResource(R.string.unlock))
+                    }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextButton(
+                    onClick = onQuit,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading
+                    ) {
+                    Text(stringResource(R.string.exit))
+                    }
+        }
     }
 }

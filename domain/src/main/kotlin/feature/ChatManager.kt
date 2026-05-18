@@ -14,12 +14,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.repository.MessageRepository
-import ltd.evilcorp.core.vo.ConnectionStatus
-import ltd.evilcorp.core.vo.Message
-import ltd.evilcorp.core.vo.MessageType
-import ltd.evilcorp.core.vo.PublicKey
-import ltd.evilcorp.core.vo.Sender
-import ltd.evilcorp.domain.tox.MAX_MESSAGE_LENGTH
+import ltd.evilcorp.core.model.ConnectionStatus
+import ltd.evilcorp.core.model.Message
+import ltd.evilcorp.core.model.MessageType
+import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.core.model.Sender
+import ltd.evilcorp.core.tox.MAX_MESSAGE_LENGTH
 import ltd.evilcorp.domain.tox.Tox
 
 private fun String.chunked(chunkSizeInBytes: Int): MutableList<String> {
@@ -60,7 +60,7 @@ class ChatManager @Inject constructor(
     fun messagesFor(publicKey: PublicKey) = messageRepository.get(publicKey.string())
 
     fun sendMessage(publicKey: PublicKey, message: String, type: MessageType = MessageType.Normal) = scope.launch {
-        if (contactRepository.get(publicKey.string()).first().connectionStatus == ConnectionStatus.None) {
+        if ((contactRepository.get(publicKey.string()).first()?.connectionStatus ?: ConnectionStatus.None) == ConnectionStatus.None) {
             queueMessage(publicKey, message, type)
             return@launch
         }

@@ -1,8 +1,3 @@
-// SPDX-FileCopyrightText: 2019-2025 Robin Lindén <dev@robinlinden.eu>
-// SPDX-FileCopyrightText: 2022 aTox contributors
-//
-// SPDX-License-Identifier: GPL-3.0-only
-
 package ltd.evilcorp.atox.ui
 
 import android.Manifest
@@ -30,27 +25,26 @@ import androidx.core.app.RemoteInput
 import androidx.core.content.getSystemService
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
-import androidx.core.os.bundleOf
-import androidx.navigation.NavDeepLinkBuilder
 import com.squareup.picasso.Picasso
 import com.squareup.picasso.Transformation
 import javax.inject.Inject
 import javax.inject.Singleton
-import ltd.evilcorp.atox.Action
-import ltd.evilcorp.atox.ActionReceiver
-import ltd.evilcorp.atox.KEY_ACTION
-import ltd.evilcorp.atox.KEY_CONTACT_PK
-import ltd.evilcorp.atox.KEY_TEXT_REPLY
-import ltd.evilcorp.atox.PendingIntentCompat
+import ltd.evilcorp.atox.receiver.Action
+import ltd.evilcorp.atox.receiver.ActionReceiver
+import ltd.evilcorp.atox.receiver.KEY_ACTION
+import ltd.evilcorp.atox.receiver.KEY_CONTACT_PK
+import ltd.evilcorp.atox.receiver.KEY_TEXT_REPLY
+import ltd.evilcorp.atox.util.PendingIntentCompat
+import ltd.evilcorp.atox.util.PermissionManager
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.hasPermission
-import ltd.evilcorp.atox.ui.chat.CONTACT_PUBLIC_KEY
-import ltd.evilcorp.atox.ui.chat.FOCUS_ON_MESSAGE_BOX
-import ltd.evilcorp.core.vo.Contact
-import ltd.evilcorp.core.vo.FriendRequest
-import ltd.evilcorp.core.vo.PublicKey
-import ltd.evilcorp.core.vo.UserStatus
-import ltd.evilcorp.core.vo.FINGERPRINT_LEN
+import ltd.evilcorp.atox.MainActivity
+import ltd.evilcorp.atox.CONTACT_PUBLIC_KEY
+import ltd.evilcorp.atox.FOCUS_ON_MESSAGE_BOX
+import ltd.evilcorp.core.model.Contact
+import ltd.evilcorp.core.model.FriendRequest
+import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.core.model.FINGERPRINT_LEN
 
 private const val TAG = "NotificationHelper"
 
@@ -59,7 +53,10 @@ private const val FRIEND_REQUEST = "aTox friend requests"
 private const val CALL = "aTox calls"
 
 @Singleton
-class NotificationHelper @Inject constructor(private val context: Context) {
+class NotificationHelper @Inject constructor(
+    private val context: Context,
+    private val permissionManager: PermissionManager
+) {
     private val notifier = NotificationManagerCompat.from(context)
     private val notifierOld = context.getSystemService<NotificationManager>()!!
 
@@ -77,8 +74,6 @@ class NotificationHelper @Inject constructor(private val context: Context) {
             .setName(context.getString(R.string.friend_requests))
             .build()
 
-        // We can't use getActualDefaultRingtoneUri as Samsung requires the WRITE_SETTINGS permission for that. :D
-        // See: https://github.com/evilcorpltd/aTox/issues/958
         val ringtone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
         val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE).build()
         val callChannel = NotificationChannelCompat.Builder(CALL, NotificationManagerCompat.IMPORTANCE_HIGH)
@@ -119,11 +114,7 @@ class NotificationHelper @Inject constructor(private val context: Context) {
         outgoing: Boolean = false,
         silent: Boolean = outgoing,
     ) {
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (!permissionManager.canPostNotifications()) {
             Log.w(TAG, "Received message, notifications disallowed")
             return
         }
@@ -165,9 +156,6 @@ class NotificationHelper @Inject constructor(private val context: Context) {
                 .setGroup(contact.publicKey)
         }
 
-        // I can't find it in the documentation for RemoteInput or anything, but per
-        // https://developer.android.com/training/notify-user/build-notification#reply-action
-        // support for this was only introduced in Android N (API 24).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             notificationBuilder.addAction(
                 NotificationCompat.Action
@@ -223,26 +211,27 @@ class NotificationHelper @Inject constructor(private val context: Context) {
     }
 
     fun showFriendRequestNotification(friendRequest: FriendRequest, silent: Boolean) {
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (!permissionManager.canPostNotifications()) {
             Log.w(TAG, "Received friend request, notifications disallowed")
             return
         }
+
+        val mainIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            friendRequest.publicKey.hashCode(),
+            mainIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         val notificationBuilder = NotificationCompat.Builder(context, FRIEND_REQUEST)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setSmallIcon(android.R.drawable.btn_star_big_on)
             .setContentTitle(context.getString(R.string.friend_request_from, friendRequest.publicKey))
             .setContentText(friendRequest.message)
-            .setContentIntent(
-                NavDeepLinkBuilder(context)
-                    .setGraph(R.navigation.nav_graph)
-                    .setDestination(R.id.contactListFragment)
-                    .createPendingIntent(),
-            )
+            .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setSilent(silent)
 
@@ -252,16 +241,24 @@ class NotificationHelper @Inject constructor(private val context: Context) {
     fun dismissCallNotification(pk: PublicKey) = notifier.cancel(pk.string().hashCode() + CALL.hashCode())
 
     fun showOngoingCallNotification(contact: Contact) {
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (!permissionManager.canPostNotifications()) {
             Log.w(TAG, "Call ongoing, notifications disallowed")
             return
         }
 
         dismissCallNotification(PublicKey(contact.publicKey))
+
+        val mainIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(CONTACT_PUBLIC_KEY, contact.publicKey)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            contact.publicKey.hashCode() + CALL.hashCode(),
+            mainIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notificationBuilder = NotificationCompat.Builder(context, CALL)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setSmallIcon(android.R.drawable.ic_menu_call)
@@ -274,13 +271,7 @@ class NotificationHelper @Inject constructor(private val context: Context) {
             )
             .setUsesChronometer(true)
             .setWhen(System.currentTimeMillis())
-            .setContentIntent(
-                NavDeepLinkBuilder(context)
-                    .setGraph(R.navigation.nav_graph)
-                    .addDestination(R.id.chatFragment, bundleOf(CONTACT_PUBLIC_KEY to contact.publicKey))
-                    .addDestination(R.id.callFragment, bundleOf(CONTACT_PUBLIC_KEY to contact.publicKey))
-                    .createPendingIntent(),
-            )
+            .setContentIntent(pendingIntent)
             .addAction(
                 NotificationCompat.Action
                     .Builder(
@@ -304,9 +295,7 @@ class NotificationHelper @Inject constructor(private val context: Context) {
     }
 
     fun showPendingCallNotification(status: UserStatus, c: Contact) {
-        val permission = ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-        Log.i(TAG, "showPendingCallNotification: pk=${c.publicKey.take(8)}, status=$status, permission=$permission")
-        if (permission != PackageManager.PERMISSION_GRANTED) {
+        if (!permissionManager.canPostNotifications()) {
             Log.w(TAG, "Call pending, notifications disallowed")
             return
         }
@@ -314,8 +303,7 @@ class NotificationHelper @Inject constructor(private val context: Context) {
         val notificationBuilder = NotificationCompat.Builder(context, CALL)
 
         val pendingIntent = deepLinkToChat(PublicKey(c.publicKey))
-        if (context.hasPermission(Manifest.permission.USE_FULL_SCREEN_INTENT)) {
-            // Making the notification persistent takes a full-screen intent.
+        if (permissionManager.canUseFullScreenIntent()) {
             notificationBuilder
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setFullScreenIntent(pendingIntent, true)
@@ -381,14 +369,17 @@ class NotificationHelper @Inject constructor(private val context: Context) {
         notifier.notify(c.publicKey.hashCode() + CALL.hashCode(), notification)
     }
 
-    private fun deepLinkToChat(publicKey: PublicKey, focusMessageBox: Boolean = false) = NavDeepLinkBuilder(context)
-        .setGraph(R.navigation.nav_graph)
-        .setDestination(R.id.chatFragment)
-        .setArguments(
-            bundleOf(
-                CONTACT_PUBLIC_KEY to publicKey.string(),
-                FOCUS_ON_MESSAGE_BOX to focusMessageBox,
-            ),
+    private fun deepLinkToChat(publicKey: PublicKey, focusMessageBox: Boolean = false): PendingIntent {
+        val mainIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(CONTACT_PUBLIC_KEY, publicKey.string())
+            putExtra(FOCUS_ON_MESSAGE_BOX, focusMessageBox)
+        }
+        return PendingIntent.getActivity(
+            context,
+            publicKey.string().hashCode(),
+            mainIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        .createPendingIntent()
+    }
 }

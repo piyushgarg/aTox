@@ -20,17 +20,19 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ltd.evilcorp.atox.settings.BootstrapNodeSource
-import ltd.evilcorp.atox.settings.FtAutoAccept
+import ltd.evilcorp.atox.appearance.AppearanceManager
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.tox.ToxStarter
-import ltd.evilcorp.domain.tox.BootstrapNodeJsonParser
-import ltd.evilcorp.domain.tox.BootstrapNodeRegistry
-import ltd.evilcorp.domain.tox.ProxyType
-import ltd.evilcorp.domain.tox.SaveOptions
+import ltd.evilcorp.core.model.BootstrapNodeSource
+import ltd.evilcorp.core.model.FtAutoAccept
+import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeJsonParser
+import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeRegistry
+import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.core.tox.save.SaveOptions
+import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.domain.tox.Tox
-import ltd.evilcorp.domain.tox.ToxSaveStatus
-import ltd.evilcorp.domain.tox.testToxSave
+import ltd.evilcorp.domain.feature.FileTransferManager
 
 private const val TOX_SHUTDOWN_POLL_DELAY_MS = 200L
 
@@ -46,10 +48,12 @@ class SettingsViewModel @Inject constructor(
     private val context: Context,
     private val resolver: ContentResolver,
     private val settings: Settings,
+    private val appearanceManager: AppearanceManager,
     private val toxStarter: ToxStarter,
     private val tox: Tox,
     private val nodeParser: BootstrapNodeJsonParser,
     private val nodeRegistry: BootstrapNodeRegistry,
+    private val fileTransferManager: FileTransferManager,
 ) : ViewModel() {
     private var restartNeeded = false
 
@@ -68,14 +72,15 @@ class SettingsViewModel @Inject constructor(
     // The trickery here is because the values in the dropdown are 0, 1, 2 for auto, no, yes;
     // while in Android, the values are -1, 1, 2 for auto, no, yes; so we map -1 to 0 when getting,
     // and 0 to -1 when setting.
-    fun getTheme(): Int = max(0, settings.theme)
+    fun getTheme(): Int = max(0, appearanceManager.appearance.value.themeMode)
     fun setTheme(theme: Int) {
-        settings.theme = when (theme) {
+        appearanceManager.updateThemeMode(
+            when (theme) {
             0 -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
             1 -> AppCompatDelegate.MODE_NIGHT_NO
             2 -> AppCompatDelegate.MODE_NIGHT_YES
             else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-        }
+        })
     }
 
     fun getFtAutoAccept(): FtAutoAccept = settings.ftAutoAccept
@@ -221,4 +226,7 @@ class SettingsViewModel @Inject constructor(
     fun setDisableScreenshots(disable: Boolean) {
         settings.disableScreenshots = disable
     }
+
+    fun getCacheSize(): Long = fileTransferManager.getCacheSize()
+    fun clearCache() = fileTransferManager.clearCache()
 }

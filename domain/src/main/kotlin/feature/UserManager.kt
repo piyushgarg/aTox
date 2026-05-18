@@ -8,9 +8,9 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import ltd.evilcorp.core.repository.UserRepository
-import ltd.evilcorp.core.vo.PublicKey
-import ltd.evilcorp.core.vo.User
-import ltd.evilcorp.core.vo.UserStatus
+import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.core.model.User
+import ltd.evilcorp.core.model.UserStatus
 import ltd.evilcorp.domain.tox.Tox
 
 class UserManager @Inject constructor(

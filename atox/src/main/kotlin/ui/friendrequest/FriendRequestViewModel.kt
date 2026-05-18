@@ -9,8 +9,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import javax.inject.Inject
-import ltd.evilcorp.core.vo.FriendRequest
-import ltd.evilcorp.core.vo.PublicKey
+import ltd.evilcorp.core.model.FriendRequest
+import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.domain.feature.FriendRequestManager
 
 class FriendRequestViewModel @Inject constructor(private val friendRequests: FriendRequestManager) : ViewModel() {

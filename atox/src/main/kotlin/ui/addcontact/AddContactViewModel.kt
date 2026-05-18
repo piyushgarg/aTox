@@ -14,14 +14,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.repository.MessageRepository
-import ltd.evilcorp.core.vo.Contact
-import ltd.evilcorp.core.vo.Message
-import ltd.evilcorp.core.vo.MessageType
-import ltd.evilcorp.core.vo.Sender
+import ltd.evilcorp.core.model.Contact
+import ltd.evilcorp.core.model.Message
+import ltd.evilcorp.core.model.MessageType
+import ltd.evilcorp.core.model.Sender
 import ltd.evilcorp.domain.feature.ContactManager
 import ltd.evilcorp.domain.tox.Tox
-import ltd.evilcorp.domain.tox.ToxID
-import ltd.evilcorp.domain.tox.ToxSaveStatus
+import ltd.evilcorp.core.tox.ToxID
+import ltd.evilcorp.core.tox.save.ToxSaveStatus
 
 class AddContactViewModel @Inject constructor(
     private val scope: CoroutineScope,

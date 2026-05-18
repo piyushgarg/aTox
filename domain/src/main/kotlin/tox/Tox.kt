@@ -1,247 +1,103 @@
-// SPDX-FileCopyrightText: 2019-2025 Robin Lindén <dev@robinlinden.eu>
-// SPDX-FileCopyrightText: 2019-2020 aTox contributors
-//
-// SPDX-License-Identifier: GPL-3.0-only
-
 package ltd.evilcorp.domain.tox
-
-import android.util.Log
 
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.collections.forEach as kForEach
-import kotlin.random.Random
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import ltd.evilcorp.core.repository.ContactRepository
-import ltd.evilcorp.core.repository.UserRepository
-import ltd.evilcorp.core.vo.ConnectionStatus
-import ltd.evilcorp.core.vo.Contact
-import ltd.evilcorp.core.vo.FileKind
-import ltd.evilcorp.core.vo.MessageType
-import ltd.evilcorp.core.vo.PublicKey
-import ltd.evilcorp.core.vo.UserStatus
-
-private const val TAG = "Tox"
-private const val SLOW_ITERATION_LIMIT_MS = 10
-private const val TOX_SALT_LENGTH = 32
-private const val STOP_DELAY_MS = 10L
-private const val BOOTSTRAP_NODES_COUNT = 4
+import ltd.evilcorp.core.tox.save.SaveOptions
+import ltd.evilcorp.core.tox.listener.ToxAvEventListener
+import ltd.evilcorp.core.tox.listener.ToxEventListener
+import ltd.evilcorp.core.tox.ToxID
+import ltd.evilcorp.core.tox.runtime.ToxRuntime
+import ltd.evilcorp.core.model.FileKind
+import ltd.evilcorp.core.model.MessageType
+import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.core.model.UserStatus
 
 @Singleton
 class Tox @Inject constructor(
-    private val scope: CoroutineScope,
-    private val contactRepository: ContactRepository,
-    private val userRepository: UserRepository,
-    private val saveManager: SaveManager,
-    private val nodeRegistry: BootstrapNodeRegistry,
+    private val runtime: ToxRuntime,
 ) {
-    val toxId: ToxID get() = toxWrapper.getToxId()
-    val publicKey: PublicKey by lazy { toxWrapper.getPublicKey() }
+    val toxId: ToxID get() = runtime.toxId
+    val publicKey: PublicKey get() = runtime.publicKey
     var nospam: Int
-    get() = toxWrapper.getNospam()
-    set(value) = toxWrapper.setNospam(value)
+        get() = runtime.nospam
+        set(value) {
+            runtime.nospam = value
+        }
 
-    var started = false
-    var isBootstrapNeeded = true
+    var started: Boolean
+        get() = runtime.started
+        private set(_) = Unit
 
-    private var running = false
-    private var toxAvRunning = false
+    var isBootstrapNeeded: Boolean
+        get() = runtime.isBootstrapNeeded
+        set(value) {
+            runtime.isBootstrapNeeded = value
+        }
 
-    private var passkey: ByteArray? = null
-    var password: String? = null
-        private set
+    val password: String?
+        get() = runtime.password
 
     fun changePassword(new: String?) {
-        passkey = if (new.isNullOrEmpty()) {
-            null
-        } else {
-            val salt = ByteArray(TOX_SALT_LENGTH)
-            Random.Default.nextBytes(salt)
-            val nativeTox = NativeTox()
-            nativeTox.passKeyDeriveWithSalt(new.toByteArray(), salt)
-        }
-        password = new
-        save()
+        runtime.changePassword(new)
     }
-
-    private lateinit var toxWrapper: ToxWrapper
 
     fun start(saveOption: SaveOptions, password: String?, listener: ToxEventListener, avListener: ToxAvEventListener) {
-        val nativeTox = NativeTox()
-        toxWrapper = if (password == null) {
-            passkey = null
-            ToxWrapper(listener, avListener, saveOption)
-        } else {
-            val salt = nativeTox.getSalt(saveOption.saveData ?: ByteArray(0))
-            if (salt != null) {
-                passkey = nativeTox.passKeyDeriveWithSalt(password.toByteArray(), salt)
-            }
-            ToxWrapper(
-                listener,
-                avListener,
-                saveOption.copy(saveData = if (passkey != null) nativeTox.passDecrypt(saveOption.saveData ?: ByteArray(0), passkey!!) else saveOption.saveData),
-            )
-        }
-
-        this.password = password
-        started = true
-
-        fun loadContacts() = scope.launch {
-            contactRepository.resetTransientData()
-
-            for ((publicKey, _) in toxWrapper.getContacts()) {
-                if (!contactRepository.exists(publicKey.string())) {
-                    contactRepository.add(Contact(publicKey.string()))
-                }
-            }
-        }
-
-        fun iterateForeverAv() = scope.launch {
-            toxAvRunning = true
-            while (running) {
-                toxWrapper.iterateAv()
-                delay(toxWrapper.iterationIntervalAv())
-            }
-            toxAvRunning = false
-        }
-
-        fun iterateForever() = scope.launch {
-            running = true
-            userRepository.updateConnection(publicKey.string(), ConnectionStatus.None)
-            while (running || toxAvRunning) {
-                if (isBootstrapNeeded) {
-                    try {
-                        bootstrap()
-                        isBootstrapNeeded = false
-                    } catch (e: Exception) {
-                        Log.e(TAG, e.toString())
-                    }
-                }
-
-                val before = System.currentTimeMillis()
-                toxWrapper.iterate()
-                val timeTaken = System.currentTimeMillis() - before
-                val iterationInterval = toxWrapper.iterationInterval()
-                if (timeTaken > SLOW_ITERATION_LIMIT_MS && timeTaken > iterationInterval) {
-                    Log.w(TAG, "Tox thread overran: $timeTaken/$iterationInterval.")
-                }
-                delay(iterationInterval - timeTaken)
-            }
-            started = false
-        }
-
-        save()
-        loadContacts()
-        iterateForever()
-        iterateForeverAv()
+        runtime.start(saveOption, password, listener, avListener)
     }
 
-    fun stop() = scope.launch {
-        running = false
-        while (started) delay(STOP_DELAY_MS)
-        save().join()
-        toxWrapper.stop()
-        passkey = null
-    }
+    fun stop() = runtime.stop()
 
-    private val saveMutex = Mutex()
-    private fun save() = scope.launch {
-        saveMutex.withLock {
-            if (!started) return@withLock
-            val saveData = toxWrapper.getSaveData()
-            val encryptedData = if (passkey != null) {
-                val nativeTox = NativeTox()
-                nativeTox.passEncrypt(saveData, passkey!!) ?: saveData
-            } else {
-                saveData
-            }
-            saveManager.save(
-                publicKey,
-                encryptedData
-            )
-        }
-    }
+    fun getContacts(): List<Pair<PublicKey, Int>> = runtime.getContacts()
 
     fun acceptFriendRequest(publicKey: PublicKey) {
-        toxWrapper.acceptFriendRequest(publicKey)
-        save()
+        runtime.acceptFriendRequest(publicKey)
     }
 
-    fun startFileTransfer(pk: PublicKey, fileNumber: Int) {
-        Log.i(TAG, "Starting file transfer $fileNumber from ${pk.fingerprint()}")
-        toxWrapper.startFileTransfer(pk, fileNumber)
-    }
+    fun startFileTransfer(pk: PublicKey, fileNumber: Int) = runtime.startFileTransfer(pk, fileNumber)
 
-    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) {
-        Log.i(TAG, "Stopping file transfer $fileNumber from ${pk.fingerprint()}")
-        toxWrapper.stopFileTransfer(pk, fileNumber)
-    }
+    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = runtime.stopFileTransfer(pk, fileNumber)
 
     fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String) =
-        toxWrapper.sendFile(pk, fileKind, fileSize, fileName)
+        runtime.sendFile(pk, fileKind, fileSize, fileName)
 
     fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> =
-        toxWrapper.sendFileChunk(pk, fileNo, pos, data)
+        runtime.sendFileChunk(pk, fileNo, pos, data)
 
-    fun getName() = toxWrapper.getName()
+    fun getName() = runtime.getName()
     fun setName(name: String) {
-        toxWrapper.setName(name)
-        save()
+        runtime.setName(name)
     }
 
-    fun getStatusMessage() = toxWrapper.getStatusMessage()
+    fun getStatusMessage() = runtime.getStatusMessage()
     fun setStatusMessage(statusMessage: String) {
-        toxWrapper.setStatusMessage(statusMessage)
-        save()
+        runtime.setStatusMessage(statusMessage)
     }
 
     fun addContact(toxId: ToxID, message: String) {
-        toxWrapper.addContact(toxId, message)
-        save()
+        runtime.addContact(toxId, message)
     }
 
     fun deleteContact(publicKey: PublicKey) {
-        toxWrapper.deleteContact(publicKey)
-        save()
+        runtime.deleteContact(publicKey)
     }
 
     fun sendMessage(publicKey: PublicKey, message: String, type: MessageType) =
-        toxWrapper.sendMessage(publicKey, message, type)
+        runtime.sendMessage(publicKey, message, type)
 
-    fun getSaveData(): ByteArray {
-        val pk = passkey
-        return if (pk == null) {
-            toxWrapper.getSaveData()
-        } else {
-            NativeTox().passEncrypt(toxWrapper.getSaveData(), pk) ?: toxWrapper.getSaveData()
-        }
-    }
+    fun getSaveData(): ByteArray = runtime.getSaveData()
 
-    private fun bootstrap() {
-        nodeRegistry.get(BOOTSTRAP_NODES_COUNT).kForEach { node ->
-            Log.i(TAG, "Bootstrapping from $node")
-            toxWrapper.bootstrap(node.address, node.port, node.publicKey.bytes())
-        }
-    }
+    fun setTyping(publicKey: PublicKey, typing: Boolean) = runtime.setTyping(publicKey, typing)
 
-    fun setTyping(publicKey: PublicKey, typing: Boolean) = toxWrapper.setTyping(publicKey, typing)
-
-    fun getStatus() = toxWrapper.getStatus()
+    fun getStatus() = runtime.getStatus()
     fun setStatus(status: UserStatus) {
-        toxWrapper.setStatus(status)
-        save()
+        runtime.setStatus(status)
     }
 
-    fun sendLosslessPacket(pk: PublicKey, packet: ByteArray) = toxWrapper.sendLosslessPacket(pk, packet)
+    fun sendLosslessPacket(pk: PublicKey, packet: ByteArray) = runtime.sendLosslessPacket(pk, packet)
 
-    // ToxAv, probably move these.
-    fun startCall(pk: PublicKey) = toxWrapper.startCall(pk)
-    fun answerCall(pk: PublicKey) = toxWrapper.answerCall(pk)
-    fun endCall(pk: PublicKey) = toxWrapper.endCall(pk)
+    fun startCall(pk: PublicKey) = runtime.startCall(pk)
+    fun answerCall(pk: PublicKey) = runtime.answerCall(pk)
+    fun endCall(pk: PublicKey) = runtime.endCall(pk)
     fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) =
-        toxWrapper.sendAudio(pk, pcm, channels, samplingRate)
+        runtime.sendAudio(pk, pcm, channels, samplingRate)
 }

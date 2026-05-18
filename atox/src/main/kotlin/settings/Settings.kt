@@ -1,50 +1,39 @@
-// SPDX-FileCopyrightText: 2020-2025 Robin Lindén <dev@robinlinden.eu>
-// SPDX-FileCopyrightText: 2022 aTox contributors
-//
-// SPDX-License-Identifier: GPL-3.0-only
-
 package ltd.evilcorp.atox.settings
 
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.content.edit
-import androidx.preference.PreferenceManager
 import javax.inject.Inject
-import ltd.evilcorp.atox.BootReceiver
-import ltd.evilcorp.domain.tox.ProxyType
+import kotlinx.coroutines.flow.StateFlow
+import ltd.evilcorp.core.model.BootstrapNodeSource
+import ltd.evilcorp.core.model.FtAutoAccept
+import ltd.evilcorp.atox.receiver.BootReceiver
+import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.core.model.UserSettings
+import ltd.evilcorp.core.repository.UserSettingsRepository
 
-enum class FtAutoAccept {
-    None,
-    Images,
-    All,
-}
+class Settings @Inject constructor(
+    private val ctx: Context,
+    private val repository: UserSettingsRepository,
+) {
+    val state: StateFlow<UserSettings> = repository.settings
 
-enum class BootstrapNodeSource {
-    BuiltIn,
-    UserProvided,
-}
-
-class Settings @Inject constructor(private val ctx: Context) {
-    private val preferences = PreferenceManager.getDefaultSharedPreferences(ctx)
-
-    var theme: Int
-        get() = preferences.getInt("theme", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        set(theme) {
-            preferences.edit { putInt("theme", theme) }
-            AppCompatDelegate.setDefaultNightMode(theme)
+    init {
+        val persisted = repository.settings.value.runAtStartup
+        val actual = isBootReceiverEnabled()
+        if (persisted != actual) {
+            repository.updateRunAtStartup(actual)
         }
+    }
 
     var udpEnabled: Boolean
-        get() = preferences.getBoolean("udp_enabled", false)
-        set(enabled) = preferences.edit { putBoolean("udp_enabled", enabled) }
+        get() = repository.settings.value.udpEnabled
+        set(enabled) = repository.updateUdpEnabled(enabled)
 
     var runAtStartup: Boolean
-        get() = ctx.packageManager.getComponentEnabledSetting(
-            ComponentName(ctx, BootReceiver::class.java),
-        ) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        get() = repository.settings.value.runAtStartup
         set(runAtStartup) {
+            repository.updateRunAtStartup(runAtStartup)
             val state = if (runAtStartup) {
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED
             } else {
@@ -59,42 +48,55 @@ class Settings @Inject constructor(private val ctx: Context) {
         }
 
     var autoAwayEnabled: Boolean
-        get() = preferences.getBoolean("auto_away_enabled", false)
-        set(enabled) = preferences.edit { putBoolean("auto_away_enabled", enabled) }
+        get() = repository.settings.value.autoAwayEnabled
+        set(enabled) = repository.updateAutoAwayEnabled(enabled)
 
     var autoAwaySeconds: Long
-        get() = preferences.getLong("auto_away_seconds", 180)
-        set(seconds) = preferences.edit { putLong("auto_away_seconds", seconds) }
+        get() = repository.settings.value.autoAwaySeconds
+        set(seconds) = repository.updateAutoAwaySeconds(seconds)
 
     var proxyType: ProxyType
-        get() = ProxyType.entries[preferences.getInt("proxy_type", 0)]
-        set(type) = preferences.edit { putInt("proxy_type", type.ordinal) }
+        get() = repository.settings.value.proxyType
+        set(type) = repository.updateProxyType(type)
 
     var proxyAddress: String
-        get() = preferences.getString("proxy_address", null) ?: ""
-        set(address) = preferences.edit { putString("proxy_address", address) }
+        get() = repository.settings.value.proxyAddress
+        set(address) = repository.updateProxyAddress(address)
 
     var proxyPort: Int
-        get() = preferences.getInt("proxy_port", 0)
-        set(port) = preferences.edit { putInt("proxy_port", port) }
+        get() = repository.settings.value.proxyPort
+        set(port) = repository.updateProxyPort(port)
 
     var ftAutoAccept: FtAutoAccept
-        get() = FtAutoAccept.entries[preferences.getInt("ft_auto_accept", 0)]
-        set(autoAccept) = preferences.edit { putInt("ft_auto_accept", autoAccept.ordinal) }
+        get() = repository.settings.value.ftAutoAccept
+        set(autoAccept) = repository.updateFtAutoAccept(autoAccept)
 
     var bootstrapNodeSource: BootstrapNodeSource
-        get() = BootstrapNodeSource.entries[preferences.getInt("bootstrap_node_source", 0)]
-        set(source) = preferences.edit { putInt("bootstrap_node_source", source.ordinal) }
+        get() = repository.settings.value.bootstrapNodeSource
+        set(source) = repository.updateBootstrapNodeSource(source)
 
     var disableScreenshots: Boolean
-        get() = preferences.getBoolean("disable_screenshots", false)
-        set(disable) = preferences.edit { putBoolean("disable_screenshots", disable) }
+        get() = repository.settings.value.disableScreenshots
+        set(disable) = repository.updateDisableScreenshots(disable)
 
     var confirmQuitting: Boolean
-        get() = preferences.getBoolean("confirm_quitting", true)
-        set(confirm) = preferences.edit { putBoolean("confirm_quitting", confirm) }
+        get() = repository.settings.value.confirmQuitting
+        set(confirm) = repository.updateConfirmQuitting(confirm)
 
     var confirmCalling: Boolean
-        get() = preferences.getBoolean("confirm_calling", true)
-        set(confirm) = preferences.edit { putBoolean("confirm_calling", confirm) }
+        get() = repository.settings.value.confirmCalling
+        set(confirm) = repository.updateConfirmCalling(confirm)
+
+    var hapticEnabled: Boolean
+        get() = repository.settings.value.hapticEnabled
+        set(enabled) = repository.updateHapticEnabled(enabled)
+
+    var autoSaveToDownloads: Boolean
+        get() = repository.settings.value.autoSaveToDownloads
+        set(enabled) = repository.updateAutoSaveToDownloads(enabled)
+
+    private fun isBootReceiverEnabled(): Boolean =
+        ctx.packageManager.getComponentEnabledSetting(
+            ComponentName(ctx, BootReceiver::class.java),
+        ) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
 }

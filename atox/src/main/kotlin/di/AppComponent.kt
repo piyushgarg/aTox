@@ -8,10 +8,10 @@ import android.content.Context
 import dagger.BindsInstance
 import dagger.Component
 import javax.inject.Singleton
-import ltd.evilcorp.atox.ActionReceiver
-import ltd.evilcorp.atox.BootReceiver
+import ltd.evilcorp.atox.receiver.ActionReceiver
+import ltd.evilcorp.atox.receiver.BootReceiver
 import ltd.evilcorp.atox.MainActivity
-import ltd.evilcorp.atox.ToxService
+import ltd.evilcorp.atox.service.ToxService
 
 @Singleton
 @Component(

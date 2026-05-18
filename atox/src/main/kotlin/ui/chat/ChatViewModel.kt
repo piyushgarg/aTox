@@ -15,14 +15,15 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import com.squareup.picasso.Picasso
-import java.io.File
-import java.io.FileInputStream
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
@@ -30,12 +31,12 @@ import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.core.vo.ConnectionStatus
-import ltd.evilcorp.core.vo.Contact
-import ltd.evilcorp.core.vo.FileTransfer
-import ltd.evilcorp.core.vo.Message
-import ltd.evilcorp.core.vo.MessageType
-import ltd.evilcorp.core.vo.PublicKey
+import ltd.evilcorp.core.model.ConnectionStatus
+import ltd.evilcorp.core.model.Contact
+import ltd.evilcorp.core.model.FileTransfer
+import ltd.evilcorp.core.model.Message
+import ltd.evilcorp.core.model.MessageType
+import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.ChatManager
@@ -66,30 +67,50 @@ class ChatViewModel @Inject constructor(
     private var publicKey = PublicKey("")
     private var sentTyping = false
 
-    val contact: LiveData<Contact> by lazy { contactManager.get(publicKey).asLiveData() }
-    val messages: LiveData<List<Message>> by lazy {
-        chatManager.messagesFor(publicKey).distinctUntilChanged().asLiveData()
-    }
-    val fileTransfers: LiveData<List<FileTransfer>> by lazy { fileTransferManager.transfersFor(publicKey).asLiveData() }
+    private val activePublicKey = MutableStateFlow<PublicKey?>(null)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val contact: LiveData<Contact?> = activePublicKey
+        .filterNotNull()
+        .flatMapLatest { pk -> contactManager.get(pk) }
+        .asLiveData()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val messages: LiveData<List<Message>> = activePublicKey
+        .filterNotNull()
+        .flatMapLatest { pk -> chatManager.messagesFor(pk) }
+        .distinctUntilChanged()
+        .asLiveData()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val fileTransfers: LiveData<List<FileTransfer>> = activePublicKey
+        .filterNotNull()
+        .flatMapLatest { pk -> fileTransferManager.transfersFor(pk) }
+        .asLiveData()
 
     fun callingNeedsConfirmation(): Boolean = settings.confirmCalling
     val ongoingCall = callManager.inCall.asLiveData()
 
-    val callState get() = contactManager.get(publicKey)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val callState: LiveData<CallAvailability> = activePublicKey
         .filterNotNull()
-        .transform { emit(it.connectionStatus != ConnectionStatus.None) }
-        .combine(callManager.inCall) { contactOnline, callState ->
-            if (!contactOnline) return@combine CallAvailability.Unavailable
-            when (callState) {
-                CallState.NotInCall -> CallAvailability.Available
-                is CallState.InCall -> {
-                    if (callState.publicKey == publicKey) {
-                        CallAvailability.Active
-                    } else {
-                        CallAvailability.Unavailable
+        .flatMapLatest { pk ->
+            contactManager.get(pk)
+                .filterNotNull()
+                .transform { emit(it.connectionStatus != ConnectionStatus.None) }
+                .combine(callManager.inCall) { contactOnline, callState ->
+                    if (!contactOnline) return@combine CallAvailability.Unavailable
+                    when (callState) {
+                        CallState.NotInCall -> CallAvailability.Available
+                        is CallState.InCall -> {
+                            if (callState.publicKey == pk) {
+                                CallAvailability.Active
+                            } else {
+                                CallAvailability.Unavailable
+                            }
+                        }
                     }
                 }
-            }
         }.asLiveData()
 
     var contactOnline = false
@@ -105,8 +126,10 @@ class ChatViewModel @Inject constructor(
         if (pk.string().isEmpty()) {
             Log.i(TAG, "Clearing active chat")
             setTyping(false)
+            activePublicKey.value = null
         } else {
             Log.i(TAG, "Setting active chat ${pk.fingerprint()}")
+            activePublicKey.value = pk
         }
 
         publicKey = pk
@@ -148,19 +171,20 @@ class ChatViewModel @Inject constructor(
         fileTransferManager.get(id).take(1).collect { ft ->
             launch(Dispatchers.IO) {
                 try {
-                    FileInputStream(File(ft.destination.toUri().path!!)).use { ins ->
+                    resolver.openInputStream(ft.destination.toUri())?.use { ins ->
                         resolver.openOutputStream(dest).use { os ->
                             ins.copyTo(os!!)
                         }
-                    }
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, R.string.export_file_success, Toast.LENGTH_LONG).show()
-                    }
+                    } ?: throw IllegalStateException("Unable to open ${ft.destination}")
                 } catch (e: Exception) {
                     Log.e(TAG, e.toString())
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, R.string.export_file_failure, Toast.LENGTH_LONG).show()
                     }
+                    return@launch
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, R.string.export_file_success, Toast.LENGTH_LONG).show()
                 }
             }
         }

@@ -26,21 +26,23 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.core.vo.Contact
-import ltd.evilcorp.core.vo.FriendRequest
-import ltd.evilcorp.core.vo.PublicKey
-import ltd.evilcorp.core.vo.User
+import ltd.evilcorp.core.model.Contact
+import ltd.evilcorp.core.model.FriendRequest
+import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.core.model.User
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.ChatManager
 import ltd.evilcorp.domain.feature.ContactManager
 import ltd.evilcorp.domain.feature.FileTransferManager
 import ltd.evilcorp.domain.feature.FriendRequestManager
 import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.tox.ProxyType
-import ltd.evilcorp.domain.tox.SaveOptions
+import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.core.tox.save.SaveOptions
+import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.domain.tox.Tox
-import ltd.evilcorp.domain.tox.ToxSaveStatus
-import ltd.evilcorp.domain.tox.testToxSave
+import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.core.tox.save.SaveManager
+import ltd.evilcorp.core.db.Database
 
 class ContactListViewModel @Inject constructor(
     private val scope: CoroutineScope,
@@ -55,17 +57,35 @@ class ContactListViewModel @Inject constructor(
     private val tox: Tox,
     private val toxStarter: ToxStarter,
     private val settings: Settings,
+    private val saveManager: SaveManager,
+    private val database: Database,
     userManager: UserManager,
 ) : ViewModel() {
     val publicKey by lazy { tox.publicKey }
 
-    val user: LiveData<User> by lazy { userManager.get(publicKey).asLiveData() }
+    val user: LiveData<User?> by lazy { userManager.get(publicKey).asLiveData() }
     val contacts: LiveData<List<Contact>> = contactManager.getAll().asLiveData()
     val friendRequests: LiveData<List<FriendRequest>> = friendRequestManager.getAll().asLiveData()
 
     fun isToxRunning() = tox.started
     fun tryLoadTox(password: String?): ToxSaveStatus = toxStarter.tryLoadTox(password)
     fun quitTox() = toxStarter.stopTox()
+
+    fun deleteProfileAndData() {
+        val pk = tox.publicKey
+        toxStarter.stopTox()
+        saveManager.delete(pk)
+        saveManager.list().forEach {
+            try {
+                saveManager.delete(PublicKey(it))
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+        scope.launch(Dispatchers.IO) {
+            database.clearAllTables()
+        }
+    }
 
     fun quittingNeedsConfirmation(): Boolean = settings.confirmQuitting
 

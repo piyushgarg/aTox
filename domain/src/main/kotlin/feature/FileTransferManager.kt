@@ -5,13 +5,17 @@
 package ltd.evilcorp.domain.feature
 
 import android.content.ContentResolver
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import ltd.evilcorp.core.repository.UserSettingsRepository
 import android.net.Uri
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
+import android.webkit.MimeTypeMap
 import androidx.core.net.toUri
-import ltd.evilcorp.domain.tox.enums.ToxFileControl
+import ltd.evilcorp.core.tox.enums.ToxFileControl
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
@@ -21,23 +25,26 @@ import javax.inject.Singleton
 import kotlin.collections.forEach as kForEach
 import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.repository.FileTransferRepository
 import ltd.evilcorp.core.repository.MessageRepository
-import ltd.evilcorp.core.vo.FT_NOT_STARTED
-import ltd.evilcorp.core.vo.FT_REJECTED
-import ltd.evilcorp.core.vo.FT_STARTED
-import ltd.evilcorp.core.vo.FileKind
-import ltd.evilcorp.core.vo.FileTransfer
-import ltd.evilcorp.core.vo.Message
-import ltd.evilcorp.core.vo.MessageType
-import ltd.evilcorp.core.vo.PublicKey
-import ltd.evilcorp.core.vo.Sender
-import ltd.evilcorp.core.vo.isComplete
-import ltd.evilcorp.core.vo.isStarted
-import ltd.evilcorp.domain.tox.MAX_AVATAR_SIZE
+import ltd.evilcorp.core.model.FT_NOT_STARTED
+import ltd.evilcorp.core.model.FT_REJECTED
+import ltd.evilcorp.core.model.FT_STARTED
+import ltd.evilcorp.core.model.FileKind
+import ltd.evilcorp.core.model.FileTransfer
+import ltd.evilcorp.core.model.Message
+import ltd.evilcorp.core.model.MessageType
+import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.core.model.Sender
+import ltd.evilcorp.core.model.isComplete
+import ltd.evilcorp.core.model.isStarted
+import ltd.evilcorp.core.model.isRejected
+import ltd.evilcorp.core.tox.MAX_AVATAR_SIZE
 import ltd.evilcorp.domain.tox.Tox
 
 private const val TAG = "FileTransferManager"
@@ -60,6 +67,7 @@ class FileTransferManager @Inject constructor(
     private val messageRepository: MessageRepository,
     private val fileTransferRepository: FileTransferRepository,
     private val tox: Tox,
+    private val userSettingsRepository: UserSettingsRepository,
 ) {
     private val fileTransfers: MutableList<FileTransfer> = mutableListOf()
     private val outgoingFiles = mutableMapOf<Pair<String, Int>, OutgoingFile>()
@@ -67,10 +75,6 @@ class FileTransferManager @Inject constructor(
     init {
         File(context.filesDir, "ft").mkdir()
         File(context.filesDir, "avatar").mkdir()
-        resolver.persistedUriPermissions.kForEach {
-            Log.w(TAG, "Clearing leftover permission for ${it.uri}")
-            releaseFilePermission(it.uri)
-        }
     }
 
     fun reset() {
@@ -168,25 +172,26 @@ class FileTransferManager @Inject constructor(
         fileTransfers.remove(ft)
         setProgress(ft, FT_REJECTED)
         tox.stopFileTransfer(PublicKey(ft.publicKey), ft.fileNumber)
-        val uri = ft.destination.toUri()
-        if (ft.outgoing) {
-            outgoingFiles.remove(Pair(ft.publicKey, ft.fileNumber))?.inputStream?.close()
-            releaseFilePermission(uri)
-        } else {
-            File(uri.path!!).delete()
+        if (ft.destination.isNotEmpty()) {
+            val uri = ft.destination.toUri()
+            if (ft.outgoing) {
+                outgoingFiles.remove(Pair(ft.publicKey, ft.fileNumber))?.inputStream?.close()
+                releaseFilePermission(uri)
+            } else {
+                uri.path?.let { File(it).delete() }
+            }
         }
     }
 
     private fun setDestination(ft: FileTransfer, destination: Uri) {
-        fileTransfers[fileTransfers.indexOf(ft)].destination = destination.toString()
+        ft.destination = destination.toString()
         if (ft.fileKind == FileKind.Data.ordinal) {
             fileTransferRepository.setDestination(ft.id, destination.toString())
         }
     }
 
     private fun setProgress(ft: FileTransfer, progress: Long) {
-        val id = fileTransfers.indexOf(ft)
-        fileTransfers.elementAtOrNull(id)?.progress = progress
+        ft.progress = progress
         if (ft.fileKind == FileKind.Data.ordinal) {
             fileTransferRepository.updateProgress(ft.id, progress)
         }
@@ -219,6 +224,8 @@ class FileTransferManager @Inject constructor(
                 wipAvatar(ft.fileName).copyTo(avatar(ft.fileName), overwrite = true)
                 wipAvatar(ft.fileName).delete()
                 contactRepository.setAvatarUri(ft.publicKey, Uri.fromFile(avatar(ft.fileName)).toString())
+            } else if (ft.fileKind == FileKind.Data.ordinal) {
+                autoSaveFileToPublicDownloads(ft)
             }
             fileTransfers.remove(ft)
         }
@@ -226,13 +233,22 @@ class FileTransferManager @Inject constructor(
 
     fun transfersFor(publicKey: PublicKey) = fileTransferRepository.get(publicKey.string())
 
-    fun create(pk: PublicKey, file: Uri) {
+    suspend fun create(pk: PublicKey, file: Uri) = withContext(Dispatchers.IO) {
         val (name, size) = context.contentResolver.query(file, null, null, null, null, null)?.use { cursor ->
-            cursor.moveToFirst()
-            val fileSize = cursor.getLong(cursor.getColumnIndexOrThrow(OpenableColumns.SIZE))
-            val name = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
-            Pair(name, fileSize)
-        } ?: return
+            if (cursor.moveToFirst()) {
+                val fileSize = cursor.getLong(cursor.getColumnIndexOrThrow(OpenableColumns.SIZE))
+                val name = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+                Pair(name, fileSize)
+            } else null
+        } ?: return@withContext
+
+        // Copy the chosen file to the app's cache directory to get a permanent file:// URI
+        val cachedFileUri = try {
+            copyToOutgoingCache(file, name)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to copy outgoing file to cache", e)
+            return@withContext
+        }
 
         val ft = FileTransfer(
             pk.string(),
@@ -242,7 +258,7 @@ class FileTransferManager @Inject constructor(
             name,
             true,
             FT_NOT_STARTED,
-            file.toString(),
+            cachedFileUri.toString(),
         )
         val id = fileTransferRepository.add(ft).toInt()
         messageRepository.add(
@@ -250,12 +266,24 @@ class FileTransferManager @Inject constructor(
         )
         fileTransfers.add(ft.copy().apply { this.id = id })
 
-        val inputStream = resolver.openInputStream(file)
+        val inputStream = resolver.openInputStream(cachedFileUri)
         if (inputStream == null) {
             reject(ft)
-            return
+            return@withContext
         }
         outgoingFiles[Pair(ft.publicKey, ft.fileNumber)] = OutgoingFile(inputStream, mutableListOf())
+    }
+
+    private fun copyToOutgoingCache(uri: Uri, name: String): Uri {
+        val cacheDir = File(context.cacheDir, "outgoing")
+        cacheDir.mkdirs()
+        val destFile = File(cacheDir, "${java.util.UUID.randomUUID()}_$name")
+        resolver.openInputStream(uri)?.use { input ->
+            destFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        return destFile.toUri()
     }
 
     // TODO(robinlinden): Handle seek-backs: https://github.com/TokTok/c-toxcore/blob/eeaa039222e7a123c2585c8486ee965017767209/toxcore/tox.h#L2405-L2406
@@ -322,7 +350,7 @@ class FileTransferManager @Inject constructor(
 
     suspend fun delete(id: Int) {
         fileTransfers.find { it.id == id }?.let {
-            if (it.isStarted() && !it.isComplete()) {
+            if (!it.isComplete() && !it.isRejected()) {
                 reject(it)
             }
             fileTransfers.remove(it)
@@ -338,17 +366,100 @@ class FileTransferManager @Inject constructor(
     fun get(id: Int) = fileTransferRepository.get(id)
 
     private fun releaseFilePermission(uri: Uri) {
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT) {
+            return
+        }
+
         if (fileTransfers.firstOrNull { it.destination == uri.toString() } != null) {
             return
         }
 
         Log.i(TAG, "Releasing read permission for $uri")
-        resolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        try {
+            resolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Failed to release permission for $uri: ${e.message}")
+        }
     }
 
-    private fun makeDestination(ft: FileTransfer) =
-        Uri.fromFile(File(File(File(context.filesDir, "ft"), ft.publicKey.fingerprint()), Random.nextLong().toString()))
+    private fun makeDestination(ft: FileTransfer): Uri {
+        val ext = File(ft.fileName).extension
+        val suffix = if (ext.isNotEmpty()) ".$ext" else ""
+        return Uri.fromFile(File(File(File(context.filesDir, "ft"), ft.publicKey.fingerprint()), "${Random.nextLong()}$suffix"))
+    }
 
     private fun wipAvatar(name: String): File = File(File(context.filesDir, "avatar"), "$name.wip")
     private fun avatar(name: String): File = File(File(context.filesDir, "avatar"), name)
+
+    private fun autoSaveFileToPublicDownloads(ft: FileTransfer) {
+        if (ft.outgoing || !userSettingsRepository.settings.value.autoSaveToDownloads) return
+        try {
+            val sourceFile = File(ft.destination.toUri().path ?: return)
+            if (!sourceFile.exists()) return
+
+            val resolver = context.contentResolver
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, ft.fileName)
+                val ext = sourceFile.extension.lowercase()
+                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/aTox")
+            }
+
+            val publicUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            if (publicUri != null) {
+                resolver.openOutputStream(publicUri).use { out ->
+                    java.io.FileInputStream(sourceFile).use { ins ->
+                        ins.copyTo(out ?: return@use)
+                    }
+                }
+                Log.i(TAG, "Successfully auto-saved ${ft.fileName} to public Downloads/aTox at $publicUri")
+                setDestination(ft, publicUri)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error auto-saving file ${ft.fileName} to public Downloads", e)
+        }
+    }
+
+    fun getCacheSize(): Long {
+        var size = 0L
+        val outgoingDir = File(context.cacheDir, "outgoing")
+        if (outgoingDir.exists()) {
+            size += getFolderSize(outgoingDir)
+        }
+        val ftDir = File(context.filesDir, "ft")
+        if (ftDir.exists()) {
+            size += getFolderSize(ftDir)
+        }
+        return size
+    }
+
+    private fun getFolderSize(file: File): Long {
+        if (file.isFile) return file.length()
+        var size = 0L
+        val list = file.listFiles()
+        if (list != null) {
+            for (f in list) {
+                size += getFolderSize(f)
+            }
+        }
+        return size
+    }
+
+    fun clearCache() {
+        val outgoingDir = File(context.cacheDir, "outgoing")
+        if (outgoingDir.exists()) {
+            val list = outgoingDir.listFiles()
+            if (list != null) {
+                for (f in list) {
+                    f.delete()
+                }
+            }
+        }
+        val ftDir = File(context.filesDir, "ft")
+        if (ftDir.exists()) {
+            ftDir.deleteRecursively()
+            ftDir.mkdir()
+        }
+    }
 }
