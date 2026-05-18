@@ -118,6 +118,14 @@ class CallManager @Inject constructor(private val tox: Tox, private val scope: C
     }
 
     fun endCall(publicKey: PublicKey) {
+        val state = inCall.value
+        val isCurrentCall = state is CallState.InCall && state.publicKey == publicKey
+        val isPendingCall = pendingCalls.value.any { it.publicKey == publicKey.string() }
+
+        if (!isCurrentCall && !isPendingCall) {
+            return
+        }
+
         terminate(publicKey)
 
         try {
