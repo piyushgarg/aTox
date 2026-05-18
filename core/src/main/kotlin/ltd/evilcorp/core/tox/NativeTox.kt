@@ -53,6 +53,88 @@ class NativeTox {
 
     external fun toxFriendSendLosslessPacket(tox: Long, friendNumber: Int, data: ByteArray)
 
+    /**
+     * Создает новую текстовую конференцию (групповой чат).
+     * @param tox Указатель на нативный инстанс Tox.
+     * @return Уникальный номер созданной конференции (ID группы), либо -1 в случае ошибки.
+     */
+    external fun toxConferenceNew(tox: Long): Int
+
+    /**
+     * Удаляет существующую конференцию (выход из группы или ее закрытие).
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param conferenceNumber Номер удаляемой конференции.
+     */
+    external fun toxConferenceDelete(tox: Long, conferenceNumber: Int)
+
+    /**
+     * Отправляет приглашение другу для входа в существующую конференцию.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param friendNumber Номер друга, которого мы приглашаем.
+     * @param conferenceNumber Номер конференции, в которую приглашаем.
+     */
+    external fun toxConferenceInvite(tox: Long, friendNumber: Int, conferenceNumber: Int)
+
+    /**
+     * Принимает входящее приглашение и присоединяется к конференции.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param friendNumber Номер друга, приславшего приглашение.
+     * @param cookie Бинарные данные (cookie) приглашения, полученные в коллбеке.
+     * @return Номер присоединенной конференции (ID группы), либо -1 в случае ошибки.
+     */
+    external fun toxConferenceJoin(tox: Long, friendNumber: Int, cookie: ByteArray): Int
+
+    /**
+     * Отправляет сообщение в конференцию (групповой чат).
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param conferenceNumber Номер конференции.
+     * @param type Тип сообщения (например, обычный текст).
+     * @param message Текст сообщения в виде байтового массива (UTF-8).
+     * @return 1 в случае успешной отправки, 0 при ошибке.
+     */
+    external fun toxConferenceSendMessage(tox: Long, conferenceNumber: Int, type: Int, message: ByteArray): Int
+
+    /**
+     * Возвращает количество участников в конкретной конференции.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param conferenceNumber Номер конференции.
+     * @return Количество участников, либо -1 при ошибке.
+     */
+    external fun toxConferenceGetPeerCount(tox: Long, conferenceNumber: Int): Int
+
+    /**
+     * Возвращает имя участника конференции по его порядковому номеру.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param conferenceNumber Номер конференции.
+     * @param peerNumber Порядковый номер участника в группе.
+     * @return Имя участника в формате байтового массива (UTF-8).
+     */
+    external fun toxConferenceGetPeerName(tox: Long, conferenceNumber: Int, peerNumber: Int): ByteArray
+
+    /**
+     * Возвращает публичный ключ (Tox PublicKey) участника конференции.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param conferenceNumber Номер конференции.
+     * @param peerNumber Порядковый номер участника в группе.
+     * @return Публичный ключ участника (32 байта).
+     */
+    external fun toxConferenceGetPeerPublicKey(tox: Long, conferenceNumber: Int, peerNumber: Int): ByteArray
+
+    /**
+     * Возвращает список номеров всех активных конференций, в которых состоит пользователь.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @return Массив идентификаторов конференций.
+     */
+    external fun toxConferenceGetChatlist(tox: Long): IntArray
+
+    /**
+     * Возвращает тип конференции (текстовая или аудио/видео).
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param conferenceNumber Номер конференции.
+     * @return 0 для текстовой группы, 1 для A/V конференции, либо -1 в случае ошибки.
+     */
+    external fun toxConferenceGetType(tox: Long, conferenceNumber: Int): Int
+
     // Crypto
     external fun getSalt(data: ByteArray): ByteArray?
     external fun passKeyDeriveWithSalt(passphrase: ByteArray, salt: ByteArray): ByteArray?

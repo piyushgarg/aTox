@@ -26,6 +26,12 @@ static jmethodID mid_onFileRecvControl;
 static jmethodID mid_onFileRecvChunk;
 static jmethodID mid_onFileChunkRequest;
 
+// Указатели на методы-слушатели Kotlin для событий конференций
+static jmethodID mid_onConferenceInvite;
+static jmethodID mid_onConferenceMessage;
+static jmethodID mid_onConferencePeerListChanged;
+static jmethodID mid_onConferencePeerName;
+
 static std::map<Tox*, jobject> tox_listeners;
 
 JNIEnv* get_env() {
@@ -182,6 +188,51 @@ void cb_friend_lossy_packet(Tox *tox, uint32_t friend_number, const uint8_t *dat
     }
 }
 
+// Обратный вызов при получении приглашения в конференцию (групповой чат)
+void cb_conference_invite(Tox *tox, uint32_t friend_number, TOX_CONFERENCE_TYPE type, const uint8_t *cookie, size_t length, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onConferenceInvite) {
+        jbyteArray cook = env->NewByteArray(length);
+        env->SetByteArrayRegion(cook, 0, length, (const jbyte*)cookie);
+        env->CallVoidMethod(listener, mid_onConferenceInvite, (jint)friend_number, (jint)type, cook);
+        env->DeleteLocalRef(cook);
+    }
+}
+
+// Обратный вызов при получении сообщения в групповом чате (конференции)
+void cb_conference_message(Tox *tox, uint32_t conference_number, uint32_t peer_number, TOX_MESSAGE_TYPE type, const uint8_t *message, size_t length, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onConferenceMessage) {
+        jbyteArray msg = env->NewByteArray(length);
+        env->SetByteArrayRegion(msg, 0, length, (const jbyte*)message);
+        env->CallVoidMethod(listener, mid_onConferenceMessage, (jint)conference_number, (jint)peer_number, (jint)type, msg);
+        env->DeleteLocalRef(msg);
+    }
+}
+
+// Обратный вызов при изменении списка участников конференции (вход/выход)
+void cb_conference_peer_list_changed(Tox *tox, uint32_t conference_number, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onConferencePeerListChanged) {
+        env->CallVoidMethod(listener, mid_onConferencePeerListChanged, (jint)conference_number);
+    }
+}
+
+// Обратный вызов при изменении имени одного из участников конференции
+void cb_conference_peer_name(Tox *tox, uint32_t conference_number, uint32_t peer_number, const uint8_t *name, size_t length, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onConferencePeerName) {
+        jbyteArray n = env->NewByteArray(length);
+        env->SetByteArrayRegion(n, 0, length, (const jbyte*)name);
+        env->CallVoidMethod(listener, mid_onConferencePeerName, (jint)conference_number, (jint)peer_number, n);
+        env->DeleteLocalRef(n);
+    }
+}
+
 static std::vector<uint8_t> jba2vec(JNIEnv *env, jbyteArray array) {
     std::vector<uint8_t> res;
     if (array) {
@@ -268,6 +319,12 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxIterate(JNIEnv *env, jobject thiz, jlong
         tox_callback_file_chunk_request(tox, cb_file_chunk_request);
         tox_callback_friend_lossless_packet(tox, cb_friend_lossless_packet);
         tox_callback_friend_lossy_packet(tox, cb_friend_lossy_packet);
+
+        // Регистрация нативных C++ коллбеков для групповых событий
+        tox_callback_conference_invite(tox, cb_conference_invite);
+        tox_callback_conference_message(tox, cb_conference_message);
+        tox_callback_conference_peer_list_changed(tox, cb_conference_peer_list_changed);
+        tox_callback_conference_peer_name(tox, cb_conference_peer_name);
     }
     tox_iterate(tox, nullptr);
 }
@@ -460,6 +517,140 @@ JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_passEncrypt(JN
     return nullptr;
 }
 
+// Создание новой текстовой конференции (группового чата)
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceNew(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_CONFERENCE_NEW err;
+    uint32_t conf = tox_conference_new(tox, &err);
+    if (err != TOX_ERR_CONFERENCE_NEW_OK) {
+        LOGE("tox_conference_new failed: %d", err);
+        return -1;
+    }
+    return conf;
+}
+
+// Удаление существующей конференции (выход из группы)
+JNIEXPORT void JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceDelete(JNIEnv *env, jobject thiz, jlong toxPtr, jint conferenceNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_CONFERENCE_DELETE err;
+    tox_conference_delete(tox, conferenceNumber, &err);
+    if (err != TOX_ERR_CONFERENCE_DELETE_OK) {
+        LOGE("tox_conference_delete failed: %d", err);
+    }
+}
+
+// Приглашение друга в конференцию
+JNIEXPORT void JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceInvite(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jint conferenceNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_CONFERENCE_INVITE err;
+    tox_conference_invite(tox, friendNumber, conferenceNumber, &err);
+    if (err != TOX_ERR_CONFERENCE_INVITE_OK) {
+        LOGE("tox_conference_invite failed: %d", err);
+    }
+}
+
+// Присоединение к конференции по полученному приглашению (cookie)
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceJoin(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jbyteArray cookie) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint8_t> cook = jba2vec(env, cookie);
+    TOX_ERR_CONFERENCE_JOIN err;
+    uint32_t conf = tox_conference_join(tox, friendNumber, cook.data(), cook.size(), &err);
+    if (err != TOX_ERR_CONFERENCE_JOIN_OK) {
+        LOGE("tox_conference_join failed: %d", err);
+        return -1;
+    }
+    return conf;
+}
+
+// Отправка текстового сообщения в конференцию
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceSendMessage(JNIEnv *env, jobject thiz, jlong toxPtr, jint conferenceNumber, jint type, jbyteArray message) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint8_t> msg = jba2vec(env, message);
+    TOX_ERR_CONFERENCE_SEND_MESSAGE err;
+    bool res = tox_conference_send_message(tox, conferenceNumber, (TOX_MESSAGE_TYPE)type, msg.data(), msg.size(), &err);
+    if (err != TOX_ERR_CONFERENCE_SEND_MESSAGE_OK) {
+        LOGE("tox_conference_send_message failed: %d", err);
+        return 0;
+    }
+    return res ? 1 : 0;
+}
+
+// Получение общего количества участников в конференции
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceGetPeerCount(JNIEnv *env, jobject thiz, jlong toxPtr, jint conferenceNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_CONFERENCE_PEER_QUERY err;
+    uint32_t count = tox_conference_peer_count(tox, conferenceNumber, &err);
+    if (err != TOX_ERR_CONFERENCE_PEER_QUERY_OK) {
+        LOGE("tox_conference_peer_count failed: %d", err);
+        return -1;
+    }
+    return count;
+}
+
+// Получение имени участника по его порядковому номеру
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceGetPeerName(JNIEnv *env, jobject thiz, jlong toxPtr, jint conferenceNumber, jint peerNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_CONFERENCE_PEER_QUERY err;
+    size_t size = tox_conference_peer_get_name_size(tox, conferenceNumber, peerNumber, &err);
+    if (err != TOX_ERR_CONFERENCE_PEER_QUERY_OK) {
+        LOGE("tox_conference_peer_get_name_size failed: %d", err);
+        return nullptr;
+    }
+    std::vector<uint8_t> name(size);
+    tox_conference_peer_get_name(tox, conferenceNumber, peerNumber, name.data(), &err);
+    if (err != TOX_ERR_CONFERENCE_PEER_QUERY_OK) {
+        LOGE("tox_conference_peer_get_name failed: %d", err);
+        return nullptr;
+    }
+    return vec2jba(env, name.data(), size);
+}
+
+// Получение публичного ключа участника по его порядковому номеру
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceGetPeerPublicKey(JNIEnv *env, jobject thiz, jlong toxPtr, jint conferenceNumber, jint peerNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_CONFERENCE_PEER_QUERY err;
+    uint8_t pk[TOX_PUBLIC_KEY_SIZE];
+    tox_conference_peer_get_public_key(tox, conferenceNumber, peerNumber, pk, &err);
+    if (err != TOX_ERR_CONFERENCE_PEER_QUERY_OK) {
+        LOGE("tox_conference_peer_get_public_key failed: %d", err);
+        return nullptr;
+    }
+    return vec2jba(env, pk, TOX_PUBLIC_KEY_SIZE);
+}
+
+// Получение списка идентификаторов всех активных конференций
+JNIEXPORT jintArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceGetChatlist(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    size_t count = tox_conference_get_chatlist_size(tox);
+    std::vector<uint32_t> chatlist(count);
+    tox_conference_get_chatlist(tox, chatlist.data());
+    jintArray res = env->NewIntArray(count);
+    env->SetIntArrayRegion(res, 0, count, reinterpret_cast<const jint*>(chatlist.data()));
+    return res;
+}
+
+// Получение типа конференции (0 - текст, 1 - аудио/видео)
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceGetType(JNIEnv *env, jobject thiz, jlong toxPtr, jint conferenceNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_CONFERENCE_GET_TYPE err;
+    TOX_CONFERENCE_TYPE type = tox_conference_get_type(tox, conferenceNumber, &err);
+    if (err != TOX_ERR_CONFERENCE_GET_TYPE_OK) {
+        LOGE("tox_conference_get_type failed: %d", err);
+        return -1;
+    }
+    return (jint)type;
+}
+
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     g_vm = vm;
     init_toxav_vm(vm);
@@ -482,6 +673,12 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     mid_onFileChunkRequest = env->GetMethodID(cls, "onFileChunkRequest", "(IIJI)V");
     mid_onFriendLosslessPacket = env->GetMethodID(cls, "onFriendLosslessPacket", "(I[B)V");
     mid_onFriendLossyPacket = env->GetMethodID(cls, "onFriendLossyPacket", "(I[B)V");
+
+    // Поиск Method ID обработчиков событий конференций в классе-слушателе
+    mid_onConferenceInvite = env->GetMethodID(cls, "onConferenceInvite", "(II[B)V");
+    mid_onConferenceMessage = env->GetMethodID(cls, "onConferenceMessage", "(III[B)V");
+    mid_onConferencePeerListChanged = env->GetMethodID(cls, "onConferencePeerListChanged", "(I)V");
+    mid_onConferencePeerName = env->GetMethodID(cls, "onConferencePeerName", "(II[B)V");
 
     if (!register_toxav_methods(env)) {
         LOGE("Failed to register ToxAV methods");

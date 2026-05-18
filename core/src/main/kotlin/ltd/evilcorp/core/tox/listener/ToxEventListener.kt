@@ -31,6 +31,15 @@ typealias SelfConnectionStatusHandler = (status: ConnectionStatus) -> Unit
 typealias FriendTypingHandler = (publicKey: String, isTyping: Boolean) -> Unit
 typealias FileChunkRequestHandler = (publicKey: String, fileNo: Int, position: Long, length: Int) -> Unit
 
+// Вызывается при получении приглашения в группу
+typealias ConferenceInviteHandler = (friendNo: Int, type: Int, cookie: ByteArray) -> Unit
+// Вызывается при получении нового сообщения в групповом чате
+typealias ConferenceMessageHandler = (conferenceNo: Int, peerNo: Int, type: ToxMessageType, message: String) -> Unit
+// Вызывается, когда кто-то входит или выходит из группы
+typealias ConferencePeerListChangedHandler = (conferenceNo: Int) -> Unit
+// Вызывается при изменении имени одного из участников группы
+typealias ConferencePeerNameHandler = (conferenceNo: Int, peerNo: Int, newName: String) -> Unit
+
 class ToxEventListener @Inject constructor() {
     var contactMapping: List<Pair<PublicKey, Int>> = listOf()
 
@@ -49,6 +58,12 @@ class ToxEventListener @Inject constructor() {
     var selfConnectionStatusHandler: SelfConnectionStatusHandler = { _ -> }
     var friendTypingHandler: FriendTypingHandler = { _, _ -> }
     var fileChunkRequestHandler: FileChunkRequestHandler = { _, _, _, _ -> }
+
+    // Регистрация обработчиков конференций на Kotlin-стороне
+    var conferenceInviteHandler: ConferenceInviteHandler = { _, _, _ -> }
+    var conferenceMessageHandler: ConferenceMessageHandler = { _, _, _, _ -> }
+    var conferencePeerListChangedHandler: ConferencePeerListChangedHandler = { _ -> }
+    var conferencePeerNameHandler: ConferencePeerNameHandler = { _, _, _ -> }
 
     private fun keyFor(friendNo: Int) = contactMapping.find { it.second == friendNo }!!.first.string()
 
@@ -142,4 +157,17 @@ class ToxEventListener @Inject constructor() {
 
     fun onFriendLossyPacket(friendNo: Int, data: ByteArray) =
         friendLossyPacket(friendNo, data)
+
+    // JNI коллбеки для групповых чатов (конференций)
+    fun onConferenceInvite(friendNo: Int, type: Int, cookie: ByteArray) =
+        conferenceInviteHandler(friendNo, type, cookie)
+
+    fun onConferenceMessage(conferenceNo: Int, peerNo: Int, type: Int, message: ByteArray) =
+        conferenceMessageHandler(conferenceNo, peerNo, ToxMessageType.fromInt(type), String(message))
+
+    fun onConferencePeerListChanged(conferenceNo: Int) =
+        conferencePeerListChangedHandler(conferenceNo)
+
+    fun onConferencePeerName(conferenceNo: Int, peerNo: Int, name: ByteArray) =
+        conferencePeerNameHandler(conferenceNo, peerNo, String(name))
 }
