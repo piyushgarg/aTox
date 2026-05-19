@@ -469,6 +469,134 @@ class NativeTox {
      */
     external fun toxConferenceGetType(tox: Long, conferenceNumber: Int): Int
 
+    // ===================================================================================
+    // Новые Групповые конференции NGC (Next Generation Conferences / Tox Groups)
+    // ===================================================================================
+
+    /**
+     * Создает новую групповую NGC-конференцию.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param privacyState Статус приватности группы (0 - Public, 1 - Private).
+     * @param groupName Название создаваемой группы в виде байтового массива.
+     * @param selfName Ваше имя в создаваемой группе.
+     * @return Уникальный номер группы в Tox (Tox_Group_Number), либо -1 в случае ошибки.
+     */
+    external fun toxGroupNew(tox: Long, privacyState: Int, groupName: ByteArray, selfName: ByteArray): Int
+
+    /**
+     * Присоединяется к групповой NGC-конференции по полученному приглашению.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param friendNumber Номер друга, приславшего приглашение.
+     * @param inviteData Массив байт данных приглашения (invite_data).
+     * @param selfName Ваше имя при входе в группу.
+     * @param password Пароль группы (если есть, иначе null или пустой массив).
+     * @return Номер присоединенной группы, либо -1 в случае ошибки.
+     */
+    external fun toxGroupJoin(tox: Long, friendNumber: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int
+
+    /**
+     * Выходит из групповой NGC-конференции.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @return true в случае успеха, false в случае ошибки.
+     */
+    external fun toxGroupLeave(tox: Long, groupNumber: Int): Boolean
+
+    /**
+     * Отправляет текстовое сообщение в NGC-группу.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @param type Тип сообщения (0 - Normal, 1 - Action /me).
+     * @param message Текст сообщения в виде байтового массива.
+     * @return Уникальный ID отправленного сообщения в рамках группы, либо -1 в случае ошибки.
+     */
+    external fun toxGroupSendMessage(tox: Long, groupNumber: Int, type: Int, message: ByteArray): Int
+
+    /**
+     * Устанавливает тему (topic) для NGC-группы.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @param topic Новая тема в виде байтового массива.
+     * @return true в случае успеха, false в случае ошибки.
+     */
+    external fun toxGroupSetTopic(tox: Long, groupNumber: Int, topic: ByteArray): Boolean
+
+    /**
+     * Получает текущую тему (topic) NGC-группы.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @return Массив байт темы, либо null в случае ошибки.
+     */
+    external fun toxGroupGetTopic(tox: Long, groupNumber: Int): ByteArray?
+
+    /**
+     * Получает название NGC-группы.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @return Массив байт названия, либо null в случае ошибки.
+     */
+    external fun toxGroupGetName(tox: Long, groupNumber: Int): ByteArray?
+
+    /**
+     * Возвращает уникальный постоянный 32-байтовый идентификатор NGC-чата (Chat ID).
+     * Необходим для отслеживания и синхронизации групп между устройствами.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @return 32-байтовый Chat ID, либо null в случае ошибки.
+     */
+    external fun toxGroupGetChatId(tox: Long, groupNumber: Int): ByteArray?
+
+    /**
+     * Устанавливает пароль для доступа к NGC-группе.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @param password Пароль в виде байтового массива (null для удаления пароля).
+     * @return true в случае успеха, false в случае ошибки.
+     */
+    external fun toxGroupSetPassword(tox: Long, groupNumber: Int, password: ByteArray?): Boolean
+
+    /**
+     * Возвращает текущий установленный пароль группы.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @return Массив байт пароля, либо null в случае ошибки или отсутствия пароля.
+     */
+    external fun toxGroupGetPassword(tox: Long, groupNumber: Int): ByteArray?
+
+    /**
+     * Получает имя участника NGC-группы по его ID.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @param peerId Внутренний идентификатор участника в группе.
+     * @return Массив байт имени участника, либо null в случае ошибки.
+     */
+    external fun toxGroupPeerGetName(tox: Long, groupNumber: Int, peerId: Int): ByteArray?
+
+    /**
+     * Получает публичный ключ участника NGC-группы по его ID.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @param peerId Внутренний идентификатор участника в группе.
+     * @return 32-байтовый публичный ключ участника, либо null в случае ошибки.
+     */
+    external fun toxGroupPeerGetPublicKey(tox: Long, groupNumber: Int, peerId: Int): ByteArray?
+
+    /**
+     * Возвращает наш собственный Peer ID в NGC-группе.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @return Наш Peer ID в группе, либо -1 в случае ошибки.
+     */
+    external fun toxGroupSelfGetPeerId(tox: Long, groupNumber: Int): Int
+
+    /**
+     * Возвращает нашу текущую роль в NGC-группе.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @return Роль (0 - Owner, 1 - Moderator, 2 - Participant), либо -1 в случае ошибки.
+     */
+    external fun toxGroupSelfGetRole(tox: Long, groupNumber: Int): Int
+
     // Раздел шифрования профилей Tox (Tox Encrypt / Decrypt API)
 
     /**

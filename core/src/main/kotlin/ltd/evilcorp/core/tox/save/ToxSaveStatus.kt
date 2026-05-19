@@ -1,25 +1,42 @@
-// SPDX-FileCopyrightText: 2020-2021 aTox contributors
-//
-// SPDX-License-Identifier: GPL-3.0-only
-
 package ltd.evilcorp.core.tox.save
 
 import ltd.evilcorp.core.tox.NativeTox
 
+/**
+ * Перечисление возможных статусов загрузки и проверки бинарного файла сохранения Tox (save data).
+ */
 enum class ToxSaveStatus {
+    /** Успешная загрузка и валидация. */
     Ok,
+    /** Неверный формат файла сохранения. */
     BadFormat,
+    /** Файл зашифрован (требуется пароль). */
     Encrypted,
+    /** Ошибка выделения памяти (Out of Memory). */
     OutOfMemory,
+    /** Нулевые данные сохранения. */
     Null,
+    /** Ошибка выделения портов сокетов. */
     PortAlloc,
+    /** Неверно указан хост прокси-сервера. */
     BadProxyHost,
+    /** Неверно указан порт прокси-сервера. */
     BadProxyPort,
+    /** Неподдерживаемый тип прокси. */
     BadProxyType,
+    /** Прокси-сервер не найден или недоступен. */
     ProxyNotFound,
+    /** Файл сохранения не найден. */
     SaveNotFound,
 }
 
+/**
+ * Выполняет тестовую загрузку бинарных данных Tox с расшифровкой (при наличии пароля).
+ * Проверяет корректность структуры данных перед инициализацией основного рабочего инстанса.
+ * @param options Опции сохранения, содержащие бинарный буфер saveData.
+ * @param password Опциональный пароль для расшифровки профиля.
+ * @return Статус проверки в виде [ToxSaveStatus].
+ */
 fun testToxSave(options: SaveOptions, password: String?): ToxSaveStatus {
     val native = NativeTox()
     return try {

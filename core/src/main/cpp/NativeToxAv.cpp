@@ -15,6 +15,7 @@ static jmethodID mid_onAudioReceiveFrame;
 static jmethodID mid_onVideoReceiveFrame;
 static jmethodID mid_onAudioBitRate;
 static jmethodID mid_onVideoBitRate;
+static jmethodID mid_onGroupAudio;
 
 static std::map<ToxAV*, jobject> av_listeners;
 
@@ -87,6 +88,25 @@ void cb_video_bit_rate(ToxAV *av, uint32_t friend_number, uint32_t bit_rate, voi
     }
 }
 
+// Обратный вызов при получении входящего звука из группового AV-чата
+void cb_group_audio(void *tox, uint32_t groupnumber, uint32_t peernumber, const int16_t pcm[],
+                    uint32_t samples, uint8_t channels, uint32_t sample_rate, void *userdata) {
+    JNIEnv* env = get_av_env();
+    jobject listener = nullptr;
+    for (auto const& [av, lis] : av_listeners) {
+        if (toxav_get_tox(av) == reinterpret_cast<Tox*>(tox)) {
+            listener = lis;
+            break;
+        }
+    }
+    if (listener && mid_onGroupAudio) {
+        jshortArray arr = env->NewShortArray(samples * channels);
+        env->SetShortArrayRegion(arr, 0, samples * channels, (const jshort*)pcm);
+        env->CallVoidMethod(listener, mid_onGroupAudio, (jint)groupnumber, (jint)peernumber, arr, (jint)samples, (jint)channels, (jint)sample_rate);
+        env->DeleteLocalRef(arr);
+    }
+}
+
 extern "C" {
 
 JNIEXPORT jlong JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavNew(JNIEnv *env, jobject thiz, jlong toxPtr) {
@@ -147,6 +167,90 @@ JNIEXPORT jboolean JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavAudioSend
     return res;
 }
 
+// Отправка кадра собственного видеопотока YUV420P собеседнику в видеозвонке
+JNIEXPORT jboolean JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavVideoSendFrame(JNIEnv *env, jobject thiz, jlong avPtr, jint friendNumber, jint width, jint height, jbyteArray yPlane, jbyteArray uPlane, jbyteArray vPlane) {
+    ToxAV *av = reinterpret_cast<ToxAV*>(avPtr);
+    jbyte *yData = env->GetByteArrayElements(yPlane, nullptr);
+    jbyte *uData = env->GetByteArrayElements(uPlane, nullptr);
+    jbyte *vData = env->GetByteArrayElements(vPlane, nullptr);
+    
+    TOXAV_ERR_SEND_FRAME err;
+    bool res = toxav_video_send_frame(av, friendNumber, width, height,
+                                      reinterpret_cast<const uint8_t*>(yData),
+                                      reinterpret_cast<const uint8_t*>(uData),
+                                      reinterpret_cast<const uint8_t*>(vData),
+                                      &err);
+    if (err != TOXAV_ERR_SEND_FRAME_OK) {
+        LOGE("toxav_video_send_frame failed: %d", err);
+    }
+    
+    env->ReleaseByteArrayElements(yPlane, yData, JNI_ABORT);
+    env->ReleaseByteArrayElements(uPlane, uData, JNI_ABORT);
+    env->ReleaseByteArrayElements(vPlane, vData, JNI_ABORT);
+    return res;
+}
+
+// Изменение аудио-битрейта в текущем соединении «на лету»
+JNIEXPORT jboolean JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavAudioSetBitRate(JNIEnv *env, jobject thiz, jlong avPtr, jint friendNumber, jint bitrate) {
+    ToxAV *av = reinterpret_cast<ToxAV*>(avPtr);
+    TOXAV_ERR_BIT_RATE_SET err;
+    bool res = toxav_audio_set_bit_rate(av, friendNumber, bitrate, &err);
+    if (err != TOXAV_ERR_BIT_RATE_SET_OK) {
+        LOGE("toxav_audio_set_bit_rate failed: %d", err);
+    }
+    return res;
+}
+
+// Изменение видео-битрейта в текущем соединении «на лету»
+JNIEXPORT jboolean JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavVideoSetBitRate(JNIEnv *env, jobject thiz, jlong avPtr, jint friendNumber, jint bitrate) {
+    ToxAV *av = reinterpret_cast<ToxAV*>(avPtr);
+    TOXAV_ERR_BIT_RATE_SET err;
+    bool res = toxav_video_set_bit_rate(av, friendNumber, bitrate, &err);
+    if (err != TOXAV_ERR_BIT_RATE_SET_OK) {
+        LOGE("toxav_video_set_bit_rate failed: %d", err);
+    }
+    return res;
+}
+
+// Создание нового группового AV-чата на основе инстанса Tox
+JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavAddAvGroupchat(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    return toxav_add_av_groupchat(tox, cb_group_audio, nullptr);
+}
+
+// Присоединение к групповому AV-чату (через включение/активацию A/V на группе)
+JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavJoinAvGroupchat(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    return toxav_groupchat_enable_av(tox, groupNumber, cb_group_audio, nullptr);
+}
+
+// Отправка собственного аудио-кадра PCM в групповой чат
+JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavGroupSendAudio(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber, jshortArray pcm, jint sampleCount, jint channels, jint samplingRate) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    jshort *data = env->GetShortArrayElements(pcm, nullptr);
+    int32_t res = toxav_group_send_audio(tox, groupNumber, reinterpret_cast<const int16_t*>(data), sampleCount, channels, samplingRate);
+    env->ReleaseShortArrayElements(pcm, data, JNI_ABORT);
+    return res;
+}
+
+// Включение/активация AV-функций для указанной группы
+JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavGroupchatEnableAv(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    return toxav_groupchat_enable_av(tox, groupNumber, cb_group_audio, nullptr);
+}
+
+// Отключение AV-функций для указанной группы
+JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavGroupchatDisableAv(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    return toxav_groupchat_disable_av(tox, groupNumber);
+}
+
+// Проверка активности AV-функций для указанной группы
+JNIEXPORT jboolean JNICALL Java_ltd_evilcorp_core_tox_NativeToxAv_toxavGroupchatAvEnabled(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    return toxav_groupchat_av_enabled(tox, groupNumber);
+}
+
 bool register_toxav_methods(JNIEnv* env) {
     jclass cls = env->FindClass("ltd/evilcorp/core/tox/listener/ToxAvEventListener");
     if (!cls) return false;
@@ -156,6 +260,7 @@ bool register_toxav_methods(JNIEnv* env) {
     mid_onVideoReceiveFrame = env->GetMethodID(cls, "onVideoReceiveFrame", "(III[B[B[BIII)V");
     mid_onAudioBitRate = env->GetMethodID(cls, "onAudioBitRate", "(II)V");
     mid_onVideoBitRate = env->GetMethodID(cls, "onVideoBitRate", "(II)V");
+    mid_onGroupAudio = env->GetMethodID(cls, "onGroupAudio", "(II[SIII)V");
     return true;
 }
 

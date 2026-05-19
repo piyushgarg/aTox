@@ -7,8 +7,16 @@ import org.json.JSONObject
 
 private const val TAG = "BootstrapNodeJsonParser"
 
-// Parses a json string containing json formatted the way it is on https://nodes.tox.chat/json
+/**
+ * Парсер списка публичных DHT-узлов из JSON формата, возвращаемого ресурсом https://nodes.tox.chat/json.
+ * Отбирает только активные (online) узлы, поддерживающие как TCP, так и UDP.
+ */
 class BootstrapNodeJsonParser @Inject constructor() {
+    /**
+     * Преобразует JSON-строку в список объектов [BootstrapNode].
+     * @param jsonString Исходная JSON-строка для парсинга.
+     * @return Список валидных узлов для бутстрапа. В случае ошибки возвращает пустой список.
+     */
     fun parse(jsonString: String): List<BootstrapNode> = try {
         val nodes = mutableListOf<BootstrapNode>()
 

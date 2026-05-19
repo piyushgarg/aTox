@@ -9,13 +9,41 @@ import ltd.evilcorp.core.model.PublicKey
 
 private const val TAG = "AndroidSaveManager"
 
+/**
+ * Интерфейс менеджера сохранения профилей Tox.
+ * Отвечает за сериализацию и десериализацию бинарных файлов состояний.
+ */
 interface SaveManager {
+    /**
+     * Возвращает список названий всех сохраненных профилей на диске.
+     */
     fun list(): List<String>
+
+    /**
+     * Выполняет атомарную запись бинарного состояния профиля на диск.
+     * @param pk Публичный ключ профиля, выступающий в качестве уникального идентификатора.
+     * @param saveData Массив байтов состояния Tox Core.
+     */
     fun save(pk: PublicKey, saveData: ByteArray)
+
+    /**
+     * Загружает бинарное состояние профиля с диска.
+     * @param pk Публичный ключ профиля.
+     * @return Массив байтов состояния Tox Core, либо null, если профиль не найден.
+     */
     fun load(pk: PublicKey): ByteArray?
+
+    /**
+     * Удаляет файл сохранения профиля с диска.
+     * @param pk Публичный ключ профиля.
+     * @return true, если файл успешно удален, иначе false.
+     */
     fun delete(pk: PublicKey): Boolean
 }
 
+/**
+ * Android-реализация интерфейса [SaveManager], выполняющая атомарную запись файлов сохранения во внутреннюю директорию файлов приложения.
+ */
 class AndroidSaveManager @Inject constructor(val context: Context) : SaveManager {
     private val saveDir get() = context.filesDir
 

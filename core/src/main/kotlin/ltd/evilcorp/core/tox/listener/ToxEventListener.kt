@@ -4,6 +4,13 @@ import ltd.evilcorp.core.tox.enums.ToxConnection
 import ltd.evilcorp.core.tox.enums.ToxFileControl
 import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.core.tox.enums.ToxUserStatus
+import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.core.tox.enums.ToxGroupTopicLock
+import ltd.evilcorp.core.tox.enums.ToxGroupVoiceState
+import ltd.evilcorp.core.tox.enums.ToxGroupRole
+import ltd.evilcorp.core.tox.enums.ToxGroupExitType
+import ltd.evilcorp.core.tox.enums.ToxGroupJoinFail
+import ltd.evilcorp.core.tox.enums.ToxGroupModEvent
 import javax.inject.Inject
 import ltd.evilcorp.core.model.ConnectionStatus
 import ltd.evilcorp.core.model.PublicKey
@@ -57,6 +64,39 @@ typealias ConferencePeerNameHandler = (conferenceNo: Int, peerNo: Int, newName: 
 // Вызывается при изменении названия (заголовка) группы одним из участников
 typealias ConferenceTitleHandler = (conferenceNo: Int, peerNo: Int, newTitle: String) -> Unit
 
+// Вызывается при получении приглашения в NGC-группу
+typealias GroupInviteHandler = (friendNo: Int, inviteData: ByteArray, groupName: String) -> Unit
+// Вызывается при получении нового сообщения в NGC-группе
+typealias GroupMessageHandler = (groupNo: Int, peerId: Int, type: ToxMessageType, message: String, messageId: Int) -> Unit
+// Вызывается, когда участник входит в NGC-группу
+typealias GroupPeerJoinHandler = (groupNo: Int, peerId: Int) -> Unit
+// Вызывается, когда участник выходит из NGC-группы
+typealias GroupPeerExitHandler = (groupNo: Int, peerId: Int, exitType: ToxGroupExitType) -> Unit
+// Вызывается при изменении темы NGC-группы
+typealias GroupTopicHandler = (groupNo: Int, peerId: Int, topic: String) -> Unit
+// Вызывается при изменении имени одного из участников NGC-группы
+typealias GroupPeerNameHandler = (groupNo: Int, peerId: Int, name: String) -> Unit
+// Вызывается при изменении пароля NGC-группы
+typealias GroupPasswordHandler = (groupNo: Int, password: ByteArray) -> Unit
+// Вызывается при изменении статуса присутствия участника в NGC-группе
+typealias GroupPeerStatusHandler = (groupNo: Int, peerId: Int, status: ToxUserStatus) -> Unit
+// Вызывается при изменении типа приватности NGC-группы
+typealias GroupPrivacyStateHandler = (groupNo: Int, privacyState: ToxGroupPrivacyState) -> Unit
+// Вызывается при изменении голосового режима NGC-группы
+typealias GroupVoiceStateHandler = (groupNo: Int, voiceState: ToxGroupVoiceState) -> Unit
+// Вызывается при блокировке/разблокировке темы NGC-группы
+typealias GroupTopicLockHandler = (groupNo: Int, topicLock: ToxGroupTopicLock) -> Unit
+// Вызывается при изменении лимита участников в NGC-группе
+typealias GroupPeerLimitHandler = (groupNo: Int, peerLimit: Int) -> Unit
+// Вызывается при получении личного сообщения внутри NGC-группы
+typealias GroupPrivateMessageHandler = (groupNo: Int, peerId: Int, type: ToxMessageType, message: String, messageId: Int) -> Unit
+// Вызывается при успешном подключении клиента к NGC-группе
+typealias GroupSelfJoinHandler = (groupNo: Int) -> Unit
+// Вызывается при ошибке входа клиента в NGC-группу
+typealias GroupJoinFailHandler = (groupNo: Int, failType: ToxGroupJoinFail) -> Unit
+// Вызывается при совершении административных действий в NGC-группе
+typealias GroupModerationHandler = (groupNo: Int, sourcePeerId: Int, targetPeerId: Int, modType: ToxGroupModEvent) -> Unit
+
 class ToxEventListener @Inject constructor() {
     var contactMapping: List<Pair<PublicKey, Int>> = listOf()
 
@@ -100,6 +140,24 @@ class ToxEventListener @Inject constructor() {
     var conferencePeerNameHandler: ConferencePeerNameHandler = { _, _, _ -> }
     // Изменение названия группы
     var conferenceTitleHandler: ConferenceTitleHandler = { _, _, _ -> }
+
+    // Регистрация обработчиков NGC-групп на Kotlin-стороне
+    var groupInviteHandler: GroupInviteHandler = { _, _, _ -> }
+    var groupMessageHandler: GroupMessageHandler = { _, _, _, _, _ -> }
+    var groupPeerJoinHandler: GroupPeerJoinHandler = { _, _ -> }
+    var groupPeerExitHandler: GroupPeerExitHandler = { _, _, _ -> }
+    var groupTopicHandler: GroupTopicHandler = { _, _, _ -> }
+    var groupPeerNameHandler: GroupPeerNameHandler = { _, _, _ -> }
+    var groupPasswordHandler: GroupPasswordHandler = { _, _ -> }
+    var groupPeerStatusHandler: GroupPeerStatusHandler = { _, _, _ -> }
+    var groupPrivacyStateHandler: GroupPrivacyStateHandler = { _, _ -> }
+    var groupVoiceStateHandler: GroupVoiceStateHandler = { _, _ -> }
+    var groupTopicLockHandler: GroupTopicLockHandler = { _, _ -> }
+    var groupPeerLimitHandler: GroupPeerLimitHandler = { _, _ -> }
+    var groupPrivateMessageHandler: GroupPrivateMessageHandler = { _, _, _, _, _ -> }
+    var groupSelfJoinHandler: GroupSelfJoinHandler = { _ -> }
+    var groupJoinFailHandler: GroupJoinFailHandler = { _, _ -> }
+    var groupModerationHandler: GroupModerationHandler = { _, _, _, _ -> }
 
     private fun keyFor(friendNo: Int) = contactMapping.find { it.second == friendNo }!!.first.string()
 
@@ -272,4 +330,53 @@ class ToxEventListener @Inject constructor() {
 
     fun onConferenceTitle(conferenceNo: Int, peerNo: Int, title: ByteArray) =
         conferenceTitleHandler(conferenceNo, peerNo, String(title))
+
+    // JNI коллбеки для NGC-групп (вызываются нативно)
+    fun onGroupInvite(friendNo: Int, inviteData: ByteArray, groupName: ByteArray) =
+        groupInviteHandler(friendNo, inviteData, String(groupName))
+
+    fun onGroupMessage(groupNo: Int, peerId: Int, type: Int, message: ByteArray, messageId: Int) =
+        groupMessageHandler(groupNo, peerId, ToxMessageType.fromInt(type), String(message), messageId)
+
+    fun onGroupPeerJoin(groupNo: Int, peerId: Int) =
+        groupPeerJoinHandler(groupNo, peerId)
+
+    fun onGroupPeerExit(groupNo: Int, peerId: Int, exitType: Int) =
+        groupPeerExitHandler(groupNo, peerId, ToxGroupExitType.fromInt(exitType))
+
+    fun onGroupTopic(groupNo: Int, peerId: Int, topic: ByteArray) =
+        groupTopicHandler(groupNo, peerId, String(topic))
+
+    fun onGroupPeerName(groupNo: Int, peerId: Int, name: ByteArray) =
+        groupPeerNameHandler(groupNo, peerId, String(name))
+
+    fun onGroupPassword(groupNo: Int, password: ByteArray) =
+        groupPasswordHandler(groupNo, password)
+
+    fun onGroupPeerStatus(groupNo: Int, peerId: Int, status: Int) =
+        groupPeerStatusHandler(groupNo, peerId, ToxUserStatus.fromInt(status))
+
+    fun onGroupPrivacyState(groupNo: Int, privacyState: Int) =
+        groupPrivacyStateHandler(groupNo, ToxGroupPrivacyState.fromInt(privacyState))
+
+    fun onGroupVoiceState(groupNo: Int, voiceState: Int) =
+        groupVoiceStateHandler(groupNo, ToxGroupVoiceState.fromInt(voiceState))
+
+    fun onGroupTopicLock(groupNo: Int, topicLock: Int) =
+        groupTopicLockHandler(groupNo, ToxGroupTopicLock.fromInt(topicLock))
+
+    fun onGroupPeerLimit(groupNo: Int, peerLimit: Int) =
+        groupPeerLimitHandler(groupNo, peerLimit)
+
+    fun onGroupPrivateMessage(groupNo: Int, peerId: Int, type: Int, message: ByteArray, messageId: Int) =
+        groupPrivateMessageHandler(groupNo, peerId, ToxMessageType.fromInt(type), String(message), messageId)
+
+    fun onGroupSelfJoin(groupNo: Int) =
+        groupSelfJoinHandler(groupNo)
+
+    fun onGroupJoinFail(groupNo: Int, failType: Int) =
+        groupJoinFailHandler(groupNo, ToxGroupJoinFail.fromInt(failType))
+
+    fun onGroupModeration(groupNo: Int, sourcePeerId: Int, targetPeerId: Int, modType: Int) =
+        groupModerationHandler(groupNo, sourcePeerId, targetPeerId, ToxGroupModEvent.fromInt(modType))
 }

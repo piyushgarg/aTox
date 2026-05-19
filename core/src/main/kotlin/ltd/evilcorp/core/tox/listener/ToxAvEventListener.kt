@@ -22,6 +22,7 @@ typealias VideoReceiveFrameHandler = (
 
 typealias AudioReceiveFrameHandler = (pk: String, pcm: ShortArray, channels: Int, samplingRate: Int) -> Unit
 typealias AudioBitRateHandler = (pk: String, bitRate: Int) -> Unit
+typealias GroupAudioHandler = (groupNo: Int, peerId: Int, pcm: ShortArray, channels: Int, samplingRate: Int) -> Unit
 
 private const val CALL_STATE_ERROR = 1
 private const val CALL_STATE_FINISHED = 2
@@ -39,6 +40,7 @@ class ToxAvEventListener @Inject constructor() {
     var videoReceiveFrameHandler: VideoReceiveFrameHandler = { _, _, _, _, _, _, _, _, _ -> }
     var audioReceiveFrameHandler: AudioReceiveFrameHandler = { _, _, _, _ -> }
     var audioBitRateHandler: AudioBitRateHandler = { _, _ -> }
+    var groupAudioHandler: GroupAudioHandler = { _, _, _, _, _ -> }
 
     private fun keyFor(friendNo: Int): String? = contactMapping.find { it.second == friendNo }?.first?.string()
 
@@ -116,4 +118,7 @@ class ToxAvEventListener @Inject constructor() {
     fun onAudioBitRate(friendNo: Int, bitRate: Int) = audioBitRate(friendNo, bitRate)
 
     fun onVideoBitRate(friendNo: Int, bitRate: Int) = videoBitRate(friendNo, bitRate)
+
+    fun onGroupAudio(groupNo: Int, peerId: Int, pcm: ShortArray, @Suppress("UNUSED_PARAMETER") sampleCount: Int, channels: Int, samplingRate: Int) =
+        groupAudioHandler(groupNo, peerId, pcm, channels, samplingRate)
 }

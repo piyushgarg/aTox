@@ -13,16 +13,15 @@ import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.enums.ToxavCallControl
 import ltd.evilcorp.core.tox.enums.ToxFileControl
+import ltd.evilcorp.core.tox.enums.ToxMessageType
+import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.core.tox.enums.ToxGroupRole
 import ltd.evilcorp.core.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.toToxtype
 import ltd.evilcorp.core.tox.toToxType
 
 private const val TAG = "ToxWrapper"
 
-// TODO(robinlinden) Make configurable.
-// https://wiki.xiph.org/Opus_Recommended_Settings
-// 32 should be good enough for fullband stereo.
-private const val AUDIO_BIT_RATE = 32
 private const val FILE_ID_LENGTH = 32
 
 enum class CustomPacketError {
@@ -36,6 +35,10 @@ enum class CustomPacketError {
     TooLong,
 }
 
+/**
+ * Высокоуровневая потокобезопасная обертка над нативными библиотеками NativeTox и NativeToxAv.
+ * Управляет жизненным циклом сессии Tox, вызовами сетевых функций, файловыми трансферами и AV-звонками.
+ */
 class ToxWrapper(
     private val eventListener: ToxEventListener,
     private val avEventListener: ToxAvEventListener,
@@ -45,6 +48,13 @@ class ToxWrapper(
     private val nativeToxAv = NativeToxAv()
     private var toxPtr: Long = 0
     private var toxavPtr: Long = 0
+
+    /**
+     * Динамически настраиваемый битрейт аудио Opus (в kbps).
+     * Рекомендуемое значение: 32 kbps (достаточно для качественного полнополосного стерео-звука).
+     */
+    @Volatile
+    var audioBitrate: Int = 32
 
     init {
         val sd = options.saveData
@@ -200,15 +210,97 @@ class ToxWrapper(
 
     // ToxAv, probably move these.
     fun startCall(pk: PublicKey) = synchronized(this) {
-        nativeToxAv.toxavCall(toxavPtr, contactByKey(pk), AUDIO_BIT_RATE, 0)
+        nativeToxAv.toxavCall(toxavPtr, contactByKey(pk), audioBitrate, 0)
     }
     fun answerCall(pk: PublicKey) = synchronized(this) {
-        nativeToxAv.toxavAnswer(toxavPtr, contactByKey(pk), AUDIO_BIT_RATE, 0)
+        nativeToxAv.toxavAnswer(toxavPtr, contactByKey(pk), audioBitrate, 0)
     }
     fun endCall(pk: PublicKey) = synchronized(this) {
         nativeToxAv.toxavCallControl(toxavPtr, contactByKey(pk), ToxavCallControl.CANCEL.ordinal)
     }
     fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) = synchronized(this) {
         nativeToxAv.toxavAudioSendFrame(toxavPtr, contactByKey(pk), pcm, pcm.size, channels, samplingRate)
+    }
+
+    // NGC Groups / Modern Conferences
+    fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int = synchronized(this) {
+        nativeTox.toxGroupNew(toxPtr, privacyState.value, groupName, selfName)
+    }
+
+    fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int = synchronized(this) {
+        nativeTox.toxGroupJoin(toxPtr, friendNo, inviteData, selfName, password)
+    }
+
+    fun groupLeave(groupNumber: Int): Boolean = synchronized(this) {
+        nativeTox.toxGroupLeave(toxPtr, groupNumber)
+    }
+
+    fun groupSendMessage(groupNumber: Int, type: ToxMessageType, message: ByteArray): Int = synchronized(this) {
+        nativeTox.toxGroupSendMessage(toxPtr, groupNumber, type.ordinal, message)
+    }
+
+    fun groupSetTopic(groupNumber: Int, topic: ByteArray): Boolean = synchronized(this) {
+        nativeTox.toxGroupSetTopic(toxPtr, groupNumber, topic)
+    }
+
+    fun groupGetTopic(groupNumber: Int): ByteArray? = synchronized(this) {
+        nativeTox.toxGroupGetTopic(toxPtr, groupNumber)
+    }
+
+    fun groupGetName(groupNumber: Int): ByteArray? = synchronized(this) {
+        nativeTox.toxGroupGetName(toxPtr, groupNumber)
+    }
+
+    fun groupGetChatId(groupNumber: Int): ByteArray? = synchronized(this) {
+        nativeTox.toxGroupGetChatId(toxPtr, groupNumber)
+    }
+
+    fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean = synchronized(this) {
+        nativeTox.toxGroupSetPassword(toxPtr, groupNumber, password)
+    }
+
+    fun groupGetPassword(groupNumber: Int): ByteArray? = synchronized(this) {
+        nativeTox.toxGroupGetPassword(toxPtr, groupNumber)
+    }
+
+    fun groupPeerGetName(groupNumber: Int, peerId: Int): ByteArray? = synchronized(this) {
+        nativeTox.toxGroupPeerGetName(toxPtr, groupNumber, peerId)
+    }
+
+    fun groupPeerGetPublicKey(groupNumber: Int, peerId: Int): ByteArray? = synchronized(this) {
+        nativeTox.toxGroupPeerGetPublicKey(toxPtr, groupNumber, peerId)
+    }
+
+    fun groupSelfGetPeerId(groupNumber: Int): Int = synchronized(this) {
+        nativeTox.toxGroupSelfGetPeerId(toxPtr, groupNumber)
+    }
+
+    fun groupSelfGetRole(groupNumber: Int): ToxGroupRole = synchronized(this) {
+        ToxGroupRole.fromInt(nativeTox.toxGroupSelfGetRole(toxPtr, groupNumber))
+    }
+
+    // Modern Group Call (ToxAV)
+    fun groupavAdd(): Int = synchronized(this) {
+        nativeToxAv.toxavAddAvGroupchat(toxPtr)
+    }
+
+    fun groupavJoin(groupNumber: Int): Int = synchronized(this) {
+        nativeToxAv.toxavJoinAvGroupchat(toxPtr, groupNumber)
+    }
+
+    fun groupavSendAudio(groupNumber: Int, pcm: ShortArray, channels: Int, samplingRate: Int): Int = synchronized(this) {
+        nativeToxAv.toxavGroupSendAudio(toxPtr, groupNumber, pcm, pcm.size, channels, samplingRate)
+    }
+
+    fun groupavEnableAudio(groupNumber: Int): Int = synchronized(this) {
+        nativeToxAv.toxavGroupchatEnableAv(toxPtr, groupNumber)
+    }
+
+    fun groupavDisableAudio(groupNumber: Int): Int = synchronized(this) {
+        nativeToxAv.toxavGroupchatDisableAv(toxPtr, groupNumber)
+    }
+
+    fun groupavIsEnabled(groupNumber: Int): Boolean = synchronized(this) {
+        nativeToxAv.toxavGroupchatAvEnabled(toxPtr, groupNumber)
     }
 }

@@ -33,6 +33,24 @@ static jmethodID mid_onConferencePeerListChanged;
 static jmethodID mid_onConferencePeerName;
 static jmethodID mid_onConferenceTitle;
 
+// Указатели на методы-слушатели Kotlin для событий NGC-групп
+static jmethodID mid_onGroupInvite;
+static jmethodID mid_onGroupMessage;
+static jmethodID mid_onGroupPeerJoin;
+static jmethodID mid_onGroupPeerExit;
+static jmethodID mid_onGroupTopic;
+static jmethodID mid_onGroupPeerName;
+static jmethodID mid_onGroupPassword;
+static jmethodID mid_onGroupPeerStatus;
+static jmethodID mid_onGroupPrivacyState;
+static jmethodID mid_onGroupVoiceState;
+static jmethodID mid_onGroupTopicLock;
+static jmethodID mid_onGroupPeerLimit;
+static jmethodID mid_onGroupPrivateMessage;
+static jmethodID mid_onGroupSelfJoin;
+static jmethodID mid_onGroupJoinFail;
+static jmethodID mid_onGroupModeration;
+
 static std::map<Tox*, jobject> tox_listeners;
 
 JNIEnv* get_env() {
@@ -246,6 +264,173 @@ void cb_conference_title(Tox *tox, uint32_t conference_number, uint32_t peer_num
     }
 }
 
+// Обратный вызов при получении приглашения в NGC-группу
+void cb_group_invite(Tox *tox, uint32_t friend_number, const uint8_t *invite_data, size_t length, const uint8_t *group_name, size_t group_name_length, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupInvite) {
+        jbyteArray invite = env->NewByteArray(length);
+        env->SetByteArrayRegion(invite, 0, length, (const jbyte*)invite_data);
+        jbyteArray name = env->NewByteArray(group_name_length);
+        env->SetByteArrayRegion(name, 0, group_name_length, (const jbyte*)group_name);
+        env->CallVoidMethod(listener, mid_onGroupInvite, (jint)friend_number, invite, name);
+        env->DeleteLocalRef(invite);
+        env->DeleteLocalRef(name);
+    }
+}
+
+// Обратный вызов при получении нового сообщения в NGC-группе
+void cb_group_message(Tox *tox, uint32_t group_number, uint32_t peer_id, TOX_MESSAGE_TYPE message_type, const uint8_t *message, size_t length, uint32_t message_id, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupMessage) {
+        jbyteArray msg = env->NewByteArray(length);
+        env->SetByteArrayRegion(msg, 0, length, (const jbyte*)message);
+        env->CallVoidMethod(listener, mid_onGroupMessage, (jint)group_number, (jint)peer_id, (jint)message_type, msg, (jint)message_id);
+        env->DeleteLocalRef(msg);
+    }
+}
+
+// Обратный вызов при входе участника в NGC-группу
+void cb_group_peer_join(Tox *tox, uint32_t group_number, uint32_t peer_id, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupPeerJoin) {
+        env->CallVoidMethod(listener, mid_onGroupPeerJoin, (jint)group_number, (jint)peer_id);
+    }
+}
+
+// Обратный вызов при выходе участника из NGC-группы
+void cb_group_peer_exit(Tox *tox, uint32_t group_number, uint32_t peer_id, Tox_Group_Exit_Type exit_type,
+                         const uint8_t name[], size_t name_length,
+                         const uint8_t part_message[], size_t part_message_length, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupPeerExit) {
+        env->CallVoidMethod(listener, mid_onGroupPeerExit, (jint)group_number, (jint)peer_id, (jint)exit_type);
+    }
+}
+
+// Обратный вызов при смене темы NGC-группы
+void cb_group_topic(Tox *tox, uint32_t group_number, uint32_t peer_id, const uint8_t *topic, size_t length, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupTopic) {
+        jbyteArray top = env->NewByteArray(length);
+        env->SetByteArrayRegion(top, 0, length, (const jbyte*)topic);
+        env->CallVoidMethod(listener, mid_onGroupTopic, (jint)group_number, (jint)peer_id, top);
+        env->DeleteLocalRef(top);
+    }
+}
+
+// Обратный вызов при смене имени участника NGC-группы
+void cb_group_peer_name(Tox *tox, uint32_t group_number, uint32_t peer_id, const uint8_t *name, size_t length, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupPeerName) {
+        jbyteArray n = env->NewByteArray(length);
+        env->SetByteArrayRegion(n, 0, length, (const jbyte*)name);
+        env->CallVoidMethod(listener, mid_onGroupPeerName, (jint)group_number, (jint)peer_id, n);
+        env->DeleteLocalRef(n);
+    }
+}
+
+// Обратный вызов при смене пароля NGC-группы
+void cb_group_password(Tox *tox, uint32_t group_number, const uint8_t *password, size_t length, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupPassword) {
+        jbyteArray pass = env->NewByteArray(length);
+        env->SetByteArrayRegion(pass, 0, length, (const jbyte*)password);
+        env->CallVoidMethod(listener, mid_onGroupPassword, (jint)group_number, pass);
+        env->DeleteLocalRef(pass);
+    }
+}
+
+// Обратный вызов при смене сетевого статуса участника NGC-группы
+void cb_group_peer_status(Tox *tox, uint32_t group_number, uint32_t peer_id, Tox_User_Status status, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupPeerStatus) {
+        env->CallVoidMethod(listener, mid_onGroupPeerStatus, (jint)group_number, (jint)peer_id, (jint)status);
+    }
+}
+
+// Обратный вызов при изменении режима приватности NGC-группы
+void cb_group_privacy_state(Tox *tox, uint32_t group_number, Tox_Group_Privacy_State privacy_state, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupPrivacyState) {
+        env->CallVoidMethod(listener, mid_onGroupPrivacyState, (jint)group_number, (jint)privacy_state);
+    }
+}
+
+// Обратный вызов при изменении голосового статуса NGC-группы
+void cb_group_voice_state(Tox *tox, uint32_t group_number, Tox_Group_Voice_State voice_state, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupVoiceState) {
+        env->CallVoidMethod(listener, mid_onGroupVoiceState, (jint)group_number, (jint)voice_state);
+    }
+}
+
+// Обратный вызов при смене блокировки изменения темы NGC-группы
+void cb_group_topic_lock(Tox *tox, uint32_t group_number, Tox_Group_Topic_Lock topic_lock, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupTopicLock) {
+        env->CallVoidMethod(listener, mid_onGroupTopicLock, (jint)group_number, (jint)topic_lock);
+    }
+}
+
+// Обратный вызов при смене лимита количества участников NGC-группы
+void cb_group_peer_limit(Tox *tox, uint32_t group_number, uint32_t peer_limit, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupPeerLimit) {
+        env->CallVoidMethod(listener, mid_onGroupPeerLimit, (jint)group_number, (jint)peer_limit);
+    }
+}
+
+// Обратный вызов при получении приватного сообщения внутри NGC-группы
+void cb_group_private_message(Tox *tox, uint32_t group_number, uint32_t peer_id, Tox_Message_Type type, const uint8_t *message, size_t length, uint32_t message_id, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupPrivateMessage) {
+        jbyteArray msg = env->NewByteArray(length);
+        env->SetByteArrayRegion(msg, 0, length, (const jbyte*)message);
+        env->CallVoidMethod(listener, mid_onGroupPrivateMessage, (jint)group_number, (jint)peer_id, (jint)type, msg, (jint)message_id);
+        env->DeleteLocalRef(msg);
+    }
+}
+
+// Обратный вызов при успешном собственном подключении к NGC-группе
+void cb_group_self_join(Tox *tox, uint32_t group_number, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupSelfJoin) {
+        env->CallVoidMethod(listener, mid_onGroupSelfJoin, (jint)group_number);
+    }
+}
+
+// Обратный вызов при ошибке подключения к NGC-группе
+void cb_group_join_fail(Tox *tox, uint32_t group_number, Tox_Group_Join_Fail fail_type, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupJoinFail) {
+        env->CallVoidMethod(listener, mid_onGroupJoinFail, (jint)group_number, (jint)fail_type);
+    }
+}
+
+// Обратный вызов при административных (модерационных) событиях в NGC-группе
+void cb_group_moderation(Tox *tox, uint32_t group_number, uint32_t source_peer_id, uint32_t target_peer_id, Tox_Group_Mod_Event mod_type, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onGroupModeration) {
+        env->CallVoidMethod(listener, mid_onGroupModeration, (jint)group_number, (jint)source_peer_id, (jint)target_peer_id, (jint)mod_type);
+    }
+}
+
 static std::vector<uint8_t> jba2vec(JNIEnv *env, jbyteArray array) {
     std::vector<uint8_t> res;
     if (array) {
@@ -382,6 +567,24 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxIterate(JNIEnv *env, jobject thiz, jlong
         tox_callback_conference_peer_list_changed(tox, cb_conference_peer_list_changed);
         tox_callback_conference_peer_name(tox, cb_conference_peer_name);
         tox_callback_conference_title(tox, cb_conference_title);
+
+        // Регистрация нативных C++ коллбеков для событий NGC-групп
+        tox_callback_group_invite(tox, cb_group_invite);
+        tox_callback_group_message(tox, cb_group_message);
+        tox_callback_group_peer_join(tox, cb_group_peer_join);
+        tox_callback_group_peer_exit(tox, cb_group_peer_exit);
+        tox_callback_group_topic(tox, cb_group_topic);
+        tox_callback_group_peer_name(tox, cb_group_peer_name);
+        tox_callback_group_password(tox, cb_group_password);
+        tox_callback_group_peer_status(tox, cb_group_peer_status);
+        tox_callback_group_privacy_state(tox, cb_group_privacy_state);
+        tox_callback_group_voice_state(tox, cb_group_voice_state);
+        tox_callback_group_topic_lock(tox, cb_group_topic_lock);
+        tox_callback_group_peer_limit(tox, cb_group_peer_limit);
+        tox_callback_group_private_message(tox, cb_group_private_message);
+        tox_callback_group_self_join(tox, cb_group_self_join);
+        tox_callback_group_join_fail(tox, cb_group_join_fail);
+        tox_callback_group_moderation(tox, cb_group_moderation);
     }
     tox_iterate(tox, nullptr);
 }
@@ -906,6 +1109,207 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceGetType(JNIEnv *env, jobject t
     return (jint)type;
 }
 
+// ===================================================================================
+// Групповые конференции нового поколения NGC (Next Generation Conferences / Tox Groups)
+// ===================================================================================
+
+// Создание нового NGC группового чата
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupNew(JNIEnv *env, jobject thiz, jlong toxPtr, jint privacyState, jbyteArray groupName, jbyteArray selfName) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint8_t> name = jba2vec(env, groupName);
+    std::vector<uint8_t> self = jba2vec(env, selfName);
+    Tox_Err_Group_New err;
+    uint32_t group_num = tox_group_new(tox, (Tox_Group_Privacy_State)privacyState, name.data(), name.size(), self.data(), self.size(), &err);
+    if (err != TOX_ERR_GROUP_NEW_OK) {
+        LOGE("tox_group_new failed: %d", err);
+        return -1;
+    }
+    return group_num;
+}
+
+// Принятие приглашения и вход в NGC групповой чат
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupJoin(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jbyteArray inviteData, jbyteArray selfName, jbyteArray password) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint8_t> invite = jba2vec(env, inviteData);
+    std::vector<uint8_t> self = jba2vec(env, selfName);
+    std::vector<uint8_t> pass = jba2vec(env, password);
+    Tox_Err_Group_Invite_Accept err;
+    uint32_t group_num = tox_group_invite_accept(tox, friendNumber, invite.data(), invite.size(), self.data(), self.size(), pass.empty() ? nullptr : pass.data(), pass.size(), &err);
+    if (err != TOX_ERR_GROUP_INVITE_ACCEPT_OK) {
+        LOGE("tox_group_invite_accept failed: %d", err);
+        return -1;
+    }
+    return group_num;
+}
+
+// Выход из NGC группового чата
+JNIEXPORT jboolean JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupLeave(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_Leave err;
+    bool res = tox_group_leave(tox, groupNumber, nullptr, 0, &err);
+    if (err != TOX_ERR_GROUP_LEAVE_OK) {
+        LOGE("tox_group_leave failed: %d", err);
+        return false;
+    }
+    return res;
+}
+
+// Отправка текстового сообщения в NGC групповой чат
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupSendMessage(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber, jint type, jbyteArray message) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint8_t> msg = jba2vec(env, message);
+    Tox_Err_Group_Send_Message err;
+    uint32_t message_id = tox_group_send_message(tox, groupNumber, (TOX_MESSAGE_TYPE)type, msg.data(), msg.size(), &err);
+    if (err != TOX_ERR_GROUP_SEND_MESSAGE_OK) {
+        LOGE("tox_group_send_message failed: %d", err);
+        return -1;
+    }
+    return message_id;
+}
+
+// Установка темы NGC группового чата
+JNIEXPORT jboolean JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupSetTopic(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber, jbyteArray topic) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint8_t> top = jba2vec(env, topic);
+    Tox_Err_Group_Topic_Set err;
+    bool res = tox_group_set_topic(tox, groupNumber, top.data(), top.size(), &err);
+    if (err != TOX_ERR_GROUP_TOPIC_SET_OK) {
+        LOGE("tox_group_set_topic failed: %d", err);
+        return false;
+    }
+    return res;
+}
+
+// Получение темы NGC группового чата
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupGetTopic(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_State_Query err;
+    size_t size = tox_group_get_topic_size(tox, groupNumber, &err);
+    if (err != TOX_ERR_GROUP_STATE_QUERY_OK || size == 0) return nullptr;
+    std::vector<uint8_t> topic(size);
+    if (tox_group_get_topic(tox, groupNumber, topic.data(), &err)) {
+        return vec2jba(env, topic.data(), size);
+    }
+    return nullptr;
+}
+
+// Получение названия NGC группового чата
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupGetName(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_State_Query err;
+    size_t size = tox_group_get_name_size(tox, groupNumber, &err);
+    if (err != TOX_ERR_GROUP_STATE_QUERY_OK || size == 0) return nullptr;
+    std::vector<uint8_t> name(size);
+    if (tox_group_get_name(tox, groupNumber, name.data(), &err)) {
+        return vec2jba(env, name.data(), size);
+    }
+    return nullptr;
+}
+
+// Получение уникального постоянного 32-байтового идентификатора NGC группового чата
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupGetChatId(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_State_Query err;
+    uint8_t chat_id[TOX_GROUP_CHAT_ID_SIZE];
+    if (tox_group_get_chat_id(tox, groupNumber, chat_id, &err)) {
+        return vec2jba(env, chat_id, TOX_GROUP_CHAT_ID_SIZE);
+    }
+    LOGE("tox_group_get_chat_id failed: %d", err);
+    return nullptr;
+}
+
+// Установка или удаление пароля NGC группового чата
+JNIEXPORT jboolean JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupSetPassword(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber, jbyteArray password) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_Set_Password err;
+    if (password == nullptr) {
+        bool res = tox_group_set_password(tox, groupNumber, nullptr, 0, &err);
+        return res && (err == TOX_ERR_GROUP_SET_PASSWORD_OK);
+    }
+    std::vector<uint8_t> pass = jba2vec(env, password);
+    bool res = tox_group_set_password(tox, groupNumber, pass.data(), pass.size(), &err);
+    if (err != TOX_ERR_GROUP_SET_PASSWORD_OK) {
+        LOGE("tox_group_set_password failed: %d", err);
+        return false;
+    }
+    return res;
+}
+
+// Получение текущего установленного пароля NGC группового чата
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupGetPassword(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_State_Query err;
+    size_t size = tox_group_get_password_size(tox, groupNumber, &err);
+    if (err != TOX_ERR_GROUP_STATE_QUERY_OK || size == 0) return nullptr;
+    std::vector<uint8_t> pass(size);
+    if (tox_group_get_password(tox, groupNumber, pass.data(), &err)) {
+        return vec2jba(env, pass.data(), size);
+    }
+    return nullptr;
+}
+
+// Получение имени участника NGC группового чата по его ID
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupPeerGetName(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber, jint peerId) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_Peer_Query err;
+    size_t size = tox_group_peer_get_name_size(tox, groupNumber, peerId, &err);
+    if (err != TOX_ERR_GROUP_PEER_QUERY_OK || size == 0) return nullptr;
+    std::vector<uint8_t> name(size);
+    if (tox_group_peer_get_name(tox, groupNumber, peerId, name.data(), &err)) {
+        return vec2jba(env, name.data(), size);
+    }
+    return nullptr;
+}
+
+// Получение публичного ключа участника NGC группового чата по его ID
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupPeerGetPublicKey(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber, jint peerId) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_Peer_Query err;
+    uint8_t pk[TOX_PUBLIC_KEY_SIZE];
+    if (tox_group_peer_get_public_key(tox, groupNumber, peerId, pk, &err)) {
+        return vec2jba(env, pk, TOX_PUBLIC_KEY_SIZE);
+    }
+    return nullptr;
+}
+
+// Получение нашего Peer ID в NGC групповом чате
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupSelfGetPeerId(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_Self_Query err;
+    uint32_t peer_id = tox_group_self_get_peer_id(tox, groupNumber, &err);
+    if (err != TOX_ERR_GROUP_SELF_QUERY_OK) {
+        LOGE("tox_group_self_get_peer_id failed: %d", err);
+        return -1;
+    }
+    return peer_id;
+}
+
+// Получение нашей роли в NGC групповом чате
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupSelfGetRole(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_Self_Query err;
+    Tox_Group_Role role = tox_group_self_get_role(tox, groupNumber, &err);
+    if (err != TOX_ERR_GROUP_SELF_QUERY_OK) {
+        LOGE("tox_group_self_get_role failed: %d", err);
+        return -1;
+    }
+    return (jint)role;
+}
+
 // Инициализация JNI-библиотеки при ее загрузке в JVM (кэширование Method ID событий)
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     g_vm = vm;
@@ -936,6 +1340,24 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     mid_onConferencePeerListChanged = env->GetMethodID(cls, "onConferencePeerListChanged", "(I)V");
     mid_onConferencePeerName = env->GetMethodID(cls, "onConferencePeerName", "(II[B)V");
     mid_onConferenceTitle = env->GetMethodID(cls, "onConferenceTitle", "(II[B)V");
+
+    // Поиск Method ID обработчиков событий NGC-групп в классе-слушателе
+    mid_onGroupInvite = env->GetMethodID(cls, "onGroupInvite", "(I[B[B)V");
+    mid_onGroupMessage = env->GetMethodID(cls, "onGroupMessage", "(III[BI)V");
+    mid_onGroupPeerJoin = env->GetMethodID(cls, "onGroupPeerJoin", "(II)V");
+    mid_onGroupPeerExit = env->GetMethodID(cls, "onGroupPeerExit", "(III)V");
+    mid_onGroupTopic = env->GetMethodID(cls, "onGroupTopic", "(II[B)V");
+    mid_onGroupPeerName = env->GetMethodID(cls, "onGroupPeerName", "(II[B)V");
+    mid_onGroupPassword = env->GetMethodID(cls, "onGroupPassword", "(I[B)V");
+    mid_onGroupPeerStatus = env->GetMethodID(cls, "onGroupPeerStatus", "(III)V");
+    mid_onGroupPrivacyState = env->GetMethodID(cls, "onGroupPrivacyState", "(II)V");
+    mid_onGroupVoiceState = env->GetMethodID(cls, "onGroupVoiceState", "(II)V");
+    mid_onGroupTopicLock = env->GetMethodID(cls, "onGroupTopicLock", "(II)V");
+    mid_onGroupPeerLimit = env->GetMethodID(cls, "onGroupPeerLimit", "(II)V");
+    mid_onGroupPrivateMessage = env->GetMethodID(cls, "onGroupPrivateMessage", "(III[BI)V");
+    mid_onGroupSelfJoin = env->GetMethodID(cls, "onGroupSelfJoin", "(I)V");
+    mid_onGroupJoinFail = env->GetMethodID(cls, "onGroupJoinFail", "(II)V");
+    mid_onGroupModeration = env->GetMethodID(cls, "onGroupModeration", "(IIII)V");
 
     if (!register_toxav_methods(env)) {
         LOGE("Failed to register ToxAV methods");
