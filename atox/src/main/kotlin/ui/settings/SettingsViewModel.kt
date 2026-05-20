@@ -33,6 +33,8 @@ import ltd.evilcorp.core.tox.save.ToxSaveStatus
 import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.domain.tox.Tox
 import ltd.evilcorp.domain.feature.FileTransferManager
+import ltd.evilcorp.domain.backup.BackupDataProvider
+import ltd.evilcorp.domain.backup.BackupUseCase
 
 private const val TOX_SHUTDOWN_POLL_DELAY_MS = 200L
 
@@ -54,6 +56,7 @@ class SettingsViewModel @Inject constructor(
     private val nodeParser: BootstrapNodeJsonParser,
     private val nodeRegistry: BootstrapNodeRegistry,
     private val fileTransferManager: FileTransferManager,
+    private val backupUseCase: BackupUseCase,
 ) : ViewModel() {
     private var restartNeeded = false
 
@@ -62,6 +65,14 @@ class SettingsViewModel @Inject constructor(
 
     private val _committed = MutableLiveData<Boolean>().apply { value = false }
     val committed: LiveData<Boolean> get() = _committed
+
+    val backupProviders: List<BackupDataProvider> = backupUseCase.providers
+
+    private val _backupExporting = MutableLiveData(false)
+    val backupExporting: LiveData<Boolean> get() = _backupExporting
+
+    private val _backupExportStatus = MutableLiveData<Boolean?>()
+    val backupExportStatus: LiveData<Boolean?> get() = _backupExportStatus
 
     fun nospamAvailable(): Boolean = tox.started
     fun getNospam(): Int = tox.nospam
@@ -229,4 +240,18 @@ class SettingsViewModel @Inject constructor(
 
     fun getCacheSize(): Long = fileTransferManager.getCacheSize()
     fun clearCache() = fileTransferManager.clearCache()
+
+    fun exportBackup(uri: Uri, selectedIds: Set<String>, password: String?) = viewModelScope.launch(Dispatchers.IO) {
+        _backupExporting.postValue(true)
+        val success = runCatching {
+            val data = backupUseCase.export(selectedIds, password)
+            resolver.openOutputStream(uri)?.use { it.write(data) } ?: error("Unable to open destination")
+        }.isSuccess
+        _backupExporting.postValue(false)
+        _backupExportStatus.postValue(success)
+    }
+
+    fun consumeBackupExportStatus() {
+        _backupExportStatus.value = null
+    }
 }

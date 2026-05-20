@@ -6,11 +6,18 @@ import dagger.Provides
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import ltd.evilcorp.atox.tox.AndroidBootstrapNodeJsonSource
+import ltd.evilcorp.atox.backup.CallLogBackupDataProvider
+import ltd.evilcorp.atox.backup.ChatHistoryBackupDataProvider
+import ltd.evilcorp.atox.backup.ContactsBackupDataProvider
+import ltd.evilcorp.atox.backup.FileTransferHistoryBackupDataProvider
+import ltd.evilcorp.atox.backup.ToxCoreBackupDataProvider
+import ltd.evilcorp.atox.backup.TransferredFilesBackupDataProvider
 import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeRegistry
 import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeJsonSource
 import ltd.evilcorp.core.tox.bootstrap.DefaultBootstrapNodeRegistry
 import ltd.evilcorp.core.tox.save.AndroidSaveManager
 import ltd.evilcorp.core.tox.save.SaveManager
+import ltd.evilcorp.domain.backup.BackupDataProvider
 
 @Module
 class AppModule {
@@ -25,4 +32,21 @@ class AppModule {
 
     @Provides
     fun provideSaveManager(ctx: Context): SaveManager = AndroidSaveManager(ctx)
+
+    @Provides
+    fun provideBackupDataProviders(
+        toxCore: ToxCoreBackupDataProvider,
+        contacts: ContactsBackupDataProvider,
+        chatHistory: ChatHistoryBackupDataProvider,
+        callLog: CallLogBackupDataProvider,
+        fileTransferHistory: FileTransferHistoryBackupDataProvider,
+        transferredFiles: TransferredFilesBackupDataProvider,
+    ): List<BackupDataProvider> = listOf(
+        toxCore,
+        contacts,
+        chatHistory,
+        callLog,
+        fileTransferHistory,
+        transferredFiles,
+    )
 }

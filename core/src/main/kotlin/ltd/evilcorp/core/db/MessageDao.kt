@@ -12,8 +12,14 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun save(message: Message)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun saveAll(messages: List<Message>)
+
     @Query("SELECT * FROM messages WHERE conversation == :conversation")
     fun load(conversation: String): Flow<List<Message>>
+
+    @Query("SELECT * FROM messages")
+    fun loadAllBlocking(): List<Message>
 
     @Query("SELECT * FROM messages WHERE conversation == :conversation AND timestamp == 0")
     fun loadPending(conversation: String): List<Message>

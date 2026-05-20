@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,8 +34,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -49,6 +52,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
@@ -67,9 +77,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.appearance.AppAppearance
@@ -90,6 +103,7 @@ private enum class SettingsDestination {
     Language,
     Theme,
     Sounds,
+    Backup,
 }
 
 private enum class SoundPickerTarget {
@@ -115,6 +129,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory)
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val focusManager = LocalFocusManager.current
     val storedSettings by settings.state.collectAsState()
     val haptic = LocalHapticFeedback.current
     val performHaptic = {
@@ -158,7 +173,26 @@ fun SettingsScreen(
     var showAccentColorDialog by remember { mutableStateOf(false) }
     var showDateFormatDialog by remember { mutableStateOf(false) }
     var showTimeFormatDialog by remember { mutableStateOf(false) }
+    var backupPasswordEnabled by remember { mutableStateOf(false) }
+    var backupPassword by remember { mutableStateOf("") }
+    val mandatoryBackupId = remember(viewModel.backupProviders) { viewModel.backupProviders.firstOrNull()?.id.orEmpty() }
+    var selectedBackupIds by remember(viewModel.backupProviders) {
+        mutableStateOf(viewModel.backupProviders.map { it.id }.toSet())
+    }
     var soundPickerTarget by remember { mutableStateOf(SoundPickerTarget.Call) }
+    val backupExporting by viewModel.backupExporting.observeAsState(false)
+    val backupExportStatus by viewModel.backupExportStatus.observeAsState()
+    val backupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportBackup(
+                uri = uri,
+                selectedIds = selectedBackupIds + mandatoryBackupId,
+                password = backupPassword.takeIf { backupPasswordEnabled },
+            )
+        }
+    }
     val ringtonePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -212,6 +246,17 @@ fun SettingsScreen(
         SettingsDestination.Language -> stringResource(R.string.select_language)
         SettingsDestination.Theme -> stringResource(R.string.settings_app_theme_dialog_title)
         SettingsDestination.Sounds -> stringResource(R.string.settings_sounds_group)
+        SettingsDestination.Backup -> stringResource(R.string.backup_title)
+    }
+
+    LaunchedEffect(backupExportStatus) {
+        val success = backupExportStatus ?: return@LaunchedEffect
+        Toast.makeText(
+            context,
+            if (success) context.getString(R.string.backup_export_success) else context.getString(R.string.backup_export_failure),
+            Toast.LENGTH_LONG,
+        ).show()
+        viewModel.consumeBackupExportStatus()
     }
 
     Scaffold(
@@ -360,6 +405,14 @@ fun SettingsScreen(
 
                     item {
                         SettingsGroup(title = stringResource(R.string.settings_privacy_group)) {
+                            SettingsClickableRow(
+                                title = stringResource(R.string.backup_title),
+                                subtitle = stringResource(R.string.backup_settings_subtitle)
+                            ) {
+                                performHaptic()
+                                destination = SettingsDestination.Backup
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
                             SettingsSwitchRow(
                                 title = stringResource(R.string.pref_block_screenshots),
                                 subtitle = stringResource(R.string.pref_block_screenshots_description),
@@ -495,6 +548,14 @@ fun SettingsScreen(
                                         onValueChange = { settings.proxyAddress = it },
                                         label = { Text(stringResource(R.string.settings_proxy_address)) },
                                         singleLine = true,
+                                        keyboardOptions = KeyboardOptions(
+                                            capitalization = KeyboardCapitalization.None,
+                                            autoCorrectEnabled = false,
+                                            imeAction = ImeAction.Next
+                                        ),
+                                        keyboardActions = KeyboardActions(
+                                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                                        ),
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
@@ -508,6 +569,14 @@ fun SettingsScreen(
                                         },
                                         label = { Text(stringResource(R.string.settings_proxy_port)) },
                                         singleLine = true,
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Number,
+                                            autoCorrectEnabled = false,
+                                            imeAction = ImeAction.Done
+                                        ),
+                                        keyboardActions = KeyboardActions(
+                                            onDone = { focusManager.clearFocus() }
+                                        ),
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }
@@ -538,6 +607,14 @@ fun SettingsScreen(
                                         },
                                         label = { Text(stringResource(R.string.settings_auto_away_timeout)) },
                                         singleLine = true,
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Number,
+                                            autoCorrectEnabled = false,
+                                            imeAction = ImeAction.Done
+                                        ),
+                                        keyboardActions = KeyboardActions(
+                                            onDone = { focusManager.clearFocus() }
+                                        ),
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }
@@ -688,6 +765,92 @@ fun SettingsScreen(
                                 steps = 19,
                                 onValueChangeFinished = performHaptic,
                             ) { settings.activeChatSoundVolume = it.toInt() }
+                        }
+                    }
+                }
+            }
+            SettingsDestination.Backup -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(paddingValues)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+                ) {
+                    item {
+                        Text(
+                            text = stringResource(R.string.backup_modules_group),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                        )
+                    }
+                    viewModel.backupProviders.forEach { provider ->
+                        item(key = provider.id) {
+                            val mandatory = provider.id == mandatoryBackupId
+                            BackupModuleCard(
+                                title = stringResource(provider.displayNameRes),
+                                description = stringResource(provider.descriptionRes),
+                                checked = mandatory || provider.id in selectedBackupIds,
+                                enabled = !mandatory,
+                                onCheckedChange = { checked ->
+                                    selectedBackupIds = if (checked) {
+                                        selectedBackupIds + provider.id
+                                    } else {
+                                        selectedBackupIds - provider.id
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    item {
+                        ElevatedCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateContentSize(),
+                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        ) {
+                            SettingsSwitchRow(
+                                title = stringResource(R.string.backup_password_protect),
+                                subtitle = stringResource(R.string.backup_password_description),
+                                checked = backupPasswordEnabled
+                            ) { checked ->
+                                backupPasswordEnabled = checked
+                                if (!checked) backupPassword = ""
+                            }
+                            AnimatedVisibility(backupPasswordEnabled) {
+                                OutlinedTextField(
+                                    value = backupPassword,
+                                    onValueChange = { backupPassword = it },
+                                    label = { Text(stringResource(R.string.password)) },
+                                    singleLine = true,
+                                    visualTransformation = PasswordVisualTransformation(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                                )
+                            }
+                        }
+                    }
+                    item {
+                        Button(
+                            onClick = {
+                                performHaptic()
+                                backupLauncher.launch("atox-backup.zip")
+                            },
+                            enabled = !backupExporting && (!backupPasswordEnabled || backupPassword.isNotBlank()),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (backupExporting) {
+                                    stringResource(R.string.backup_creating)
+                                } else {
+                                    stringResource(R.string.backup_create)
+                                }
+                            )
                         }
                     }
                 }
@@ -1143,8 +1306,6 @@ fun SettingsClickableRow(
     subtitle: String,
     onClick: () -> Unit
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1154,15 +1315,14 @@ fun SettingsClickableRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clickable { isExpanded = !isExpanded }
-                .animateContentSize()
+                .clickable(onClick = onClick)
         ) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = if (isExpanded) Int.MAX_VALUE else 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }
@@ -1182,6 +1342,48 @@ private fun SoundUriRow(
     subtitle: String,
     onClick: () -> Unit,
 ) = SettingsClickableRow(title, subtitle, onClick)
+
+@Composable
+private fun BackupModuleCard(
+    title: String,
+    description: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Switch(
+                checked = checked,
+                enabled = enabled,
+                onCheckedChange = onCheckedChange,
+            )
+        }
+    }
+}
 
 private fun soundTitle(context: android.content.Context, uriString: String, type: Int): String {
     val uri = uriString.takeIf { it.isNotBlank() }?.let(Uri::parse)
@@ -1217,8 +1419,6 @@ fun SettingsSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1228,8 +1428,6 @@ fun SettingsSwitchRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clickable { isExpanded = !isExpanded }
-                .animateContentSize()
         ) {
             Text(
                 text = title, 
@@ -1242,7 +1440,7 @@ fun SettingsSwitchRow(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    maxLines = if (isExpanded) Int.MAX_VALUE else 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }

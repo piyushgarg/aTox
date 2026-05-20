@@ -340,4 +340,25 @@
     <string name="avatar_editor_zoom">Zoom</string>
     <string name="avatar_editor_save">Save</string>
     <string name="avatar_editor_cancel">Cancel</string>
+    <string name="backup_title">Backup</string>
+    <string name="backup_settings_subtitle">Selective local backup for profile data</string>
+    <string name="backup_modules_group">Backup modules</string>
+    <string name="backup_module_tox_core">Tox core settings and keys</string>
+    <string name="backup_module_tox_core_description">Required profile save, keys, and core Tox state</string>
+    <string name="backup_module_contacts">Contacts</string>
+    <string name="backup_module_contacts_description">Saved contact list and contact metadata</string>
+    <string name="backup_module_chat_history">Chat history</string>
+    <string name="backup_module_chat_history_description">Local message database entries</string>
+    <string name="backup_module_call_log">Call log</string>
+    <string name="backup_module_call_log_description">Call events stored in chat history</string>
+    <string name="backup_module_file_transfer_history">File transfer history</string>
+    <string name="backup_module_file_transfer_history_description">Transfer records, progress, names, and destinations</string>
+    <string name="backup_module_transferred_files">Transferred files</string>
+    <string name="backup_module_transferred_files_description">Local files referenced by completed transfer records</string>
+    <string name="backup_password_protect">Protect with password</string>
+    <string name="backup_password_description">Encrypt the backup before saving it</string>
+    <string name="backup_create">Create backup</string>
+    <string name="backup_creating">Creating backup…</string>
+    <string name="backup_export_success">Backup exported</string>
+    <string name="backup_export_failure">Backup export failed</string>
 </resources>

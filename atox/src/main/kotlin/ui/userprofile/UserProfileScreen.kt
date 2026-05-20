@@ -44,6 +44,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -72,6 +78,7 @@ fun UserProfileScreen(
 ) {
     val user = userState.value
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
 
     var selfAvatarVersion by remember { mutableStateOf(0) }
@@ -214,6 +221,13 @@ fun UserProfileScreen(
                         label = { Text(stringResource(R.string.name)) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -226,6 +240,13 @@ fun UserProfileScreen(
                         label = { Text(stringResource(R.string.status_message)) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { focusManager.clearFocus() }
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

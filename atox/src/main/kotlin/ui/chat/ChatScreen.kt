@@ -26,6 +26,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +49,7 @@ import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.model.Sender
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
 import androidx.compose.ui.graphics.graphicsLayer
@@ -74,6 +76,9 @@ import ltd.evilcorp.core.model.isComplete
 import ltd.evilcorp.core.model.isStarted
 import ltd.evilcorp.core.model.isRejected
 import ltd.evilcorp.core.model.MessageType
+import kotlinx.coroutines.delay
+
+private const val CHAT_ENTER_CONTENT_DELAY_MS = 220L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +102,7 @@ fun ChatScreen(
 ) {
     val contact = contactState.value
     val messages = messagesState.value ?: emptyList()
+    var showConversationContent by remember(contact?.publicKey) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -126,19 +132,31 @@ fun ChatScreen(
     }
 
     var textInput by remember { mutableStateOf("") }
-    val isKeyboardOpen = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
-
     LaunchedEffect(contact?.publicKey) {
+        showConversationContent = false
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
+        delay(CHAT_ENTER_CONTENT_DELAY_MS)
+        showConversationContent = true
     }
 
-    // Scroll to the bottom of the message list when new messages arrive, peer is typing, or keyboard opens
-    LaunchedEffect(messages.size, contact?.typing, isKeyboardOpen) {
-        if (messages.isNotEmpty() || contact?.typing == true) {
-            val lastIndex = if (contact?.typing == true) messages.size else messages.size - 1
-            if (lastIndex >= 0) {
-                listState.animateScrollToItem(lastIndex)
+    BackHandler {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        onBack()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
+    }
+
+    LaunchedEffect(showConversationContent, messages.size, contact?.typing) {
+        if (showConversationContent && messages.isNotEmpty()) {
+            if (listState.firstVisibleItemIndex <= 2) {
+                listState.animateScrollToItem(0)
             }
         }
     }
@@ -227,6 +245,8 @@ fun ChatScreen(
                 navigationIcon = {
                     IconButton(onClick = {
                         performHaptic()
+                        focusManager.clearFocus(force = true)
+                        keyboardController?.hide()
                         onBack()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_drawer_close), tint = MaterialTheme.colorScheme.onSurface)
@@ -256,20 +276,96 @@ fun ChatScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
-        },
-        bottomBar = {
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(top = paddingValues.calculateTopPadding())
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    reverseLayout = true,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 12.dp)
+                ) {
+                    if (showConversationContent && contact?.typing == true) {
+                        item(key = "typing_bubble") {
+                            TypingBubble()
+                        }
+                    }
+                    if (!showConversationContent) {
+                        return@LazyColumn
+                    }
+                    items(
+                        count = messages.size,
+                        key = { index -> messages[messages.size - 1 - index].id }
+                    ) { index ->
+                        val rawIndex = messages.size - 1 - index
+                        val msg = messages[rawIndex]
+                        val previousMsg = messages.getOrNull(rawIndex - 1)
+                        val currentHeader = remember(msg.timestamp, settings.dateFormatPreference) {
+                            formatMessageDateHeader(
+                                context = context,
+                                timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
+                                dateFormatPreference = settings.dateFormatPreference,
+                            )
+                        }
+                        val previousHeader = previousMsg?.let {
+                            remember(it.timestamp, settings.dateFormatPreference) {
+                                formatMessageDateHeader(
+                                    context = context,
+                                    timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
+                                    dateFormatPreference = settings.dateFormatPreference,
+                                )
+                            }
+                        }
+
+                        Column {
+                            if (rawIndex == 0 || currentHeader != previousHeader) {
+                                DateSeparator(label = currentHeader)
+                            }
+
+                            MessageBubble(
+                                msg = msg,
+                                settings = settings,
+                                onHaptic = performHaptic,
+                                onCallHistoryClick = onCallHistoryClick,
+                                fileTransfers = fileTransfersState.value,
+                                onAcceptFt = onAcceptFt,
+                                onRejectFt = onRejectFt,
+                                onCancelFt = onCancelFt,
+                                onSaveAsClick = { ftId, fileName ->
+                                    activeFtIdToSave.value = ftId
+                                    saveFileLauncher.launch(fileName)
+                                },
+                                onOpenFile = onOpenFile
+                            )
+                        }
+                    }
+                }
+            }
+
             Surface(
                 tonalElevation = 8.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surfaceContainer)
                         .padding(horizontal = 16.dp)
-                        .padding(top = 8.dp, bottom = if (isKeyboardOpen) 16.dp else 8.dp),
+                        .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextField(
@@ -326,76 +422,13 @@ fun ChatScreen(
                                 textInput = ""
                             }
                         },
-                        modifier = Modifier
-                            .size(48.dp),
+                        modifier = Modifier.size(48.dp),
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
-                    }
-                }
-            }
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
-        ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
-            ) {
-                items(messages.size) { index ->
-                    val msg = messages[index]
-                    val previousMsg = messages.getOrNull(index - 1)
-                    val currentHeader = remember(msg.timestamp, settings.dateFormatPreference) {
-                        formatMessageDateHeader(
-                            context = context,
-                            timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
-                            dateFormatPreference = settings.dateFormatPreference,
-                        )
-                    }
-                    val previousHeader = previousMsg?.let {
-                        remember(it.timestamp, settings.dateFormatPreference) {
-                            formatMessageDateHeader(
-                                context = context,
-                                timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
-                                dateFormatPreference = settings.dateFormatPreference,
-                            )
-                        }
-                    }
-
-                    if (index == 0 || currentHeader != previousHeader) {
-                        DateSeparator(label = currentHeader)
-                    }
-
-                    MessageBubble(
-                        msg = msg,
-                        settings = settings,
-                        onHaptic = performHaptic,
-                        onCallHistoryClick = onCallHistoryClick,
-                        fileTransfers = fileTransfersState.value,
-                        onAcceptFt = onAcceptFt,
-                        onRejectFt = onRejectFt,
-                        onCancelFt = onCancelFt,
-                        onSaveAsClick = { ftId, fileName ->
-                            activeFtIdToSave.value = ftId
-                            saveFileLauncher.launch(fileName)
-                        },
-                        onOpenFile = onOpenFile
-                    )
-                }
-                if (contact?.typing == true) {
-                    item(key = "typing_bubble") {
-                        TypingBubble()
                     }
                 }
             }
