@@ -31,6 +31,12 @@ interface ContactDao {
     @Query("SELECT * FROM contacts")
     fun loadAll(): Flow<List<Contact>>
 
+    @Query("SELECT * FROM contacts")
+    fun loadAllBlocking(): List<Contact>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun saveAll(contacts: List<Contact>)
+
     @Query("UPDATE contacts SET connection_status = :status, typing = :typing")
     fun resetTransientData(status: ConnectionStatus = ConnectionStatus.None, typing: Boolean = false)
 

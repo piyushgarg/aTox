@@ -15,6 +15,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusDirection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,11 +32,21 @@ fun AddContactScreen(
     onAddContact: (String, String) -> Unit
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     var toxIdInput by remember { mutableStateOf(initialToxId) }
     var messageInput by remember { 
         mutableStateOf(context.getString(R.string.add_contact_message_default)) 
     }
     var errorText by remember { mutableStateOf("") }
+
+    val submitContactRequest = {
+        if (toxIdInput.trim().length < 64) {
+            errorText = context.getString(R.string.add_contact_error_invalid)
+        } else {
+            onAddContact(toxIdInput.trim(), messageInput.trim())
+            toxIdInput = ""
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -79,7 +96,16 @@ fun AddContactScreen(
                         label = { Text(stringResource(R.string.add_contact_friend_id_label)) },
                         placeholder = { Text(stringResource(R.string.add_contact_friend_id_placeholder)) },
                         isError = errorText.isNotEmpty(),
+                        singleLine = true,
                         shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -95,22 +121,23 @@ fun AddContactScreen(
                         value = messageInput,
                         onValueChange = { messageInput = it },
                         label = { Text(stringResource(R.string.add_contact_message_label)) },
-                        maxLines = 3,
+                        singleLine = true,
                         shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            autoCorrectEnabled = true,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { submitContactRequest() }
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Button(
-                        onClick = {
-                            if (toxIdInput.trim().length < 64) {
-                                errorText = context.getString(R.string.add_contact_error_invalid)
-                            } else {
-                                onAddContact(toxIdInput.trim(), messageInput.trim())
-                                toxIdInput = ""
-                            }
-                        },
+                        onClick = { submitContactRequest() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),

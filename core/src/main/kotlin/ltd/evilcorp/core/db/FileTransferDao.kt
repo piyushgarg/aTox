@@ -13,6 +13,9 @@ interface FileTransferDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun save(fileTransfer: FileTransfer): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun saveAll(fileTransfers: List<FileTransfer>)
+
     @Query("DELETE FROM file_transfers WHERE id == :id")
     fun delete(id: Int)
 
@@ -21,6 +24,9 @@ interface FileTransferDao {
 
     @Query("SELECT * FROM file_transfers WHERE id == :id")
     fun load(id: Int): Flow<FileTransfer>
+
+    @Query("SELECT * FROM file_transfers")
+    fun loadAllBlocking(): List<FileTransfer>
 
     @Query("UPDATE file_transfers SET progress = :progress WHERE id == :id AND progress != :rejected")
     fun updateProgress(id: Int, progress: Long, rejected: Long = FT_REJECTED)

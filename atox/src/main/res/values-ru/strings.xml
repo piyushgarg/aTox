@@ -356,4 +356,25 @@
     <string name="group_password_save_confirm">Сохранить пароль</string>
     <string name="group_password_dismiss">Не сейчас</string>
     <string name="group_password_copied">Пароль скопирован в буфер обмена</string>
+    <string name="backup_title">Резервное копирование</string>
+    <string name="backup_settings_subtitle">Селективный локальный бэкап данных профиля</string>
+    <string name="backup_modules_group">Модули резервного копирования</string>
+    <string name="backup_module_tox_core">Ключи и настройки ядра Tox</string>
+    <string name="backup_module_tox_core_description">Обязательное сохранение профиля, ключи и состояние Tox</string>
+    <string name="backup_module_contacts">Список контактов</string>
+    <string name="backup_module_contacts_description">Контакты и локальные данные контактов</string>
+    <string name="backup_module_chat_history">История чатов</string>
+    <string name="backup_module_chat_history_description">Локальные сообщения из базы данных</string>
+    <string name="backup_module_call_log">Журнал звонков</string>
+    <string name="backup_module_call_log_description">События звонков, сохраненные в истории чатов</string>
+    <string name="backup_module_file_transfer_history">История передачи файлов</string>
+    <string name="backup_module_file_transfer_history_description">Записи передач, прогресс, имена и пути сохранения</string>
+    <string name="backup_module_transferred_files">Переданные файлы</string>
+    <string name="backup_module_transferred_files_description">Локальные файлы, связанные с записями передач</string>
+    <string name="backup_password_protect">Защитить паролем</string>
+    <string name="backup_password_description">Зашифровать бэкап перед сохранением</string>
+    <string name="backup_create">Создать бэкап</string>
+    <string name="backup_creating">Создание бэкапа…</string>
+    <string name="backup_export_success">Бэкап экспортирован</string>
+    <string name="backup_export_failure">Не удалось экспортировать бэкап</string>
 </resources>

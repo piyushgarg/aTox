@@ -14,6 +14,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,6 +27,21 @@ fun CreateProfileScreen(
     val context = LocalContext.current
     var nameInput by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf("") }
+
+    val submitProfile = {
+        if (nameInput.trim().isEmpty()) {
+            errorText = context.getString(R.string.create_profile_error_empty)
+        } else {
+            errorText = when (onCreateProfile(nameInput.trim())) {
+                ToxSaveStatus.Ok -> ""
+                ToxSaveStatus.BadProxyHost -> context.getString(R.string.bad_host)
+                ToxSaveStatus.BadProxyPort -> context.getString(R.string.bad_port)
+                ToxSaveStatus.BadProxyType -> context.getString(R.string.bad_type)
+                ToxSaveStatus.ProxyNotFound -> context.getString(R.string.proxy_not_found)
+                else -> context.getString(R.string.create_profile_error_failed)
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -69,6 +88,14 @@ fun CreateProfileScreen(
                     isError = errorText.isNotEmpty(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        autoCorrectEnabled = false,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { submitProfile() }
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -85,20 +112,7 @@ fun CreateProfileScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
-                    onClick = {
-                        if (nameInput.trim().isEmpty()) {
-                            errorText = context.getString(R.string.create_profile_error_empty)
-                        } else {
-                            errorText = when (onCreateProfile(nameInput.trim())) {
-                                ToxSaveStatus.Ok -> ""
-                                ToxSaveStatus.BadProxyHost -> context.getString(R.string.bad_host)
-                                ToxSaveStatus.BadProxyPort -> context.getString(R.string.bad_port)
-                                ToxSaveStatus.BadProxyType -> context.getString(R.string.bad_type)
-                                ToxSaveStatus.ProxyNotFound -> context.getString(R.string.proxy_not_found)
-                                else -> context.getString(R.string.create_profile_error_failed)
-                            }
-                        }
-                    },
+                    onClick = { submitProfile() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),

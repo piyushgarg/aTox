@@ -14,11 +14,14 @@ import androidx.core.net.toUri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
+import androidx.lifecycle.viewModelScope
 import com.squareup.picasso.Picasso
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -46,6 +49,7 @@ import ltd.evilcorp.domain.feature.ExportManager
 import ltd.evilcorp.domain.feature.FileTransferManager
 
 private const val TAG = "ChatViewModel"
+private const val NAVIGATION_TRANSITION_MS = 300L
 
 enum class CallAvailability {
     Unavailable,
@@ -67,6 +71,8 @@ class ChatViewModel @Inject constructor(
 ) : ViewModel() {
     private var publicKey = PublicKey("")
     private var sentTyping = false
+    private var clearActiveChatJob: Job? = null
+    private var activeChatSideEffectsJob: Job? = null
 
     private val activePublicKey = MutableStateFlow<PublicKey?>(null)
 
@@ -135,7 +141,13 @@ class ChatViewModel @Inject constructor(
         fileTransferManager.deleteAll(publicKey)
     }
 
-    fun setActiveChat(pk: PublicKey) {
+    fun setActiveChat(pk: PublicKey, deferSideEffects: Boolean = false) {
+        if (pk.string().isNotEmpty()) {
+            clearActiveChatJob?.cancel()
+            clearActiveChatJob = null
+        }
+        activeChatSideEffectsJob?.cancel()
+
         if (pk.string().isEmpty()) {
             Log.i(TAG, "Clearing active chat")
             setTyping(false)
@@ -146,8 +158,34 @@ class ChatViewModel @Inject constructor(
         }
 
         publicKey = pk
-        notificationHelper.dismissNotifications(publicKey)
-        chatManager.activeChat = publicKey.string()
+        if (deferSideEffects && pk.string().isNotEmpty()) {
+            activeChatSideEffectsJob = viewModelScope.launch {
+                delay(NAVIGATION_TRANSITION_MS)
+                if (publicKey == pk) {
+                    applyActiveChatSideEffects(pk)
+                }
+            }
+            return
+        }
+
+        applyActiveChatSideEffects(pk)
+    }
+
+    private fun applyActiveChatSideEffects(pk: PublicKey) {
+        notificationHelper.dismissNotifications(pk)
+        chatManager.activeChat = pk.string()
+    }
+
+    fun clearActiveChatAfterNavigation(expectedPublicKey: PublicKey) {
+        activeChatSideEffectsJob?.cancel()
+        activeChatSideEffectsJob = null
+        clearActiveChatJob?.cancel()
+        clearActiveChatJob = viewModelScope.launch {
+            delay(NAVIGATION_TRANSITION_MS)
+            if (publicKey == expectedPublicKey) {
+                setActiveChat(PublicKey(""))
+            }
+        }
     }
 
     fun setTyping(typing: Boolean) {

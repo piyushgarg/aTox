@@ -39,6 +39,14 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import ltd.evilcorp.domain.feature.CallState
@@ -304,8 +312,25 @@ class MainActivity : AppCompatActivity() {
                         }
                     )
                 }
-
-                composable("contact_list") {
+                composable(
+                    route = "contact_list",
+                    exitTransition = {
+                        if (targetState.destination.route?.startsWith("chat/") == true ||
+                            targetState.destination.route?.startsWith("add_contact") == true) {
+                            slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(300))
+                        } else {
+                            slideOutHorizontally(targetOffsetX = { 0 }, animationSpec = tween(0))
+                        }
+                    },
+                    popEnterTransition = {
+                        if (initialState.destination.route?.startsWith("chat/") == true ||
+                            initialState.destination.route?.startsWith("add_contact") == true) {
+                            slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(300))
+                        } else {
+                            slideInHorizontally(initialOffsetX = { 0 }, animationSpec = tween(0))
+                        }
+                    }
+                ) {
                     val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
                     val profileViewModel: UserProfileViewModel = viewModel(factory = vmFactory)
                     val addContactViewModel: AddContactViewModel = viewModel(factory = vmFactory)
@@ -535,13 +560,31 @@ class MainActivity : AppCompatActivity() {
 
                 composable(
                     route = "chat/{publicKey}",
-                    arguments = listOf(navArgument("publicKey") { type = NavType.StringType })
+                    arguments = listOf(navArgument("publicKey") { type = NavType.StringType }),
+                    enterTransition = {
+                        slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300))
+                    },
+                    exitTransition = {
+                        slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(300))
+                    },
+                    popEnterTransition = {
+                        slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(300))
+                    },
+                    popExitTransition = {
+                        slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300))
+                    }
                 ) { backStackEntry ->
                     val publicKeyStr = backStackEntry.arguments?.getString("publicKey") ?: ""
                     val viewModel: ChatViewModel = viewModel(factory = vmFactory)
 
                     LaunchedEffect(publicKeyStr) {
-                        viewModel.setActiveChat(PublicKey(publicKeyStr))
+                        viewModel.setActiveChat(PublicKey(publicKeyStr), deferSideEffects = true)
+                    }
+
+                    DisposableEffect(publicKeyStr) {
+                        onDispose {
+                            viewModel.clearActiveChatAfterNavigation(PublicKey(publicKeyStr))
+                        }
                     }
 
                     val contactState = viewModel.contact.observeAsState()
@@ -554,7 +597,6 @@ class MainActivity : AppCompatActivity() {
                         fileTransfersState = fileTransfersState,
                         settings = settings,
                         onBack = {
-                            viewModel.setActiveChat(PublicKey(""))
                             navController.popBackStack()
                         },
                         onSendMessage = { content ->
@@ -643,7 +685,19 @@ class MainActivity : AppCompatActivity() {
                         type = NavType.StringType
                         nullable = true
                         defaultValue = null
-                    })
+                    }),
+                    enterTransition = {
+                        slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300))
+                    },
+                    exitTransition = {
+                        slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(300))
+                    },
+                    popEnterTransition = {
+                        slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(300))
+                    },
+                    popExitTransition = {
+                        slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300))
+                    }
                 ) { backStackEntry ->
                     val toxIdArg = backStackEntry.arguments?.getString("toxId") ?: ""
                     val viewModel: AddContactViewModel = viewModel(factory = vmFactory)
@@ -890,6 +944,19 @@ fun UnlockScreen(
     var isError by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
 
+    val submitUnlock = {
+        if (password.isNotEmpty() && !isLoading) {
+            isLoading = true
+            val status = viewModel.tryLoadTox(password)
+            if (status == ToxSaveStatus.Ok) {
+                onUnlockSuccess()
+            } else {
+                isError = true
+                isLoading = false
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -941,6 +1008,15 @@ fun UnlockScreen(
                         Text(if (passwordVisible) stringResource(R.string.hide) else stringResource(R.string.show), fontSize = 14.sp)
                     }
                 },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    capitalization = KeyboardCapitalization.None,
+                    autoCorrectEnabled = false,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { submitUnlock() }
+                ),
                 isError = isError,
                 supportingText = {
                     if (isError) {
@@ -957,16 +1033,7 @@ fun UnlockScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = {
-                    isLoading = true
-                    val status = viewModel.tryLoadTox(password)
-                    if (status == ToxSaveStatus.Ok) {
-                        onUnlockSuccess()
-                    } else {
-                        isError = true
-                        isLoading = false
-                    }
-                },
+                onClick = { submitUnlock() },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = password.isNotEmpty() && !isLoading
             ) {
@@ -976,19 +1043,19 @@ fun UnlockScreen(
                         color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp
                     )
-                    } else {
+                } else {
                     Text(stringResource(R.string.unlock))
-                    }
-                    }
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                    TextButton(
-                    onClick = onQuit,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading
-                    ) {
-                    Text(stringResource(R.string.exit))
+            TextButton(
+                onClick = onQuit,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
+            ) {
+                Text(stringResource(R.string.exit))
                     }
         }
     }
