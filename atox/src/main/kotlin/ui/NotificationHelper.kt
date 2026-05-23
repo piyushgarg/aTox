@@ -16,6 +16,7 @@ import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -51,6 +52,7 @@ private const val TAG = "NotificationHelper"
 private const val MESSAGE = "aTox messages"
 private const val FRIEND_REQUEST = "aTox friend requests"
 private const val CALL = "aTox calls"
+private const val GROUP_MESSAGE = "aTox group messages"
 
 @Singleton
 class NotificationHelper @Inject constructor(
@@ -81,7 +83,13 @@ class NotificationHelper @Inject constructor(
             .setSound(null, null)
             .build()
 
-        notifier.createNotificationChannelsCompat(listOf(messageChannel, friendChannel, callChannel))
+        val groupChannel = NotificationChannelCompat.Builder(GROUP_MESSAGE, NotificationManagerCompat.IMPORTANCE_HIGH)
+            .setName(context.getString(R.string.groups))
+            .setDescription(context.getString(R.string.messages_incoming))
+            .setSound(null, null)
+            .build()
+
+        notifier.createNotificationChannelsCompat(listOf(messageChannel, friendChannel, callChannel, groupChannel))
     }
 
     fun dismissNotifications(publicKey: PublicKey) = notifier.cancel(publicKey.string().hashCode())
@@ -107,6 +115,7 @@ class NotificationHelper @Inject constructor(
         override fun key() = "circleTransform"
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun showMessageNotification(
         contact: Contact,
         message: String,
@@ -209,6 +218,7 @@ class NotificationHelper @Inject constructor(
         notifier.notify(contact.publicKey.hashCode(), notificationBuilder.build())
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun showFriendRequestNotification(friendRequest: FriendRequest, silent: Boolean) {
         if (!permissionManager.canPostNotifications()) {
             Log.w(TAG, "Received friend request, notifications disallowed")
@@ -237,8 +247,43 @@ class NotificationHelper @Inject constructor(
         notifier.notify(friendRequest.publicKey.hashCode(), notificationBuilder.build())
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+    fun showGroupMessageNotification(
+        groupName: String,
+        senderName: String,
+        message: String,
+        silent: Boolean = false,
+    ) {
+        if (!permissionManager.canPostNotifications()) {
+            Log.w(TAG, "Received group message, notifications disallowed")
+            return
+        }
+
+        val mainIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            "$groupName$senderName".hashCode(),
+            mainIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notificationBuilder = NotificationCompat.Builder(context, GROUP_MESSAGE)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setSmallIcon(android.R.drawable.sym_action_chat)
+            .setContentTitle("$senderName @ $groupName")
+            .setContentText(message)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setSilent(silent)
+
+        notifier.notify("$groupName$senderName".hashCode(), notificationBuilder.build())
+    }
+
     fun dismissCallNotification(pk: PublicKey) = notifier.cancel(pk.string().hashCode() + CALL.hashCode())
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun showOngoingCallNotification(contact: Contact) {
         if (!permissionManager.canPostNotifications()) {
             Log.w(TAG, "Call ongoing, notifications disallowed")
@@ -293,6 +338,7 @@ class NotificationHelper @Inject constructor(
         notifier.notify(contact.publicKey.hashCode() + CALL.hashCode(), notificationBuilder.build())
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun showPendingCallNotification(status: UserStatus, c: Contact) {
         if (!permissionManager.canPostNotifications()) {
             Log.w(TAG, "Call pending, notifications disallowed")

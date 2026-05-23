@@ -4,22 +4,16 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-enum class Sender {
-    Sent,
-    Received,
-}
+@Entity(tableName = "group_messages")
+data class GroupMessage(
+    @ColumnInfo(name = "group_chat_id")
+    val groupChatId: String,
 
-enum class MessageType {
-    Normal,
-    Action,
-    FileTransfer,
-    GroupEvent,
-}
+    @ColumnInfo(name = "peer_id")
+    val peerId: Int,
 
-@Entity(tableName = "messages")
-data class Message(
-    @ColumnInfo(name = "conversation")
-    val publicKey: String,
+    @ColumnInfo(name = "sender_name")
+    val senderName: String,
 
     @ColumnInfo(name = "message")
     val message: String,

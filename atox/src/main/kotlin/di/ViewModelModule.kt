@@ -17,6 +17,8 @@ import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
 import ltd.evilcorp.atox.ui.contactprofile.ContactProfileViewModel
 import ltd.evilcorp.atox.ui.createprofile.CreateProfileViewModel
 import ltd.evilcorp.atox.ui.friendrequest.FriendRequestViewModel
+import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
+import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.settings.SettingsViewModel
 import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
 
@@ -77,4 +79,14 @@ abstract class ViewModelModule {
     @IntoMap
     @ViewModelKey(UserProfileViewModel::class)
     abstract fun bindUserProfileViewModel(vm: UserProfileViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(GroupChatViewModel::class)
+    abstract fun bindGroupChatViewModel(vm: GroupChatViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(GroupListViewModel::class)
+    abstract fun bindGroupListViewModel(vm: GroupListViewModel): ViewModel
 }

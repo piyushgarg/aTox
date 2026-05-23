@@ -28,6 +28,7 @@ import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.FriendRequest
+import ltd.evilcorp.core.model.Group
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.User
 import ltd.evilcorp.domain.feature.CallManager
@@ -35,6 +36,7 @@ import ltd.evilcorp.domain.feature.ChatManager
 import ltd.evilcorp.domain.feature.ContactManager
 import ltd.evilcorp.domain.feature.FileTransferManager
 import ltd.evilcorp.domain.feature.FriendRequestManager
+import ltd.evilcorp.domain.feature.GroupManager
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.core.tox.save.ProxyType
 import ltd.evilcorp.core.tox.save.SaveOptions
@@ -53,6 +55,7 @@ class ContactListViewModel @Inject constructor(
     private val contactManager: ContactManager,
     private val fileTransferManager: FileTransferManager,
     private val friendRequestManager: FriendRequestManager,
+    private val groupManager: GroupManager,
     private val notificationHelper: NotificationHelper,
     private val tox: Tox,
     private val toxStarter: ToxStarter,
@@ -66,9 +69,22 @@ class ContactListViewModel @Inject constructor(
     val user: LiveData<User?> by lazy { userManager.get(publicKey).asLiveData() }
     val contacts: LiveData<List<Contact>> = contactManager.getAll().asLiveData()
     val friendRequests: LiveData<List<FriendRequest>> = friendRequestManager.getAll().asLiveData()
+    val groups: LiveData<List<Group>> = groupManager.getAll().asLiveData()
+
+    init {
+        if (tox.started) {
+            groupManager.reconnectAll()
+        }
+    }
 
     fun isToxRunning() = tox.started
-    fun tryLoadTox(password: String?): ToxSaveStatus = toxStarter.tryLoadTox(password)
+    fun tryLoadTox(password: String?): ToxSaveStatus {
+        val status = toxStarter.tryLoadTox(password)
+        if (status == ToxSaveStatus.Ok) {
+            groupManager.reconnectAll()
+        }
+        return status
+    }
     fun quitTox() = toxStarter.stopTox()
 
     fun deleteProfileAndData() {

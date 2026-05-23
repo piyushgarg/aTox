@@ -48,6 +48,9 @@ import ltd.evilcorp.core.model.UserStatus
 import ltd.evilcorp.atox.ui.userprofile.UserProfileScreen
 import ltd.evilcorp.atox.ui.addcontact.AddContactScreen
 import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.domain.feature.GroupConnectionStatus
+import ltd.evilcorp.core.model.Group
+import ltd.evilcorp.atox.ui.groupchat.GroupListScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,11 +58,17 @@ fun ContactListScreen(
     userState: State<User?>,
     contactsState: State<List<Contact>>,
     friendRequestsState: State<List<FriendRequest>>,
+    groupsState: State<List<Group>>,
+    groupConnectionStatusesState: State<Map<String, GroupConnectionStatus>>,
     onAddContact: (String, String) -> Unit,
     onContactClick: (Contact) -> Unit,
     onDeleteContact: (Contact) -> Unit,
     onAcceptFriendRequest: (FriendRequest) -> Unit,
     onRejectFriendRequest: (FriendRequest) -> Unit,
+    onGroupClick: (Group) -> Unit,
+    onCreateGroupClick: () -> Unit,
+    onJoinGroupClick: () -> Unit,
+    onLeaveGroup: (Group) -> Unit,
     onQuitTox: () -> Unit,
     
     // Пропсы для профиля и настроек в таб-баре
@@ -170,8 +179,8 @@ fun ContactListScreen(
                         performHaptic()
                         selectedTab = 1
                     },
-                    icon = { Icon(Icons.Default.PersonAdd, contentDescription = "Add Contact") },
-                    label = { Text(stringResource(R.string.add_contact_tab)) }
+                    icon = { Icon(Icons.Default.Group, contentDescription = "Groups") },
+                    label = { Text(stringResource(R.string.groups)) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 2,
@@ -179,14 +188,23 @@ fun ContactListScreen(
                         performHaptic()
                         selectedTab = 2
                     },
-                    icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-                    label = { Text(stringResource(R.string.profile)) }
+                    icon = { Icon(Icons.Default.PersonAdd, contentDescription = "Add Contact") },
+                    label = { Text(stringResource(R.string.add_contact_tab)) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = {
                         performHaptic()
                         selectedTab = 3
+                    },
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+                    label = { Text(stringResource(R.string.profile)) }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 4,
+                    onClick = {
+                        performHaptic()
+                        selectedTab = 4
                     },
                     icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
                     label = { Text(stringResource(R.string.settings)) }
@@ -251,6 +269,19 @@ fun ContactListScreen(
                     }
                 }
                 1 -> {
+                    GroupListScreen(
+                        groupsState = groupsState,
+                        connectionStatusesState = groupConnectionStatusesState,
+                        onGroupClick = { group ->
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onGroupClick(group)
+                        },
+                        onCreateGroupClick = onCreateGroupClick,
+                        onJoinGroupClick = onJoinGroupClick,
+                        onLeaveGroup = onLeaveGroup
+                    )
+                }
+                2 -> {
                     AddContactScreen(
                         showBackButton = false,
                         onAddContact = { toxIdStr, message ->
@@ -259,7 +290,7 @@ fun ContactListScreen(
                         }
                     )
                 }
-                2 -> {
+                3 -> {
                     UserProfileScreen(
                         userState = userState,
                         toxId = toxId,
@@ -271,7 +302,7 @@ fun ContactListScreen(
                         onAvatarChanged = onAvatarChanged
                     )
                 }
-                3 -> {
+                4 -> {
                     SettingsScreen(
                         settings = settings,
                         appearance = appearance,

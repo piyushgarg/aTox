@@ -14,6 +14,9 @@ import ltd.evilcorp.core.db.ContactDao
 import ltd.evilcorp.core.db.Database
 import ltd.evilcorp.core.db.FileTransferDao
 import ltd.evilcorp.core.db.FriendRequestDao
+import ltd.evilcorp.core.db.GroupDao
+import ltd.evilcorp.core.db.GroupMessageDao
+import ltd.evilcorp.core.db.GroupPeerDao
 import ltd.evilcorp.core.db.MessageDao
 import ltd.evilcorp.core.db.UserDao
 
@@ -48,4 +51,16 @@ class DaoModule {
     @Singleton
     @Provides
     internal fun provideUserDao(db: Database): UserDao = db.userDao()
+
+    @Singleton
+    @Provides
+    internal fun provideGroupDao(db: Database): GroupDao = db.groupDao()
+
+    @Singleton
+    @Provides
+    internal fun provideGroupMessageDao(db: Database): GroupMessageDao = db.groupMessageDao()
+
+    @Singleton
+    @Provides
+    internal fun provideGroupPeerDao(db: Database): GroupPeerDao = db.groupPeerDao()
 }

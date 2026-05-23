@@ -1,7 +1,7 @@
 [versions]
 detekt = "1.23.8"
 
-sdk-min = "21"
+sdk-min = "23"
 sdk-target = "35"
 
 ksp = "2.3.6"
@@ -23,7 +23,7 @@ libsodium = "1.0.20-RELEASE"
 opus = "1.4"
 libvpx = "v1.14.1"
 toxcore = "v0.2.20"
-compose-bom = "2024.12.01"
+compose-bom = "2026.05.01"
 
 
 [plugins]
@@ -36,6 +36,7 @@ detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 androidx-activity = "androidx.activity:activity:1.10.1" # >=1.11.0 needs compileSdk 36.
 androidx-activity-compose = "androidx.activity:activity-compose:1.10.1"
 androidx-appcompat = "androidx.appcompat:appcompat:1.7.1"
+androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-constraintlayout = "androidx.constraintlayout:constraintlayout:2.2.1"
 androidx-core-ktx = "androidx.core:core-ktx:1.16.0" # >=1.17.0 needs compileSdk 36.
 androidx-datastore-preferences = "androidx.datastore:datastore-preferences:1.1.1"
