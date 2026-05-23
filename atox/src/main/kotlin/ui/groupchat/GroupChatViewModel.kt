@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
+import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,6 +20,7 @@ import ltd.evilcorp.core.model.GroupMessage
 import ltd.evilcorp.core.model.GroupPeer
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.repository.ContactRepository
+import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.domain.feature.GroupManager
 
 class GroupChatViewModel @Inject constructor(
@@ -37,6 +39,13 @@ class GroupChatViewModel @Inject constructor(
         .filterNotNull()
         .flatMapLatest { cid -> groupManager.get(cid) }
         .asLiveData()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val connectionStatus: LiveData<GroupConnectionStatus> = activeGroupChatId
+        .filterNotNull()
+        .flatMapLatest { cid -> groupManager.connectionStatuses }
+        .asLiveData()
+        .map { statuses -> statuses[chatId] ?: GroupConnectionStatus.Disconnected }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val messages: LiveData<List<GroupMessage>> = activeGroupChatId

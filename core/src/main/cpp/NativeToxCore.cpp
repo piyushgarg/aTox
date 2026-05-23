@@ -1339,6 +1339,19 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGroupJoinDirect(JNIEnv *env, jobject thi
     return group_num;
 }
 
+// Переподключение к ранее сохранённой NGC-группе после загрузки профиля
+JNIEXPORT jboolean JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupReconnect(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_Reconnect err;
+    bool res = tox_group_reconnect(tox, groupNumber, &err);
+    if (err != TOX_ERR_GROUP_RECONNECT_OK) {
+        LOGE("tox_group_reconnect failed: %d", err);
+        return false;
+    }
+    return res;
+}
+
 // Инициализация JNI-библиотеки при ее загрузке в JVM (кэширование Method ID событий)
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     g_vm = vm;

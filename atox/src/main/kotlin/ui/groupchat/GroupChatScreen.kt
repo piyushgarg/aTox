@@ -1,8 +1,10 @@
 package ltd.evilcorp.atox.ui.groupchat
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +60,7 @@ import ltd.evilcorp.atox.media.SystemSoundPlayer
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.ui.common.formatChatTime
 import ltd.evilcorp.core.model.Contact
+import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.core.model.Group
 import ltd.evilcorp.core.model.GroupMessage
 import ltd.evilcorp.core.model.GroupPeer
@@ -71,6 +74,7 @@ fun GroupChatScreen(
     messagesState: State<List<GroupMessage>?>,
     peersState: State<List<GroupPeer>?>,
     contactsState: State<List<Contact>>,
+    connectionStatusState: State<GroupConnectionStatus>,
     settings: Settings,
     onBack: () -> Unit,
     onSendMessage: (String) -> Unit,
@@ -82,6 +86,7 @@ fun GroupChatScreen(
     val group = groupState.value
     val messages = messagesState.value ?: emptyList()
     val peers = peersState.value ?: emptyList()
+    val connStatus = connectionStatusState.value
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -433,11 +438,38 @@ fun GroupChatScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             } else {
-                                Text(
-                                    text = stringResource(R.string.group_peer_count, group?.peerCount ?: 0),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val dotColor = when (connStatus) {
+                                        GroupConnectionStatus.Connected -> Color(0xFF4CAF50)
+                                        GroupConnectionStatus.Connecting,
+                                        GroupConnectionStatus.Reconnecting -> Color(0xFFFFA726)
+                                        GroupConnectionStatus.Disconnected -> Color(0xFF9E9E9E)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(dotColor)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    val statusText = when (connStatus) {
+                                        GroupConnectionStatus.Connected -> stringResource(R.string.group_connected)
+                                        GroupConnectionStatus.Connecting -> stringResource(R.string.group_connecting)
+                                        GroupConnectionStatus.Reconnecting -> stringResource(R.string.group_connecting)
+                                        GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
+                                    }
+                                    Text(
+                                        text = statusText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = stringResource(R.string.group_peer_count, group?.peerCount ?: 0),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
@@ -553,14 +585,45 @@ fun GroupChatScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GroupMessageBubble(
     msg: GroupMessage,
     settings: Settings,
     peers: List<GroupPeer>,
 ) {
-    val isOutgoing = msg.sender == Sender.Sent
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    if (msg.type == MessageType.GroupEvent) {
+        val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
+            val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
+            formatChatTime(context, time, settings.timeFormatPreference)
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = msg.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = timeString,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                fontSize = 10.sp,
+            )
+        }
+        return
+    }
+
+    val isOutgoing = msg.sender == Sender.Sent
     val isAction = msg.type == MessageType.Action
 
     val senderPeer = peers.find { it.peerId == msg.peerId }
@@ -599,6 +662,16 @@ fun GroupMessageBubble(
             )
         }
         Surface(
+            modifier = Modifier.combinedClickable(
+                onClick = {},
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("message", msg.message)
+                    clipboard.setPrimaryClip(clip)
+                    android.widget.Toast.makeText(context, ltd.evilcorp.atox.R.string.message_copied, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            ),
             color = containerColor,
             contentColor = contentColor,
             shape = shape,

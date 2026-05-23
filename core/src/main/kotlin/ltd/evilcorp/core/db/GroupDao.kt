@@ -66,6 +66,9 @@ interface GroupDao {
     @Query("UPDATE groups SET group_number = :groupNumber WHERE chat_id = :chatId")
     fun setGroupNumber(chatId: String, groupNumber: Int)
 
+    @Query("SELECT chat_id FROM groups WHERE group_number = :groupNumber")
+    fun findChatIdByGroupNumber(groupNumber: Int): String?
+
     @Query("DELETE FROM groups WHERE chat_id = :chatId")
     fun deleteByChatId(chatId: String)
 }

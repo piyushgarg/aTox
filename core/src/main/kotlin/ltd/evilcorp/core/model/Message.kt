@@ -13,6 +13,7 @@ enum class MessageType {
     Normal,
     Action,
     FileTransfer,
+    GroupEvent,
 }
 
 @Entity(tableName = "messages")

@@ -444,6 +444,12 @@ class ToxRuntime @Inject constructor(
         toxWrapper.groupJoinDirect(chatId, selfName, password)
 
     /**
+     * Переподключается к ранее сохранённой NGC-группе после загрузки профиля.
+     */
+    fun groupReconnect(groupNumber: Int): Boolean =
+        toxWrapper.groupReconnect(groupNumber)
+
+    /**
      * Создает групповую аудио-конференцию.
      */
     fun groupavAdd(): Int =

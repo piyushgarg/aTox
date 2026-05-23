@@ -42,6 +42,7 @@ class GroupRepository @Inject constructor(
     fun setDraftMessage(chatId: String, draft: String) = groupDao.setDraftMessage(chatId, draft)
     fun setConnected(chatId: String, connected: Boolean) = groupDao.setConnected(chatId, connected)
     fun setGroupNumber(chatId: String, groupNumber: Int) = groupDao.setGroupNumber(chatId, groupNumber)
+    fun findChatIdByGroupNumber(groupNumber: Int): String? = groupDao.findChatIdByGroupNumber(groupNumber)
 
     fun addMessage(message: GroupMessage) {
         groupMessageDao.save(message)
@@ -50,6 +51,7 @@ class GroupRepository @Inject constructor(
 
     fun getMessages(groupChatId: String): Flow<List<GroupMessage>> = groupMessageDao.load(groupChatId)
     fun getPendingMessages(groupChatId: String): List<GroupMessage> = groupMessageDao.loadPending(groupChatId)
+    fun getUnsentMessages(groupChatId: String): List<GroupMessage> = groupMessageDao.loadUnsent(groupChatId)
     fun setCorrelationId(id: Long, correlationId: Int) = groupMessageDao.setCorrelationId(id, correlationId)
     fun deleteMessages(groupChatId: String) = groupMessageDao.delete(groupChatId)
     fun deleteMessage(id: Long) = groupMessageDao.deleteMessage(id)
@@ -67,8 +69,13 @@ class GroupRepository @Inject constructor(
 
     fun getPeers(groupChatId: String): Flow<List<GroupPeer>> = groupPeerDao.loadAllForGroup(groupChatId)
     fun getPeer(groupChatId: String, peerId: Int): Flow<GroupPeer?> = groupPeerDao.load(groupChatId, peerId)
+    fun getPeerNameDirect(groupChatId: String, peerId: Int): String? = groupPeerDao.getPeerNameDirect(groupChatId, peerId)
+    fun peerExistsDirect(groupChatId: String, peerId: Int): Boolean = groupPeerDao.peerExistsDirect(groupChatId, peerId) > 0
+    fun peerExistsByPublicKey(groupChatId: String, publicKey: String): Boolean = groupPeerDao.peerExistsByPublicKeyDirect(groupChatId, publicKey) > 0
+    fun deletePeerByPublicKey(groupChatId: String, publicKey: String) = groupPeerDao.deleteByPublicKey(groupChatId, publicKey)
     fun setPeerName(groupChatId: String, peerId: Int, name: String) = groupPeerDao.setName(groupChatId, peerId, name)
     fun setPeerRole(groupChatId: String, peerId: Int, role: String) = groupPeerDao.setRole(groupChatId, peerId, role)
     fun setPeerStatus(groupChatId: String, peerId: Int, status: UserStatus) = groupPeerDao.setStatus(groupChatId, peerId, status)
     fun peerCount(groupChatId: String): Flow<Int> = groupPeerDao.countForGroup(groupChatId)
+    suspend fun peerCountDirect(groupChatId: String): Int = groupPeerDao.countForGroupDirect(groupChatId)
 }

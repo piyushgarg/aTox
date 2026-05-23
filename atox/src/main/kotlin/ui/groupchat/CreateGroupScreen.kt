@@ -4,10 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +20,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.core.model.GroupPrivacyState
@@ -25,11 +31,13 @@ import ltd.evilcorp.core.model.GroupPrivacyState
 @Composable
 fun CreateGroupScreen(
     onBack: () -> Unit,
-    onCreateGroup: (String, String, GroupPrivacyState) -> Unit,
+    onCreateGroup: (String, String, GroupPrivacyState, String?) -> Unit,
 ) {
     var groupName by remember { mutableStateOf("") }
     var nickname by remember { mutableStateOf("") }
     var privacyState by remember { mutableStateOf(GroupPrivacyState.Public) }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     val haptic = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
@@ -119,12 +127,33 @@ fun CreateGroupScreen(
                 )
             }
 
+            if (privacyState == GroupPrivacyState.Private) {
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text(stringResource(R.string.group_password)) },
+                    placeholder = { Text(stringResource(R.string.group_password_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = null
+                            )
+                        }
+                    }
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
                     if (groupName.isNotBlank() && nickname.isNotBlank()) {
-                        onCreateGroup(groupName.trim(), nickname.trim(), privacyState)
+                        onCreateGroup(groupName.trim(), nickname.trim(), privacyState, password.takeIf { it.isNotBlank() })
                     }
                 },
                 modifier = Modifier

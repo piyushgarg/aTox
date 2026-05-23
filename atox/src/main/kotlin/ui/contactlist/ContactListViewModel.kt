@@ -71,8 +71,20 @@ class ContactListViewModel @Inject constructor(
     val friendRequests: LiveData<List<FriendRequest>> = friendRequestManager.getAll().asLiveData()
     val groups: LiveData<List<Group>> = groupManager.getAll().asLiveData()
 
+    init {
+        if (tox.started) {
+            groupManager.reconnectAll()
+        }
+    }
+
     fun isToxRunning() = tox.started
-    fun tryLoadTox(password: String?): ToxSaveStatus = toxStarter.tryLoadTox(password)
+    fun tryLoadTox(password: String?): ToxSaveStatus {
+        val status = toxStarter.tryLoadTox(password)
+        if (status == ToxSaveStatus.Ok) {
+            groupManager.reconnectAll()
+        }
+        return status
+    }
     fun quitTox() = toxStarter.stopTox()
 
     fun deleteProfileAndData() {

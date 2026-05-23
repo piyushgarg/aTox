@@ -42,6 +42,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import ltd.evilcorp.domain.feature.CallState
+import ltd.evilcorp.domain.feature.GroupInvite
+import ltd.evilcorp.domain.feature.GroupManager
 import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -117,7 +119,11 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var systemSoundPlayer: SystemSoundPlayer
 
+    @Inject
+    lateinit var groupManager: GroupManager
+
     private var incomingCallDialog: android.app.AlertDialog? = null
+    private var groupInviteDialog: android.app.AlertDialog? = null
     private val initialToxIdToLink = mutableStateOf<String?>(null)
     private val callScreenMinimized = mutableStateOf(false)
 
@@ -179,6 +185,30 @@ class MainActivity : AppCompatActivity() {
                     .setNegativeButton(R.string.reject) { _, _ ->
                         callManager.endCall(PublicKey(contact.publicKey))
                         notificationHelper.dismissCallNotification(PublicKey(contact.publicKey))
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+        }
+
+        lifecycleScope.launch {
+            groupManager.pendingInvite.collect { invite ->
+                if (invite == null) {
+                    groupInviteDialog?.dismiss()
+                    groupInviteDialog = null
+                    return@collect
+                }
+
+                if (groupInviteDialog != null) return@collect
+
+                groupInviteDialog = android.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle(R.string.group_invite)
+                    .setMessage(getString(R.string.group_invite_confirm, invite.groupName))
+                    .setPositiveButton(R.string.confirm) { _, _ ->
+                        groupManager.acceptInvite()
+                    }
+                    .setNegativeButton(android.R.string.cancel) { _, _ ->
+                        groupManager.declineInvite()
                     }
                     .setCancelable(false)
                     .show()
@@ -285,12 +315,15 @@ class MainActivity : AppCompatActivity() {
                     val contactsState = viewModel.contacts.observeAsState(emptyList())
                     val friendRequestsState = viewModel.friendRequests.observeAsState(emptyList())
                     val groupsState = viewModel.groups.observeAsState(emptyList())
+                    val groupConnectionStatusesState = groupManager.connectionStatuses
+                        .collectAsState(initial = emptyMap())
 
                     ContactListScreen(
                         userState = userState,
                         contactsState = contactsState,
                         friendRequestsState = friendRequestsState,
                         groupsState = groupsState,
+                        groupConnectionStatusesState = groupConnectionStatusesState,
                         onAddContact = { toxIdStr, message -> addContactViewModel.addContact(ToxID(toxIdStr), message) },
                         onContactClick = { contact -> navController.navigate("chat/${contact.publicKey}") },
                         onDeleteContact = { contact -> viewModel.deleteContact(PublicKey(contact.publicKey)) },
@@ -363,17 +396,55 @@ class MainActivity : AppCompatActivity() {
 
                 composable("create_group") {
                     val groupViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                    // 1. Создаем CoroutineScope, привязанный к жизненному циклу этого экрана
                     val coroutineScope = rememberCoroutineScope()
+                    var createdPassword by remember { mutableStateOf<String?>(null) }
+                    val context = LocalContext.current
+                    val clipboardManager = androidx.core.content.ContextCompat.getSystemService(
+                        context, android.content.ClipboardManager::class.java
+                    )
+
+                    createdPassword?.let { pwd ->
+                        AlertDialog(
+                            onDismissRequest = { createdPassword = null },
+                            title = { Text(stringResource(R.string.group_password_save_confirm)) },
+                            text = {
+                                Text(stringResource(R.string.group_password_save, pwd))
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    if (clipboardManager != null) {
+                                        val clip = android.content.ClipData.newPlainText("Group Password", pwd)
+                                        clipboardManager.setPrimaryClip(clip)
+                                    }
+                                    Toast.makeText(context, R.string.group_password_copied, Toast.LENGTH_SHORT).show()
+                                    createdPassword = null
+                                    navController.popBackStack()
+                                }) {
+                                    Text(stringResource(R.string.group_password_save_confirm))
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = {
+                                    createdPassword = null
+                                    navController.popBackStack()
+                                }) {
+                                    Text(stringResource(R.string.group_password_dismiss))
+                                }
+                            }
+                        )
+                    }
 
                     CreateGroupScreen(
                         onBack = { navController.popBackStack() },
-                        onCreateGroup = { name, nickname, privacyState ->
-                            // 2. Запускаем suspend-функцию внутри созданной корутины
+                        onCreateGroup = { name, nickname, privacyState, password ->
                             coroutineScope.launch {
-                                val groupNumber = groupViewModel.createGroup(name, nickname, privacyState)
+                                val groupNumber = groupViewModel.createGroup(name, nickname, privacyState, password)
                                 if (groupNumber >= 0) {
-                                    navController.popBackStack()
+                                    if (password != null) {
+                                        createdPassword = password
+                                    } else {
+                                        navController.popBackStack()
+                                    }
                                 }
                             }
                         }
@@ -396,6 +467,7 @@ class MainActivity : AppCompatActivity() {
                     val messagesState = viewModel.messages.observeAsState()
                     val peersState = viewModel.peers.observeAsState()
                     val contactsState = viewModel.contacts.observeAsState(emptyList())
+                    val connectionStatusState = viewModel.connectionStatus.observeAsState(initial = ltd.evilcorp.domain.feature.GroupConnectionStatus.Disconnected)
                     val clipboardManager = androidx.core.content.ContextCompat.getSystemService(
                         this@MainActivity,
                         android.content.ClipboardManager::class.java
@@ -406,6 +478,7 @@ class MainActivity : AppCompatActivity() {
                         messagesState = messagesState,
                         peersState = peersState,
                         contactsState = contactsState,
+                        connectionStatusState = connectionStatusState,
                         settings = settings,
                         onBack = {
                             viewModel.setActiveGroup("")
@@ -441,15 +514,19 @@ class MainActivity : AppCompatActivity() {
                         onJoinGroup = { chatIdHex, selfName, password ->
                             coroutineScope.launch {
                                 val groupNumber = groupViewModel.joinByChatId(chatIdHex, selfName, password)
-                                when {
-                                    groupNumber >= 0 -> navController.navigate("contact_list") {
-                                        popUpTo("join_group") { inclusive = true }
+                                val toastMsg = when {
+                                    groupNumber >= 0 -> {
+                                        navController.navigate("contact_list") {
+                                            popUpTo("join_group") { inclusive = true }
+                                        }
+                                        null
                                     }
-                                    groupNumber == -2 -> Toast.makeText(
-                                        context,
-                                        R.string.group_already_member,
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
+                                    groupNumber == -2 -> R.string.group_already_member
+                                    groupNumber == -3 || groupNumber == -4 -> R.string.group_invalid_chat_id
+                                    else -> R.string.group_join_failed
+                                }
+                                if (toastMsg != null) {
+                                    Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }

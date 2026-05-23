@@ -567,6 +567,13 @@ class ToxWrapper(
     }
 
     /**
+     * Переподключается к ранее сохранённой NGC-группе после загрузки профиля.
+     */
+    fun groupReconnect(groupNumber: Int): Boolean = synchronized(this) {
+        nativeTox.toxGroupReconnect(toxPtr, groupNumber)
+    }
+
+    /**
      * Создает групповую аудио-конференцию на базе группы.
      */
     fun groupavAdd(): Int = synchronized(this) {

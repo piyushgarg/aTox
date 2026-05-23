@@ -27,6 +27,21 @@ interface GroupPeerDao {
     @Query("SELECT * FROM group_peers WHERE group_chat_id = :groupChatId AND peer_id = :peerId")
     fun load(groupChatId: String, peerId: Int): Flow<GroupPeer?>
 
+    @Query("SELECT name FROM group_peers WHERE group_chat_id = :groupChatId AND peer_id = :peerId")
+    fun getPeerNameDirect(groupChatId: String, peerId: Int): String?
+
+    @Query("SELECT COUNT(*) FROM group_peers WHERE group_chat_id = :groupChatId AND peer_id = :peerId")
+    fun peerExistsDirect(groupChatId: String, peerId: Int): Int
+
+    @Query("SELECT COUNT(*) FROM group_peers WHERE group_chat_id = :groupChatId AND public_key = :publicKey")
+    fun peerExistsByPublicKeyDirect(groupChatId: String, publicKey: String): Int
+
+    @Query("SELECT * FROM group_peers WHERE group_chat_id = :groupChatId AND public_key = :publicKey")
+    fun loadByPublicKey(groupChatId: String, publicKey: String): Flow<GroupPeer?>
+
+    @Query("DELETE FROM group_peers WHERE group_chat_id = :groupChatId AND public_key = :publicKey")
+    fun deleteByPublicKey(groupChatId: String, publicKey: String)
+
     @Query("UPDATE group_peers SET name = :name WHERE group_chat_id = :groupChatId AND peer_id = :peerId")
     fun setName(groupChatId: String, peerId: Int, name: String)
 
@@ -44,4 +59,7 @@ interface GroupPeerDao {
 
     @Query("SELECT COUNT(*) FROM group_peers WHERE group_chat_id = :groupChatId")
     fun countForGroup(groupChatId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM group_peers WHERE group_chat_id = :groupChatId")
+    suspend fun countForGroupDirect(groupChatId: String): Int
 }

@@ -48,6 +48,7 @@ import ltd.evilcorp.core.model.UserStatus
 import ltd.evilcorp.atox.ui.userprofile.UserProfileScreen
 import ltd.evilcorp.atox.ui.addcontact.AddContactScreen
 import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.core.model.Group
 import ltd.evilcorp.atox.ui.groupchat.GroupListScreen
 
@@ -58,6 +59,7 @@ fun ContactListScreen(
     contactsState: State<List<Contact>>,
     friendRequestsState: State<List<FriendRequest>>,
     groupsState: State<List<Group>>,
+    groupConnectionStatusesState: State<Map<String, GroupConnectionStatus>>,
     onAddContact: (String, String) -> Unit,
     onContactClick: (Contact) -> Unit,
     onDeleteContact: (Contact) -> Unit,
@@ -269,6 +271,7 @@ fun ContactListScreen(
                 1 -> {
                     GroupListScreen(
                         groupsState = groupsState,
+                        connectionStatusesState = groupConnectionStatusesState,
                         onGroupClick = { group ->
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onGroupClick(group)

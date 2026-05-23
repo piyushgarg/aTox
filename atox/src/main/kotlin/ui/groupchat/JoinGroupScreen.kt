@@ -78,7 +78,7 @@ fun JoinGroupScreen(
             OutlinedTextField(
                 value = chatIdHex,
                 onValueChange = {
-                    chatIdHex = it.filter { c -> c.isLetterOrDigit() }
+                    chatIdHex = it.filter { c -> c in "0123456789abcdefABCDEF" }
                     errorMessage = null
                 },
                 label = { Text(stringResource(R.string.group_chat_id)) },

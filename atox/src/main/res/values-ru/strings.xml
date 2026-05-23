@@ -344,4 +344,16 @@
     <string name="group_role_user">Участник</string>
     <string name="group_role_observer">Наблюдатель</string>
     <string name="group_already_member">Вы уже участник этой группы</string>
+    <string name="group_invalid_chat_id">Неверный формат Chat ID</string>
+    <string name="group_join_failed">Не удалось присоединиться к группе</string>
+    <string name="message_copied">Сообщение скопировано</string>
+    <string name="group_invite_confirm">%1$s приглашает вас присоединиться к группе. Принять?</string>
+    <string name="group_peer_joined">%1$s присоединился к группе</string>
+    <string name="group_peer_left">%1$s покинул группу</string>
+    <string name="group_peer_kicked">%1$s был исключён из группы</string>
+    <string name="group_password_required">Эта группа защищена паролем. Введите пароль и попробуйте снова.</string>
+    <string name="group_password_save">Пароль: %1$s\n\nСохранить его в менеджере паролей?</string>
+    <string name="group_password_save_confirm">Сохранить пароль</string>
+    <string name="group_password_dismiss">Не сейчас</string>
+    <string name="group_password_copied">Пароль скопирован в буфер обмена</string>
 </resources>

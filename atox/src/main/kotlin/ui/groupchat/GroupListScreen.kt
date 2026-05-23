@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.core.model.Group
 import ltd.evilcorp.core.model.GroupPeer
 
@@ -33,12 +34,14 @@ import ltd.evilcorp.core.model.GroupPeer
 @Composable
 fun GroupListScreen(
     groupsState: State<List<Group>>,
+    connectionStatusesState: State<Map<String, GroupConnectionStatus>>,
     onGroupClick: (Group) -> Unit,
     onCreateGroupClick: () -> Unit,
     onJoinGroupClick: () -> Unit,
     onLeaveGroup: (Group) -> Unit,
 ) {
     val groups = groupsState.value
+    val connectionStatuses = connectionStatusesState.value
     val haptic = LocalHapticFeedback.current
     var showLeaveDialog by remember { mutableStateOf<Group?>(null) }
 
@@ -112,6 +115,7 @@ fun GroupListScreen(
                         items(groups) { group ->
                             GroupItemCard(
                                 group = group,
+                                connectionStatus = connectionStatuses[group.chatId] ?: GroupConnectionStatus.Disconnected,
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     onGroupClick(group)
@@ -181,6 +185,7 @@ fun GroupListScreen(
 @Composable
 fun GroupItemCard(
     group: Group,
+    connectionStatus: GroupConnectionStatus,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -201,47 +206,51 @@ fun GroupItemCard(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier.size(48.dp)
-            ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(
-                            if (group.connected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = if (group.connected) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(14.dp)
-                        .align(Alignment.BottomEnd)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(2.dp)
-                ) {
+                    val isOnline = connectionStatus == GroupConnectionStatus.Connected
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
                             .background(
-                                if (group.connected) Color(0xFF4CAF50)
-                                else Color(0xFF9E9E9E)
-                            )
-                    )
+                                if (isOnline) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = if (isOnline) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(14.dp)
+                            .align(Alignment.BottomEnd)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(2.dp)
+                    ) {
+                        val dotColor = when (connectionStatus) {
+                            GroupConnectionStatus.Connected -> Color(0xFF4CAF50)
+                            GroupConnectionStatus.Connecting,
+                            GroupConnectionStatus.Reconnecting -> Color(0xFFFFA726)
+                            GroupConnectionStatus.Disconnected -> Color(0xFF9E9E9E)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(dotColor)
+                        )
+                    }
                 }
-            }
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -277,12 +286,22 @@ fun GroupItemCard(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Center
             ) {
+                val statusText = when (connectionStatus) {
+                    GroupConnectionStatus.Connected -> stringResource(R.string.group_connected)
+                    GroupConnectionStatus.Connecting,
+                    GroupConnectionStatus.Reconnecting -> stringResource(R.string.group_connecting)
+                    GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
+                }
+                val statusColor = when (connectionStatus) {
+                    GroupConnectionStatus.Connected -> Color(0xFF4CAF50)
+                    GroupConnectionStatus.Connecting,
+                    GroupConnectionStatus.Reconnecting -> Color(0xFFFFA726)
+                    GroupConnectionStatus.Disconnected -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 Text(
-                    text = if (group.connected) stringResource(R.string.group_connected)
-                    else stringResource(R.string.group_offline),
+                    text = statusText,
                     fontSize = 11.sp,
-                    color = if (group.connected) Color(0xFF4CAF50)
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = statusColor
                 )
             }
         }

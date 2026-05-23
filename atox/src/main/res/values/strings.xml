@@ -381,4 +381,16 @@
     <string name="group_role_user">User</string>
     <string name="group_role_observer">Observer</string>
     <string name="group_already_member">You are already a member of this group</string>
+    <string name="group_invalid_chat_id">Invalid Chat ID format</string>
+    <string name="group_join_failed">Failed to join group</string>
+    <string name="message_copied">Message copied</string>
+    <string name="group_invite_confirm">%1$s invited you to join their group. Accept?</string>
+    <string name="group_peer_joined">%1$s joined the group</string>
+    <string name="group_peer_left">%1$s left the group</string>
+    <string name="group_peer_kicked">%1$s was kicked from the group</string>
+    <string name="group_password_required">This group requires a password. Enter it and try again.</string>
+    <string name="group_password_save">Password: %1$s\n\nSave it in your password manager?</string>
+    <string name="group_password_save_confirm">Save password</string>
+    <string name="group_password_dismiss">Not now</string>
+    <string name="group_password_copied">Password copied to clipboard</string>
 </resources>

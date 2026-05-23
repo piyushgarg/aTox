@@ -1,11 +1,13 @@
 package ltd.evilcorp.atox.tox
 
+import android.content.Context
 import android.util.Log
 import java.util.Date
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.media.SystemSoundPlayer
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
@@ -22,12 +24,15 @@ import ltd.evilcorp.core.tox.enums.ToxGroupModEvent
 import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
 import ltd.evilcorp.core.tox.enums.ToxGroupRole
 import ltd.evilcorp.core.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.feature.GroupConnectionStatus
+import ltd.evilcorp.domain.feature.GroupInvite
 import ltd.evilcorp.domain.feature.GroupManager
 import ltd.evilcorp.domain.tox.Tox
 
 private const val TAG = "GroupEventHandler"
 
 class GroupEventHandler @Inject constructor(
+    private val context: Context,
     private val scope: CoroutineScope,
     private val groupRepository: GroupRepository,
     private val contactRepository: ContactRepository,
@@ -39,12 +44,10 @@ class GroupEventHandler @Inject constructor(
 ) {
     fun onGroupInvite(friendNo: Int, inviteData: ByteArray, groupName: String) {
         scope.launch {
-            val selfName = tox.getName()
-            val groupNumber = groupManager.joinGroup(friendNo, inviteData, selfName)
-            if (groupNumber < 0) {
-                Log.e(TAG, "Failed to auto-join group from invite")
-            }
+            Log.i(TAG, "Group invite from friendNo=$friendNo: $groupName")
         }
+        val invite = GroupInvite(friendNo = friendNo, inviteData = inviteData, groupName = groupName)
+        groupManager.setPendingInvite(invite)
     }
 
     fun onGroupMessage(
@@ -100,21 +103,48 @@ class GroupEventHandler @Inject constructor(
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
 
+            val group = groupRepository.get(chatId).firstOrNull() ?: return@launch
+
             val peerNameBytes = tox.groupPeerGetName(groupNo, peerId)
             val peerName = peerNameBytes?.decodeToString() ?: "Unknown"
 
-            val peerKeyBytes = tox.groupPeerGetPublicKey(groupNo, peerId)
-            val peerKey = peerKeyBytes?.toHexString() ?: ""
+            if (peerId != group.selfPeerId) {
+                val peerKeyBytes = tox.groupPeerGetPublicKey(groupNo, peerId)
+                val peerKey = peerKeyBytes?.toHexString() ?: ""
 
-            val peer = GroupPeer(
-                groupChatId = chatId,
-                peerId = peerId,
-                name = peerName,
-                publicKey = peerKey,
-            )
-            groupRepository.addPeer(peer)
+                val alreadyExistsByPubKey = peerKey.isNotEmpty() && groupRepository.peerExistsByPublicKey(chatId, peerKey)
 
-            val count = groupRepository.peerCount(chatId).firstOrNull() ?: 0
+                val isNewPeer = if (alreadyExistsByPubKey) {
+                    groupRepository.deletePeerByPublicKey(chatId, peerKey)
+                    false
+                } else {
+                    true
+                }
+
+                val peer = GroupPeer(
+                    groupChatId = chatId,
+                    peerId = peerId,
+                    name = peerName,
+                    publicKey = peerKey,
+                )
+                groupRepository.addPeer(peer)
+
+                if (isNewPeer) {
+                    val msg = GroupMessage(
+                        groupChatId = chatId,
+                        peerId = peerId,
+                        senderName = peerName,
+                        message = context.getString(R.string.group_peer_joined, peerName),
+                        sender = Sender.Received,
+                        type = MessageType.GroupEvent,
+                        correlationId = 0,
+                        timestamp = Date().time,
+                    )
+                    groupRepository.addMessage(msg)
+                }
+            }
+
+            val count = groupRepository.peerCountDirect(chatId)
             groupRepository.setPeerCount(chatId, count)
 
             Log.i(TAG, "Peer joined group: $peerName ($peerId) in $chatId")
@@ -126,10 +156,52 @@ class GroupEventHandler @Inject constructor(
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
 
-            groupRepository.deletePeerById(chatId, peerId)
+            val group = groupRepository.get(chatId).firstOrNull() ?: return@launch
 
-            val count = groupRepository.peerCount(chatId).firstOrNull() ?: 0
-            groupRepository.setPeerCount(chatId, count)
+            val isSelf = peerId == group.selfPeerId
+
+            if (isSelf) {
+                if (exitType == ToxGroupExitType.SELF_DISCONNECTED) {
+                    groupRepository.setConnected(chatId, false)
+                    groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
+                    Log.i(TAG, "Self disconnected from group $chatId (will reconnect)")
+                    groupManager.scheduleAutoReconnect(chatId, group.groupNumber)
+                }
+                return@launch
+            }
+
+            if (exitType == ToxGroupExitType.DISCONNECTED || exitType == ToxGroupExitType.TIMEOUT) {
+                groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+            }
+
+            // For temporary disconnects (DISCONNECTED, TIMEOUT, SYNC_ERROR) keep the peer
+            // in the DB to avoid inserting duplicate "joined" messages on reconnect.
+            // Only remove and log permanent departures (QUIT, KICK).
+            if (exitType == ToxGroupExitType.QUIT || exitType == ToxGroupExitType.KICK) {
+                val peerName = groupRepository.getPeerNameDirect(chatId, peerId) ?: "Unknown"
+
+                groupRepository.deletePeerById(chatId, peerId)
+
+                val msgText = if (exitType == ToxGroupExitType.QUIT) {
+                    context.getString(R.string.group_peer_left, peerName)
+                } else {
+                    context.getString(R.string.group_peer_kicked, peerName)
+                }
+                val msg = GroupMessage(
+                    groupChatId = chatId,
+                    peerId = peerId,
+                    senderName = peerName,
+                    message = msgText,
+                    sender = Sender.Received,
+                    type = MessageType.GroupEvent,
+                    correlationId = 0,
+                    timestamp = Date().time,
+                )
+                groupRepository.addMessage(msg)
+
+                val count = groupRepository.peerCountDirect(chatId)
+                groupRepository.setPeerCount(chatId, count)
+            }
 
             Log.i(TAG, "Peer left group: peerId=$peerId, exitType=$exitType in $chatId")
         }
@@ -219,6 +291,16 @@ class GroupEventHandler @Inject constructor(
             val chatId = chatIdBytes?.toHexString() ?: return@launch
             groupRepository.setConnected(chatId, true)
             groupRepository.setGroupNumber(chatId, groupNo)
+            groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Connected)
+
+            val groupNameBytes = tox.groupGetName(groupNo)
+            val groupName = groupNameBytes?.decodeToString()
+            if (!groupName.isNullOrBlank()) {
+                groupRepository.setName(chatId, groupName)
+            }
+
+            groupManager.resendPendingMessages(chatId)
+
             Log.i(TAG, "Connected to group $chatId")
         }
     }
@@ -226,6 +308,19 @@ class GroupEventHandler @Inject constructor(
     fun onGroupJoinFail(groupNo: Int, joinFail: ToxGroupJoinFail) {
         scope.launch {
             Log.e(TAG, "Failed to join groupNo=$groupNo, reason=$joinFail")
+            val chatId = groupRepository.findChatIdByGroupNumber(groupNo)
+            if (chatId != null) {
+                groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+                groupRepository.deleteAllPeers(chatId)
+                groupRepository.deleteByChatId(chatId)
+            }
+            if (joinFail == ToxGroupJoinFail.INVALID_PASSWORD) {
+                android.widget.Toast.makeText(
+                    context,
+                    context.getString(R.string.group_password_required),
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
         }
     }
 

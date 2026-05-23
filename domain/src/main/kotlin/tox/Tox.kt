@@ -157,4 +157,7 @@ class Tox @Inject constructor(
 
     fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
         runtime.groupJoinDirect(chatId, selfName, password)
+
+    fun groupReconnect(groupNumber: Int): Boolean =
+        runtime.groupReconnect(groupNumber)
 }

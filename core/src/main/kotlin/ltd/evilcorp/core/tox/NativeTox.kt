@@ -616,6 +616,15 @@ class NativeTox {
      */
     external fun toxGroupJoinDirect(tox: Long, chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int
 
+    /**
+     * Переподключается к ранее сохранённой NGC-группе.
+     * Должна вызываться после загрузки сохранённого профиля для каждой группы.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы, возвращённый при первом подключении.
+     * @return true в случае успешного переподключения, false в случае ошибки.
+     */
+    external fun toxGroupReconnect(tox: Long, groupNumber: Int): Boolean
+
     // Раздел шифрования профилей Tox (Tox Encrypt / Decrypt API)
 
     /**

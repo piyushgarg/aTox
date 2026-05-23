@@ -17,13 +17,13 @@ class GroupListViewModel @Inject constructor(
 ) : ViewModel() {
     val groups: LiveData<List<Group>> = groupManager.getAll().asLiveData()
 
-    suspend fun createGroup(name: String, nickname: String, privacyState: GroupPrivacyState): Int =
+    suspend fun createGroup(name: String, nickname: String, privacyState: GroupPrivacyState, password: String? = null): Int =
         withContext(Dispatchers.IO) {
             val toxPrivacyState = when (privacyState) {
                 GroupPrivacyState.Public -> ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState.PUBLIC
                 GroupPrivacyState.Private -> ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState.PRIVATE
             }
-            groupManager.createGroup(privacyState, name, nickname)
+            groupManager.createGroup(privacyState, name, nickname, password)
         }
 
     suspend fun leaveGroup(group: Group) = withContext(Dispatchers.IO) {
