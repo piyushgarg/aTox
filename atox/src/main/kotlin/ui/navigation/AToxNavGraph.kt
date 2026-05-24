@@ -5,6 +5,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import ltd.evilcorp.atox.ui.theme.StatusAvailable
+import ltd.evilcorp.atox.ui.theme.StatusAway
+import ltd.evilcorp.atox.ui.theme.StatusOffline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -285,8 +293,18 @@ fun AToxNavGraph(
                 var settingsOnBackAction by remember { mutableStateOf<(() -> Unit)?>(null) }
                 var settingsOnSearchAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
+                // Group-related TopAppBar state
+                var groupOnInviteClick by remember { mutableStateOf<(() -> Unit)?>(null) }
+                var groupOnPeersClick by remember { mutableStateOf<(() -> Unit)?>(null) }
+                var groupOnLeaveClick by remember { mutableStateOf<(() -> Unit)?>(null) }
+                var activeGroupName by remember { mutableStateOf("") }
+                var activeGroupTopic by remember { mutableStateOf("") }
+                var activeGroupPeerCount by remember { mutableStateOf(0) }
+                var activeGroupConnectionStatus by remember { mutableStateOf(GroupConnectionStatus.Disconnected) }
+
                 val mainRoute = mainBackStackEntry?.destination?.route ?: AppRoutes.Chats
                 val isChatRoute = mainRoute.startsWith("chat/")
+                val isGroupChatRoute = mainRoute.startsWith("group_chat/")
 
                 val currentContact = remember(contactsState.value, mainRoute, selectedChatSnapshot) {
                     if (isChatRoute) {
@@ -305,7 +323,8 @@ fun AToxNavGraph(
                                            mainRoute == AppRoutes.AddContactTab || 
                                            mainRoute == AppRoutes.Profile || 
                                            mainRoute == AppRoutes.Settings ||
-                                           isChatRoute
+                                           isChatRoute ||
+                                           isGroupChatRoute
                     if (isSupportedRoute) {
                         TopAppBar(
                             colors = TopAppBarDefaults.topAppBarColors(
@@ -316,6 +335,8 @@ fun AToxNavGraph(
                                 val density = androidx.compose.ui.platform.LocalDensity.current
                                 val targetKey = if (isChatRoute) {
                                     currentContact?.publicKey ?: "chat_loading"
+                                } else if (isGroupChatRoute) {
+                                    "group_chat"
                                 } else if (mainRoute == AppRoutes.Settings) {
                                     if (settingsOnBackAction == null) "tab-4" else "sub-4-$settingsTitle"
                                 } else {
@@ -399,6 +420,8 @@ fun AToxNavGraph(
                                 val density = androidx.compose.ui.platform.LocalDensity.current
                                 val targetKey = if (isChatRoute) {
                                     currentContact?.publicKey ?: "chat_loading"
+                                } else if (isGroupChatRoute) {
+                                    "group_chat"
                                 } else if (mainRoute == AppRoutes.Settings) {
                                     if (settingsOnBackAction == null) "tab-4" else "sub-4-$settingsTitle"
                                 } else {
@@ -485,6 +508,65 @@ fun AToxNavGraph(
                                                 )
                                             }
                                         }
+                                    } else if (isGroupChatRoute) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.primary),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Group,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text(
+                                                    text = activeGroupName.ifEmpty { stringResource(R.string.contact_default_name) },
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    val dotColor = when (activeGroupConnectionStatus) {
+                                                        GroupConnectionStatus.Connected -> StatusAvailable
+                                                        GroupConnectionStatus.Connecting,
+                                                        GroupConnectionStatus.Reconnecting -> StatusAway
+                                                        GroupConnectionStatus.Disconnected -> StatusOffline
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(8.dp)
+                                                            .clip(CircleShape)
+                                                            .background(dotColor)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    val statusText = when (activeGroupConnectionStatus) {
+                                                        GroupConnectionStatus.Connected -> stringResource(R.string.group_connected)
+                                                        GroupConnectionStatus.Connecting,
+                                                        GroupConnectionStatus.Reconnecting -> stringResource(R.string.group_connecting)
+                                                        GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
+                                                    }
+                                                    Text(
+                                                        text = "$statusText • ${stringResource(R.string.group_peer_count, activeGroupPeerCount)}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
                                     } else {
                                         val displayTitle = when {
                                             key.startsWith("tab-0") -> stringResource(R.string.app_name)
@@ -505,7 +587,7 @@ fun AToxNavGraph(
                             },
                             actions = {
                                 AnimatedContent(
-                                    targetState = currentContact?.publicKey,
+                                    targetState = if (isGroupChatRoute) "group_actions" else currentContact?.publicKey,
                                     transitionSpec = {
                                         (slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(220, easing = AToxMotion.EmphasizedDecelerate)) + fadeIn(animationSpec = tween(220))) togetherWith
                                         (slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(150, easing = AToxMotion.EmphasizedAccelerate)) + fadeOut(animationSpec = tween(150))) using
@@ -513,9 +595,33 @@ fun AToxNavGraph(
                                     },
                                     contentAlignment = Alignment.Center,
                                     label = "TopAppBarActions"
-                                ) { pk ->
-                                    val contact = currentContact
-                                    if (pk != null && contact != null) {
+                                ) { target ->
+                                    if (target == "group_actions") {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(onClick = { groupOnInviteClick?.invoke() }) {
+                                                Icon(
+                                                    imageVector = Icons.Default.PersonAdd,
+                                                    contentDescription = "Invite friend",
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                            IconButton(onClick = { groupOnPeersClick?.invoke() }) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Person,
+                                                    contentDescription = "Group peers",
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                            IconButton(onClick = { groupOnLeaveClick?.invoke() }) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Leave group",
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    } else if (target != null && currentContact != null) {
+                                        val contact = currentContact
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             IconButton(
                                                 onClick = {
@@ -727,7 +833,16 @@ fun AToxNavGraph(
                                 onInviteFriend = { friendPk ->
                                     viewModel.inviteFriend(friendPk)
                                 },
-                                systemSoundPlayer = systemSoundPlayer
+                                systemSoundPlayer = systemSoundPlayer,
+                                onInviteClick = { groupOnInviteClick = it },
+                                onPeersClick = { groupOnPeersClick = it },
+                                onLeaveClick = { groupOnLeaveClick = it },
+                                onGroupInfoChanged = { name, topic, peerCount, status ->
+                                    activeGroupName = name
+                                    activeGroupTopic = topic
+                                    activeGroupPeerCount = peerCount
+                                    activeGroupConnectionStatus = status
+                                }
                             )
                         }
 

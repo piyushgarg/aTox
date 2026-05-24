@@ -10,7 +10,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GroupAdd
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.foundation.lazy.rememberLazyListState
+import ltd.evilcorp.atox.ui.theme.StatusAvailable
+import ltd.evilcorp.atox.ui.theme.StatusAway
+import ltd.evilcorp.atox.ui.theme.StatusOffline
+import ltd.evilcorp.atox.ui.navigation.LocalTabPadding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -93,12 +99,21 @@ fun GroupListScreen(
                 }
             }
         } else {
-            Column(modifier = Modifier.fillMaxSize()) {
+            val lazyListState = rememberLazyListState()
+            val isExpanded = remember {
+                derivedStateOf {
+                    lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset == 0
+                }
+            }
+
+            Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentPadding = PaddingValues(vertical = 4.dp)
+                    state = lazyListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        top = 4.dp,
+                        bottom = 80.dp + LocalTabPadding.current.calculateBottomPadding()
+                    )
                 ) {
                     items(groups) { group ->
                         GroupItemCard(
@@ -115,32 +130,43 @@ fun GroupListScreen(
                     }
                 }
 
-                Row(
+                // Modern M3 FAB Stack
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 16.dp + LocalTabPadding.current.calculateBottomPadding(), end = 16.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Button(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onCreateGroupClick()
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.GroupAdd, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.create_group))
-                    }
-                    OutlinedButton(
+                    // Secondary FAB: Join Group
+                    SmallFloatingActionButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onJoinGroupClick()
                         },
-                        modifier = Modifier.weight(1f)
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        shape = CircleShape
                     ) {
-                        Text(stringResource(R.string.join_group))
+                        Icon(
+                            imageVector = Icons.Default.Link,
+                            contentDescription = stringResource(R.string.join_group)
+                        )
                     }
+
+                    // Primary Extended FAB: Create Group
+                    ExtendedFloatingActionButton(
+                        expanded = isExpanded.value,
+                        icon = { Icon(Icons.Default.GroupAdd, contentDescription = null) },
+                        text = { Text(stringResource(R.string.create_group)) },
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onCreateGroupClick()
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = CircleShape
+                    )
                 }
             }
         }
@@ -208,7 +234,7 @@ fun GroupItemCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Person,
+                            imageVector = Icons.Default.Group,
                             contentDescription = null,
                             tint = if (isOnline) MaterialTheme.colorScheme.onPrimary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -225,10 +251,10 @@ fun GroupItemCard(
                             .padding(2.dp)
                     ) {
                         val dotColor = when (connectionStatus) {
-                            GroupConnectionStatus.Connected -> Color(0xFF4CAF50)
+                            GroupConnectionStatus.Connected -> StatusAvailable
                             GroupConnectionStatus.Connecting,
-                            GroupConnectionStatus.Reconnecting -> Color(0xFFFFA726)
-                            GroupConnectionStatus.Disconnected -> Color(0xFF9E9E9E)
+                            GroupConnectionStatus.Reconnecting -> StatusAway
+                            GroupConnectionStatus.Disconnected -> StatusOffline
                         }
                         Box(
                             modifier = Modifier
@@ -280,9 +306,9 @@ fun GroupItemCard(
                     GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
                 }
                 val statusColor = when (connectionStatus) {
-                    GroupConnectionStatus.Connected -> Color(0xFF4CAF50)
+                    GroupConnectionStatus.Connected -> StatusAvailable
                     GroupConnectionStatus.Connecting,
-                    GroupConnectionStatus.Reconnecting -> Color(0xFFFFA726)
+                    GroupConnectionStatus.Reconnecting -> StatusAway
                     GroupConnectionStatus.Disconnected -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Text(
