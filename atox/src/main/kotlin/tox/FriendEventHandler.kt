@@ -22,6 +22,7 @@ import ltd.evilcorp.core.model.FINGERPRINT_LEN
 import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.domain.feature.ChatManager
 import ltd.evilcorp.domain.feature.FileTransferManager
+import ltd.evilcorp.domain.feature.GroupManager
 import ltd.evilcorp.domain.tox.Tox
 
 private const val MAX_ACTIVE_FRIEND_REQUESTS = 32
@@ -39,6 +40,7 @@ class FriendEventHandler @Inject constructor(
     private val fileTransferManager: FileTransferManager,
     private val notificationHelper: NotificationHelper,
     private val systemSoundPlayer: SystemSoundPlayer,
+    private val groupManager: GroupManager,
     private val tox: Tox,
     @Suppress("UNUSED_PARAMETER") private val settings: Settings,
 ) {
@@ -129,6 +131,9 @@ class FriendEventHandler @Inject constructor(
 
     fun onSelfConnectionStatus(status: ConnectionStatus) {
         userRepository.updateConnection(tox.publicKey.string(), status)
+        if (status != ConnectionStatus.None) {
+            groupManager.reconnectAll()
+        }
     }
 
     fun onFriendTyping(publicKey: String, isTyping: Boolean) {

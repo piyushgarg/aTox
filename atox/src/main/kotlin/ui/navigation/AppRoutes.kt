@@ -49,6 +49,8 @@ object AppRoutes {
 
     fun isChat(route: String?) = route?.startsWith("chat/") == true
 
+    fun isGroupChat(route: String?) = route?.startsWith("group_chat/") == true
+
     fun isCall(route: String?) = route?.startsWith("call/") == true
 
     fun isAddContact(route: String?) = route?.startsWith("add_contact") == true

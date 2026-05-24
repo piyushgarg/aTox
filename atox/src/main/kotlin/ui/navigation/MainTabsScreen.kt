@@ -73,7 +73,7 @@ fun MainTabsScreen(
     ) { paddingValues ->
         val density = androidx.compose.ui.platform.LocalDensity.current
         val navigationBarsInsets = WindowInsets.navigationBars
-        val bottomPadding = if (currentRoute.startsWith("chat/")) {
+        val bottomPadding = if (currentRoute.startsWith("chat/") || currentRoute.startsWith("group_chat/")) {
             0.dp
         } else {
             // M3 NavigationBar default height is 80.dp.
@@ -101,7 +101,7 @@ fun MainTabsScreen(
 
                 // Place the NavigationBar here inside the Box to prevent Scaffold content resizing!
                 AnimatedVisibility(
-                    visible = !currentRoute.startsWith("chat/"),
+                    visible = !currentRoute.startsWith("chat/") && !currentRoute.startsWith("group_chat/"),
                     enter = fadeIn(animationSpec = tween(300)) + 
                             slideInVertically(
                                 initialOffsetY = { it },

@@ -103,6 +103,10 @@ class GroupManager @Inject constructor(
         scope.launch {
             val groups = groupRepository.getAll().firstOrNull() ?: return@launch
             for (group in groups) {
+                val currentStatus = connectionStatus(group.chatId)
+                if (currentStatus == GroupConnectionStatus.Connected && group.connected) {
+                    continue
+                }
                 groupRepository.setConnected(group.chatId, false)
                 setConnectionStatus(group.chatId, GroupConnectionStatus.Reconnecting)
                 if (group.groupNumber >= 0) {
@@ -417,6 +421,16 @@ class GroupManager @Inject constructor(
             )
             groupRepository.add(group)
             setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+
+            // Connection timeout to prevent hanging in Connecting status forever
+            scope.launch {
+                delay(45000)
+                val g = groupRepository.get(chatId).firstOrNull()
+                if (g != null && !g.connected && connectionStatus(chatId) == GroupConnectionStatus.Connecting) {
+                    Log.w("GroupManager", "Direct join connection timeout for $chatId")
+                    setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+                }
+            }
 
             val ourPeer = GroupPeer(
                 groupChatId = chatId,
