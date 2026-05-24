@@ -39,6 +39,7 @@ fun MessageType.toToxType(): ToxMessageType = when (this) {
     MessageType.Normal -> ToxMessageType.NORMAL
     MessageType.Action -> ToxMessageType.ACTION
     MessageType.FileTransfer -> throw Exception("Тип сообщения FileTransfer не поддерживается напрямую в протоколе Tox")
+    MessageType.GroupEvent -> ToxMessageType.NORMAL
 }
 
 /**

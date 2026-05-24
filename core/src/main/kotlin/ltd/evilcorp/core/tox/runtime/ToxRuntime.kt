@@ -312,6 +312,12 @@ class ToxRuntime @Inject constructor(
     fun friendGetTyping(pk: PublicKey): Boolean =
         toxWrapper.friendGetTyping(pk)
 
+    /**
+     * Возвращает нативный номер друга по публичному ключу.
+     */
+    fun getFriendNumber(pk: PublicKey): Int =
+        toxWrapper.getFriendNumberByPublicKey(pk)
+
     /** Начинает аудио/видеовызов. */
     fun startCall(pk: PublicKey) = toxWrapper.startCall(pk)
     /** Принимает входящий вызов. */
@@ -424,6 +430,24 @@ class ToxRuntime @Inject constructor(
      */
     fun groupSelfGetRole(groupNumber: Int): ToxGroupRole =
         toxWrapper.groupSelfGetRole(groupNumber)
+
+    /**
+     * Отправляет приглашение в NGC-группу другу.
+     */
+    fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean =
+        toxWrapper.groupInviteSend(groupNumber, friendNumber)
+
+    /**
+     * Присоединяется к NGC-группе напрямую по Chat ID.
+     */
+    fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
+        toxWrapper.groupJoinDirect(chatId, selfName, password)
+
+    /**
+     * Переподключается к ранее сохранённой NGC-группе после загрузки профиля.
+     */
+    fun groupReconnect(groupNumber: Int): Boolean =
+        toxWrapper.groupReconnect(groupNumber)
 
     /**
      * Создает групповую аудио-конференцию.

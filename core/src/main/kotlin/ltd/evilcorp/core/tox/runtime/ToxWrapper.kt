@@ -395,6 +395,13 @@ class ToxWrapper(
     }
 
     /**
+     * Возвращает нативный номер друга по его публичному ключу.
+     */
+    fun getFriendNumberByPublicKey(pk: PublicKey): Int = synchronized(this) {
+        nativeTox.toxFriendByPublicKey(toxPtr, pk.bytes())
+    }
+
+    /**
      * Инициирует исходящий 1-на-1 голосовой вызов другу.
      */
     fun startCall(pk: PublicKey) = synchronized(this) {
@@ -543,6 +550,27 @@ class ToxWrapper(
      */
     fun groupSelfGetRole(groupNumber: Int): ToxGroupRole = synchronized(this) {
         ToxGroupRole.fromInt(nativeTox.toxGroupSelfGetRole(toxPtr, groupNumber))
+    }
+
+    /**
+     * Отправляет приглашение в NGC-группу конкретному другу.
+     */
+    fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean = synchronized(this) {
+        nativeTox.toxGroupInviteSend(toxPtr, groupNumber, friendNumber)
+    }
+
+    /**
+     * Присоединяется к NGC-группе напрямую по Chat ID.
+     */
+    fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int = synchronized(this) {
+        nativeTox.toxGroupJoinDirect(toxPtr, chatId, selfName, password)
+    }
+
+    /**
+     * Переподключается к ранее сохранённой NGC-группе после загрузки профиля.
+     */
+    fun groupReconnect(groupNumber: Int): Boolean = synchronized(this) {
+        nativeTox.toxGroupReconnect(toxPtr, groupNumber)
     }
 
     /**

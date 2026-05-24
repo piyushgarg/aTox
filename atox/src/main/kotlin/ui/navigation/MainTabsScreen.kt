@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Settings
@@ -136,6 +137,12 @@ fun MainTabsScreen(
                                     }
                                 },
                                 label = { Text(stringResource(R.string.chats)) }
+                            )
+                            NavigationBarItem(
+                                selected = currentRoute == AppRoutes.Groups,
+                                onClick = { selectTab(AppRoutes.Groups) },
+                                icon = { Icon(Icons.Default.Group, contentDescription = "Groups") },
+                                label = { Text(stringResource(R.string.groups)) }
                             )
                             NavigationBarItem(
                                 selected = currentRoute == AppRoutes.AddContactTab,

@@ -11,6 +11,9 @@ import ltd.evilcorp.core.model.FileKind
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.core.tox.enums.ToxGroupRole
+import ltd.evilcorp.core.tox.enums.ToxMessageType
 
 @Singleton
 class Tox @Inject constructor(
@@ -90,6 +93,8 @@ class Tox @Inject constructor(
 
     fun friendGetTyping(publicKey: PublicKey): Boolean = runtime.friendGetTyping(publicKey)
 
+    fun getFriendNumber(publicKey: PublicKey): Int = runtime.getFriendNumber(publicKey)
+
     fun friendGetLastOnline(publicKey: PublicKey): Long = runtime.friendGetLastOnline(publicKey)
 
     fun getStatus() = runtime.getStatus()
@@ -104,4 +109,55 @@ class Tox @Inject constructor(
     fun endCall(pk: PublicKey) = runtime.endCall(pk)
     fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) =
         runtime.sendAudio(pk, pcm, channels, samplingRate)
+
+    fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int =
+        runtime.groupNew(privacyState, groupName, selfName)
+
+    fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
+        runtime.groupJoin(friendNo, inviteData, selfName, password)
+
+    fun groupLeave(groupNumber: Int): Boolean =
+        runtime.groupLeave(groupNumber)
+
+    fun groupSendMessage(groupNumber: Int, type: ToxMessageType, message: ByteArray): Int =
+        runtime.groupSendMessage(groupNumber, type, message)
+
+    fun groupSetTopic(groupNumber: Int, topic: ByteArray): Boolean =
+        runtime.groupSetTopic(groupNumber, topic)
+
+    fun groupGetTopic(groupNumber: Int): ByteArray? =
+        runtime.groupGetTopic(groupNumber)
+
+    fun groupGetName(groupNumber: Int): ByteArray? =
+        runtime.groupGetName(groupNumber)
+
+    fun groupGetChatId(groupNumber: Int): ByteArray? =
+        runtime.groupGetChatId(groupNumber)
+
+    fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean =
+        runtime.groupSetPassword(groupNumber, password)
+
+    fun groupGetPassword(groupNumber: Int): ByteArray? =
+        runtime.groupGetPassword(groupNumber)
+
+    fun groupPeerGetName(groupNumber: Int, peerId: Int): ByteArray? =
+        runtime.groupPeerGetName(groupNumber, peerId)
+
+    fun groupPeerGetPublicKey(groupNumber: Int, peerId: Int): ByteArray? =
+        runtime.groupPeerGetPublicKey(groupNumber, peerId)
+
+    fun groupSelfGetPeerId(groupNumber: Int): Int =
+        runtime.groupSelfGetPeerId(groupNumber)
+
+    fun groupSelfGetRole(groupNumber: Int): ToxGroupRole =
+        runtime.groupSelfGetRole(groupNumber)
+
+    fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean =
+        runtime.groupInviteSend(groupNumber, friendNumber)
+
+    fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
+        runtime.groupJoinDirect(chatId, selfName, password)
+
+    fun groupReconnect(groupNumber: Int): Boolean =
+        runtime.groupReconnect(groupNumber)
 }

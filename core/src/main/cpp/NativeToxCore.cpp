@@ -1310,6 +1310,48 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGroupSelfGetRole(JNIEnv *env, jobject th
     return (jint)role;
 }
 
+// Отправка приглашения в NGC группу конкретному другу
+JNIEXPORT jboolean JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupInviteSend(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber, jint friendNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_Invite_Friend err;
+    bool res = tox_group_invite_friend(tox, groupNumber, friendNumber, &err);
+    if (err != TOX_ERR_GROUP_INVITE_FRIEND_OK) {
+        LOGE("tox_group_invite_friend failed: %d", err);
+        return false;
+    }
+    return res;
+}
+
+// Присоединение к NGC группе напрямую по Chat ID (без инвайта от друга)
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupJoinDirect(JNIEnv *env, jobject thiz, jlong toxPtr, jbyteArray chatId, jbyteArray selfName, jbyteArray password) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint8_t> cid = jba2vec(env, chatId);
+    std::vector<uint8_t> self = jba2vec(env, selfName);
+    std::vector<uint8_t> pass = jba2vec(env, password);
+    Tox_Err_Group_Join err;
+    uint32_t group_num = tox_group_join(tox, cid.data(), self.data(), self.size(), pass.empty() ? nullptr : pass.data(), pass.size(), &err);
+    if (err != TOX_ERR_GROUP_JOIN_OK) {
+        LOGE("tox_group_join failed: %d", err);
+        return -1;
+    }
+    return group_num;
+}
+
+// Переподключение к ранее сохранённой NGC-группе после загрузки профиля
+JNIEXPORT jboolean JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupReconnect(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    Tox_Err_Group_Reconnect err;
+    bool res = tox_group_reconnect(tox, groupNumber, &err);
+    if (err != TOX_ERR_GROUP_RECONNECT_OK) {
+        LOGE("tox_group_reconnect failed: %d", err);
+        return false;
+    }
+    return res;
+}
+
 // Инициализация JNI-библиотеки при ее загрузке в JVM (кэширование Method ID событий)
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     g_vm = vm;

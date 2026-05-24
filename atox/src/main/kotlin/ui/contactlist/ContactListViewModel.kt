@@ -20,6 +20,7 @@ import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.FriendRequest
+import ltd.evilcorp.core.model.Group
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.User
 import ltd.evilcorp.domain.feature.CallManager
@@ -27,6 +28,7 @@ import ltd.evilcorp.domain.feature.ChatManager
 import ltd.evilcorp.domain.feature.ContactManager
 import ltd.evilcorp.domain.feature.FileTransferManager
 import ltd.evilcorp.domain.feature.FriendRequestManager
+import ltd.evilcorp.domain.feature.GroupManager
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.core.tox.save.ProxyType
 import ltd.evilcorp.core.tox.save.SaveOptions
@@ -48,6 +50,7 @@ class ContactListViewModel @Inject constructor(
     private val chatManager: ChatManager,
     private val contactManager: ContactManager,
     private val fileTransferManager: FileTransferManager,
+    private val groupManager: GroupManager,
     private val notificationHelper: NotificationHelper,
     private val tox: Tox,
     private val settings: Settings,
@@ -68,6 +71,19 @@ class ContactListViewModel @Inject constructor(
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
+
+    val groups: StateFlow<List<Group>> = groupManager.getAll()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    init {
+        if (tox.started) {
+            groupManager.reconnectAll()
+        }
+    }
 
     private val _selectedChatSnapshot = MutableStateFlow<Contact?>(null)
     val selectedChatSnapshot = _selectedChatSnapshot.asStateFlow()

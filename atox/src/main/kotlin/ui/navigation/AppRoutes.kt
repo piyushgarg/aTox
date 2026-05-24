@@ -4,12 +4,14 @@ import androidx.navigation.NavController
 
 private const val ARG_PUBLIC_KEY = "publicKey"
 private const val ARG_TOX_ID = "toxId"
+private const val ARG_CHAT_ID = "chatId"
 
 object AppRoutes {
     const val Launch = "launch"
     const val Unlock = "unlock"
     const val ContactList = "contact_list"
     const val Chats = "main/chats"
+    const val Groups = "main/groups"
     const val AddContactTab = "main/add_contact"
     const val Profile = "main/profile"
     const val Settings = "main/settings"
@@ -25,11 +27,17 @@ object AppRoutes {
     const val Call = "call/{$ARG_PUBLIC_KEY}"
     const val AddContact = "add_contact?${ARG_TOX_ID}={${ARG_TOX_ID}}"
     const val ForwardSelection = "chat/forward?message={message}"
+    const val GroupChat = "group_chat/{$ARG_CHAT_ID}"
+    const val CreateGroup = "create_group"
+    const val JoinGroup = "join_group"
+
     fun forwardSelection(message: String) = "chat/forward?message=${android.net.Uri.encode(message)}"
 
     fun chat(publicKey: String) = "chat/$publicKey"
 
     fun call(publicKey: String) = "call/$publicKey"
+
+    fun groupChat(chatId: String) = "group_chat/$chatId"
 
     fun addContact(toxId: String? = null): String {
         return if (toxId.isNullOrBlank()) {
@@ -46,12 +54,14 @@ object AppRoutes {
     fun isAddContact(route: String?) = route?.startsWith("add_contact") == true
 
     fun isMainTab(route: String?) = route == Chats ||
+        route == Groups ||
         route == AddContactTab ||
         route == Profile ||
         route == Settings
 
     const val PublicKeyArg = ARG_PUBLIC_KEY
     const val ToxIdArg = ARG_TOX_ID
+    const val ChatIdArg = ARG_CHAT_ID
 }
 
 fun NavController.navigateSingleTop(route: String) {
@@ -59,3 +69,4 @@ fun NavController.navigateSingleTop(route: String) {
         launchSingleTop = true
     }
 }
+

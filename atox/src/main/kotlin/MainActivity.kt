@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Log
 import android.view.WindowManager
 import android.webkit.MimeTypeMap
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.activity.enableEdgeToEdge
@@ -20,6 +21,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import ltd.evilcorp.domain.feature.CallState
+import ltd.evilcorp.domain.feature.GroupInvite
+import ltd.evilcorp.domain.feature.GroupManager
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -79,6 +82,10 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var systemSoundPlayer: SystemSoundPlayer
 
+    @Inject
+    lateinit var groupManager: GroupManager
+
+    private var groupInviteDialog: android.app.AlertDialog? = null
     private val initialToxIdToLink = mutableStateOf<String?>(null)
     private val callScreenMinimized = mutableStateOf(false)
 
@@ -129,6 +136,30 @@ class MainActivity : AppCompatActivity() {
                         updateSecureWindow(disable)
                     },
                 )
+            }
+        }
+
+        lifecycleScope.launch {
+            groupManager.pendingInvite.collect { invite ->
+                if (invite == null) {
+                    groupInviteDialog?.dismiss()
+                    groupInviteDialog = null
+                    return@collect
+                }
+
+                if (groupInviteDialog != null) return@collect
+
+                groupInviteDialog = android.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle(R.string.group_invite)
+                    .setMessage(getString(R.string.group_invite_confirm, invite.groupName))
+                    .setPositiveButton(R.string.confirm) { _, _ ->
+                        groupManager.acceptInvite()
+                    }
+                    .setNegativeButton(android.R.string.cancel) { _, _ ->
+                        groupManager.declineInvite()
+                    }
+                    .setCancelable(false)
+                    .show()
             }
         }
 

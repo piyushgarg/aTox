@@ -15,6 +15,8 @@ import ltd.evilcorp.atox.ui.call.CallViewModel
 import ltd.evilcorp.atox.ui.chat.ChatViewModel
 import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
 import ltd.evilcorp.atox.ui.createprofile.CreateProfileViewModel
+import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
+import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.settings.SettingsViewModel
 import ltd.evilcorp.atox.ui.settings.BackupSettingsViewModel
 import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
@@ -83,4 +85,14 @@ abstract class ViewModelModule {
     @IntoMap
     @ViewModelKey(BackupSettingsViewModel::class)
     abstract fun bindBackupSettingsViewModel(vm: BackupSettingsViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(GroupChatViewModel::class)
+    abstract fun bindGroupChatViewModel(vm: GroupChatViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(GroupListViewModel::class)
+    abstract fun bindGroupListViewModel(vm: GroupListViewModel): ViewModel
 }

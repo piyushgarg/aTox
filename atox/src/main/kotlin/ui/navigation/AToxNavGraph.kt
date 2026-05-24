@@ -36,6 +36,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.runtime.livedata.observeAsState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -73,6 +74,13 @@ import ltd.evilcorp.core.tox.ToxID
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
+import ltd.evilcorp.domain.feature.GroupConnectionStatus
+import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
+import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
+import ltd.evilcorp.atox.ui.groupchat.GroupListScreen
+import ltd.evilcorp.atox.ui.groupchat.GroupChatScreen
+import ltd.evilcorp.atox.ui.groupchat.CreateGroupScreen
+import ltd.evilcorp.atox.ui.groupchat.JoinGroupScreen
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -293,6 +301,7 @@ fun AToxNavGraph(
 
                 val sharedTopBar: @Composable () -> Unit = {
                     val isSupportedRoute = mainRoute == AppRoutes.Chats || 
+                                           mainRoute == AppRoutes.Groups || 
                                            mainRoute == AppRoutes.AddContactTab || 
                                            mainRoute == AppRoutes.Profile || 
                                            mainRoute == AppRoutes.Settings ||
@@ -308,12 +317,13 @@ fun AToxNavGraph(
                                 val targetKey = if (isChatRoute) {
                                     currentContact?.publicKey ?: "chat_loading"
                                 } else if (mainRoute == AppRoutes.Settings) {
-                                    if (settingsOnBackAction == null) "tab-3" else "sub-3-$settingsTitle"
+                                    if (settingsOnBackAction == null) "tab-4" else "sub-4-$settingsTitle"
                                 } else {
                                     when (mainRoute) {
                                         AppRoutes.Chats -> "tab-0"
-                                        AppRoutes.AddContactTab -> "tab-1"
-                                        AppRoutes.Profile -> "tab-2"
+                                        AppRoutes.Groups -> "tab-1"
+                                        AppRoutes.AddContactTab -> "tab-2"
+                                        AppRoutes.Profile -> "tab-3"
                                         else -> mainRoute
                                     }
                                 }
@@ -325,7 +335,7 @@ fun AToxNavGraph(
                                         val targetOrder = getRouteOrder(targetState)
                                         val forward = targetOrder > initialOrder
 
-                                        val isChatTransition = initialOrder == 5 || targetOrder == 5
+                                        val isChatTransition = initialOrder == 6 || targetOrder == 6
                                         
                                         val slideOffsetPx = with(density) { 20.dp.roundToPx() }
 
@@ -349,7 +359,7 @@ fun AToxNavGraph(
                                     label = "TopAppBarNavigationIcon"
                                 ) { key ->
                                     when {
-                                        key.startsWith("tab-0") || key.startsWith("tab-3") -> {
+                                        key.startsWith("tab-0") || key.startsWith("tab-4") -> {
                                             Box(modifier = Modifier.padding(start = 4.dp)) {
                                                 MorphingNavigationIcon(
                                                     isBack = false,
@@ -363,10 +373,10 @@ fun AToxNavGraph(
                                                 )
                                             }
                                         }
-                                        key.startsWith("tab-1") || key.startsWith("tab-2") -> {
+                                        key.startsWith("tab-1") || key.startsWith("tab-2") || key.startsWith("tab-3") -> {
                                             Spacer(modifier = Modifier.size(0.dp))
                                         }
-                                        key.startsWith("sub-3") -> {
+                                        key.startsWith("sub-4") -> {
                                             IconButton(onClick = { settingsOnBackAction?.invoke() }) {
                                                 Icon(
                                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -390,12 +400,13 @@ fun AToxNavGraph(
                                 val targetKey = if (isChatRoute) {
                                     currentContact?.publicKey ?: "chat_loading"
                                 } else if (mainRoute == AppRoutes.Settings) {
-                                    if (settingsOnBackAction == null) "tab-3" else "sub-3-$settingsTitle"
+                                    if (settingsOnBackAction == null) "tab-4" else "sub-4-$settingsTitle"
                                 } else {
                                     when (mainRoute) {
                                         AppRoutes.Chats -> "tab-0"
-                                        AppRoutes.AddContactTab -> "tab-1"
-                                        AppRoutes.Profile -> "tab-2"
+                                        AppRoutes.Groups -> "tab-1"
+                                        AppRoutes.AddContactTab -> "tab-2"
+                                        AppRoutes.Profile -> "tab-3"
                                         else -> mainRoute
                                     }
                                 }
@@ -407,7 +418,7 @@ fun AToxNavGraph(
                                         val targetOrder = getRouteOrder(targetState)
                                         val forward = targetOrder > initialOrder
 
-                                        val isChatTransition = initialOrder == 5 || targetOrder == 5
+                                        val isChatTransition = initialOrder == 6 || targetOrder == 6
                                         
                                         val slideOffsetPx = with(density) { 20.dp.roundToPx() }
 
@@ -477,10 +488,11 @@ fun AToxNavGraph(
                                     } else {
                                         val displayTitle = when {
                                             key.startsWith("tab-0") -> stringResource(R.string.app_name)
-                                            key.startsWith("tab-1") -> stringResource(R.string.add_contact)
-                                            key.startsWith("tab-2") -> stringResource(R.string.profile)
-                                            key.startsWith("tab-3") -> stringResource(R.string.settings)
-                                            key.startsWith("sub-3") -> settingsTitle
+                                            key.startsWith("tab-1") -> stringResource(R.string.groups)
+                                            key.startsWith("tab-2") -> stringResource(R.string.add_contact)
+                                            key.startsWith("tab-3") -> stringResource(R.string.profile)
+                                            key.startsWith("tab-4") -> stringResource(R.string.settings)
+                                            key.startsWith("sub-4") -> settingsTitle
                                             else -> stringResource(R.string.app_name)
                                         }
                                         Text(
@@ -614,6 +626,109 @@ fun AToxNavGraph(
                                     onSearchingChanged = { isSearching = it }
                                 )
                             }
+                        }
+
+                        composable(AppRoutes.Groups) {
+                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+                            val groupsState = groupListViewModel.groups.observeAsState(emptyList())
+                            val connectionStatusesState = groupListViewModel.connectionStatuses.observeAsState(emptyMap())
+                            val scope = rememberCoroutineScope()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
+                            ) {
+                                GroupListScreen(
+                                    groupsState = groupsState,
+                                    connectionStatusesState = connectionStatusesState,
+                                    onGroupClick = { group ->
+                                        mainNavController.navigate(AppRoutes.groupChat(group.chatId))
+                                    },
+                                    onCreateGroupClick = {
+                                        mainNavController.navigate(AppRoutes.CreateGroup)
+                                    },
+                                    onJoinGroupClick = {
+                                        mainNavController.navigate(AppRoutes.JoinGroup)
+                                    },
+                                    onLeaveGroup = { group ->
+                                        scope.launch {
+                                            groupListViewModel.leaveGroup(group)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        composable(AppRoutes.CreateGroup) {
+                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+                            val scope = rememberCoroutineScope()
+                            CreateGroupScreen(
+                                onBack = { mainNavController.popBackStack() },
+                                onCreateGroup = { name, nickname, privacyState, password ->
+                                    scope.launch {
+                                        val num = groupListViewModel.createGroup(name, nickname, privacyState, password)
+                                        if (num >= 0) {
+                                            mainNavController.popBackStack()
+                                        }
+                                    }
+                                }
+                            )
+                        }
+
+                        composable(AppRoutes.JoinGroup) {
+                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+                            val scope = rememberCoroutineScope()
+                            JoinGroupScreen(
+                                onBack = { mainNavController.popBackStack() },
+                                onJoinGroup = { chatIdHex, selfName, password ->
+                                    scope.launch {
+                                        val num = groupListViewModel.joinByChatId(chatIdHex, selfName, password)
+                                        if (num >= 0) {
+                                            mainNavController.popBackStack()
+                                        }
+                                    }
+                                }
+                            )
+                        }
+
+                        composable(
+                            route = AppRoutes.GroupChat,
+                            arguments = listOf(navArgument(AppRoutes.ChatIdArg) { type = NavType.StringType }),
+                        ) { backStackEntry ->
+                            val chatIdStr = backStackEntry.arguments?.getString(AppRoutes.ChatIdArg).orEmpty()
+                            val viewModel: GroupChatViewModel = viewModel(factory = vmFactory)
+                            val contactsState = contactListViewModel.contacts.collectAsStateWithLifecycle()
+                            
+                            remember(chatIdStr) {
+                                viewModel.setActiveGroup(chatIdStr)
+                            }
+                            
+                            val groupState = viewModel.group.observeAsState(null)
+                            val messagesState = viewModel.messages.observeAsState(emptyList())
+                            val peersState = viewModel.peers.observeAsState(emptyList())
+                            val connectionStatusState = viewModel.connectionStatus.observeAsState(GroupConnectionStatus.Disconnected)
+                            
+                            GroupChatScreen(
+                                groupState = groupState,
+                                messagesState = messagesState,
+                                peersState = peersState,
+                                contactsState = contactsState,
+                                connectionStatusState = connectionStatusState,
+                                settings = settings,
+                                onBack = { mainNavController.popBackStack() },
+                                onSendMessage = { msg -> viewModel.sendMessage(msg) },
+                                onLeaveGroup = { viewModel.leaveGroup() },
+                                onCopyInvite = {
+                                    val id = viewModel.getChatId() ?: ""
+                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("group invite", id)
+                                    clipboard.setPrimaryClip(clip)
+                                },
+                                onInviteFriend = { friendPk ->
+                                    viewModel.inviteFriend(friendPk)
+                                },
+                                systemSoundPlayer = systemSoundPlayer
+                            )
                         }
 
                         composable(AppRoutes.AddContactTab) {
@@ -994,12 +1109,13 @@ fun AToxNavGraph(
 private fun getRouteOrder(key: String): Int {
     return when {
         key.startsWith("tab-0") || key == AppRoutes.Chats || key == "main/chats" -> 0
-        key.startsWith("tab-1") || key == AppRoutes.AddContactTab || key == "main/add_contact" -> 1
-        key.startsWith("tab-2") || key == AppRoutes.Profile || key == "main/profile" -> 2
-        key.startsWith("tab-3") || key == AppRoutes.Settings || key == "main/settings" -> 3
-        key.startsWith("sub-3") -> 4
-        key.startsWith("chat/") || key.startsWith("chat") -> 5
-        else -> 5
+        key.startsWith("tab-1") || key == AppRoutes.Groups || key == "main/groups" -> 1
+        key.startsWith("tab-2") || key == AppRoutes.AddContactTab || key == "main/add_contact" -> 2
+        key.startsWith("tab-3") || key == AppRoutes.Profile || key == "main/profile" -> 3
+        key.startsWith("tab-4") || key == AppRoutes.Settings || key == "main/settings" -> 4
+        key.startsWith("sub-4") -> 5
+        key.startsWith("chat/") || key.startsWith("group_chat/") || key.startsWith("create_group") || key.startsWith("join_group") -> 6
+        else -> 6
     }
 }
 
