@@ -7,6 +7,9 @@ package ltd.evilcorp.domain.av
 import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.AutomaticGainControl
+import android.media.audiofx.NoiseSuppressor
 import android.media.MediaRecorder
 import android.util.Log
 
@@ -26,10 +29,12 @@ private fun findAudioRecord(sampleRate: Int, channels: Int): AudioRecord? {
     val audioFormat = AudioFormat.ENCODING_PCM_16BIT
     val channelConfig = intToChannel(channels)
 
-    val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-    if (bufferSize == AudioRecord.ERROR_BAD_VALUE) {
+    val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+    if (minBufferSize == AudioRecord.ERROR_BAD_VALUE) {
         return null
     }
+    // Double buffer size to prevent overflows and jank under high CPU load
+    val bufferSize = minBufferSize * 2
 
     // Seems like not all Xiaomi phones have a VOICE_COMMUNICATION audio source, so try a few different ones.
     val audioSources = arrayOf(
@@ -56,20 +61,68 @@ class AudioCapture private constructor(
     private val channels: Int,
     private val frameLengthMs: Int,
     private val audioRecord: AudioRecord,
+    private val effects: List<android.media.audiofx.AudioEffect>,
 ) {
     fun start() = audioRecord.startRecording()
     fun stop() = audioRecord.stop()
-    fun release() = audioRecord.release()
-    fun read(): ShortArray {
+    fun release() {
+        effects.forEach { effect ->
+            runCatching { effect.release() }
+        }
+        audioRecord.release()
+    }
+
+    fun read(): ShortArray? {
         val bytes = ShortArray((sampleRate * channels * frameLengthMs / MS_PER_SECOND).toInt())
-        audioRecord.read(bytes, 0, bytes.size)
+        val read = audioRecord.read(bytes, 0, bytes.size)
+        if (read <= 0) {
+            Log.w(TAG, "AudioRecord read failed: $read")
+            return null
+        }
+        if (read < bytes.size) {
+            bytes.fill(0, fromIndex = read)
+        }
         return bytes
     }
 
     companion object {
-        fun create(sampleRate: Int, channels: Int, frameLengthMs: Int): AudioCapture? {
+        fun create(
+            sampleRate: Int,
+            channels: Int,
+            frameLengthMs: Int,
+            enableAutomaticGainControl: Boolean = true,
+        ): AudioCapture? {
             val audioRecord = findAudioRecord(sampleRate, channels) ?: return null
-            return AudioCapture(sampleRate, channels, frameLengthMs, audioRecord)
+            val sessionId = audioRecord.audioSessionId
+            val effects = listOfNotNull(
+                createEffect("AcousticEchoCanceler", AcousticEchoCanceler.isAvailable()) {
+                    AcousticEchoCanceler.create(sessionId)
+                },
+                createEffect("NoiseSuppressor", NoiseSuppressor.isAvailable()) {
+                    NoiseSuppressor.create(sessionId)
+                },
+                if (enableAutomaticGainControl) {
+                    createEffect("AutomaticGainControl", AutomaticGainControl.isAvailable()) {
+                        AutomaticGainControl.create(sessionId)
+                    }
+                } else {
+                    null
+                },
+            )
+            return AudioCapture(sampleRate, channels, frameLengthMs, audioRecord, effects)
+        }
+
+        private fun createEffect(
+            name: String,
+            available: Boolean,
+            factory: () -> android.media.audiofx.AudioEffect?,
+        ): android.media.audiofx.AudioEffect? {
+            if (!available) return null
+            return runCatching {
+                factory()?.apply { enabled = true }
+            }.onFailure {
+                Log.w(TAG, "Failed to enable $name", it)
+            }.getOrNull()
         }
     }
 }

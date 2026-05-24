@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
+import ltd.evilcorp.core.model.BackupDestination
+import ltd.evilcorp.core.model.BackupFrequency
 import ltd.evilcorp.core.model.BootstrapNodeSource
 import ltd.evilcorp.core.model.DateFormatPreference
 import ltd.evilcorp.core.model.FtAutoAccept
@@ -98,6 +100,10 @@ class Settings @Inject constructor(
         get() = repository.settings.value.confirmCalling
         set(confirm) = repository.updateConfirmCalling(confirm)
 
+    var enableReplies: Boolean
+        get() = repository.settings.value.enableReplies
+        set(enabled) = repository.updateEnableReplies(enabled)
+
     var sentMessageSoundVolume: Int
         get() = repository.settings.value.sentMessageSoundVolume
         set(volume) = repository.updateSentMessageSoundVolume(volume)
@@ -141,6 +147,45 @@ class Settings @Inject constructor(
     var autoSaveToDownloads: Boolean
         get() = repository.settings.value.autoSaveToDownloads
         set(enabled) = repository.updateAutoSaveToDownloads(enabled)
+
+    var autoSaveDirectoryUri: String
+        get() = repository.settings.value.autoSaveDirectoryUri
+        set(uri) = repository.updateAutoSaveDirectoryUri(uri)
+
+    var backupEncryptionEnabled: Boolean
+        get() = repository.settings.value.backupEncryptionEnabled
+        set(enabled) = repository.updateBackupEncryptionEnabled(enabled)
+
+    var backupEndToEndEncryptionEnabled: Boolean
+        get() = repository.settings.value.backupEndToEndEncryptionEnabled
+        set(enabled) = repository.updateBackupEndToEndEncryptionEnabled(enabled)
+
+    var automaticBackupEnabled: Boolean
+        get() = repository.settings.value.automaticBackupEnabled
+        set(enabled) = repository.updateAutomaticBackupEnabled(enabled)
+
+    var backupFrequency: BackupFrequency
+        get() = repository.settings.value.backupFrequency
+        set(frequency) = repository.updateBackupFrequency(frequency)
+
+    var backupGoogleAccount: String
+        get() = repository.settings.value.backupGoogleAccount
+        set(account) = repository.updateBackupGoogleAccount(account)
+
+    var backupUseCellular: Boolean
+        get() = repository.settings.value.backupUseCellular
+        set(enabled) = repository.updateBackupUseCellular(enabled)
+
+    var backupDestinations: Set<BackupDestination>
+        get() = repository.settings.value.backupDestinationOrdinals
+            .mapNotNull { ordinal -> BackupDestination.entries.getOrNull(ordinal) }
+            .toSet()
+            .takeIf { it.isNotEmpty() }
+            ?: setOf(BackupDestination.Local)
+        set(destinations) = repository.updateBackupDestinationOrdinals(
+            destinations.takeIf { it.isNotEmpty() }?.map { it.ordinal }?.toSet()
+                ?: setOf(BackupDestination.Local.ordinal),
+        )
 
     private fun isBootReceiverEnabled(): Boolean =
         ctx.packageManager.getComponentEnabledSetting(

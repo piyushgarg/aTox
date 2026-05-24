@@ -75,6 +75,7 @@ class CallManager @Inject constructor(
     private var toneGenerator: ToneGenerator? = null
     private var ringbackJob: Job? = null
     private var transitionJob: Job? = null
+    private var audioCaptureJob: Job? = null
     private var microphoneDesired = true
 
     suspend fun startOutgoingCall(publicKey: PublicKey): Boolean {
@@ -237,6 +238,7 @@ class CallManager @Inject constructor(
         val next = !_speakerphoneOn.value
         _speakerphoneOn.value = next
         audioManager?.isSpeakerphoneOn = next
+        restartAudioCaptureForRouteChange()
     }
 
     private fun finishSession(publicKey: PublicKey, localHangup: Boolean, record: CallHistory?) {
@@ -260,6 +262,8 @@ class CallManager @Inject constructor(
         transitionJob = null
         microphoneDesired = true
         _sendingAudio.value = false
+        audioCaptureJob?.cancel()
+        audioCaptureJob = null
         stopSignals()
         _speakerphoneOn.value = false
         audioManager?.isSpeakerphoneOn = false
@@ -331,32 +335,55 @@ class CallManager @Inject constructor(
     }
 
     private fun startAudioCapture(to: PublicKey) {
-        if (_sendingAudio.value) return
-        val recorder = AudioCapture.create(AUDIO_SAMPLING_RATE_HZ, AUDIO_CHANNELS, AUDIO_SEND_INTERVAL_MS) ?: return
-        scope.launch {
+        if (audioCaptureJob?.isActive == true) return
+        val recorder = AudioCapture.create(
+            AUDIO_SAMPLING_RATE_HZ,
+            AUDIO_CHANNELS,
+            AUDIO_SEND_INTERVAL_MS,
+            enableAutomaticGainControl = !_speakerphoneOn.value,
+        ) ?: return
+        audioCaptureJob = scope.launch {
             recorder.start()
             _sendingAudio.value = true
-            while (_sendingAudio.value && currentTarget() == to) {
-                val start = System.currentTimeMillis()
-                val audioFrame = recorder.read()
-                runCatching { tox.sendAudio(to, audioFrame, AUDIO_CHANNELS, AUDIO_SAMPLING_RATE_HZ) }
-                val elapsed = System.currentTimeMillis() - start
-                if (elapsed < AUDIO_SEND_INTERVAL_MS) {
-                    delay(AUDIO_SEND_INTERVAL_MS - elapsed)
+            try {
+                while (_sendingAudio.value && currentTarget() == to) {
+                    val start = System.currentTimeMillis()
+                    val audioFrame = recorder.read()
+                    if (audioFrame != null) {
+                        runCatching { tox.sendAudio(to, audioFrame, AUDIO_CHANNELS, AUDIO_SAMPLING_RATE_HZ) }
+                    }
+                    val elapsed = System.currentTimeMillis() - start
+                    if (elapsed < AUDIO_SEND_INTERVAL_MS) {
+                        delay(AUDIO_SEND_INTERVAL_MS - elapsed)
+                    }
                 }
+            } finally {
+                runCatching { recorder.stop() }
+                recorder.release()
+                _sendingAudio.value = false
             }
-            recorder.stop()
-            recorder.release()
-            _sendingAudio.value = false
+        }
+    }
+
+    private fun restartAudioCaptureForRouteChange() {
+        val target = currentTarget() ?: return
+        if (_inCall.value !is CallState.Active || !microphoneDesired || !_sendingAudio.value) return
+
+        _sendingAudio.value = false
+        scope.launch {
+            audioCaptureJob?.join()
+            if (_inCall.value is CallState.Active && microphoneDesired && currentTarget() == target) {
+                startAudioCapture(target)
+            }
         }
     }
 
     private fun logCall(publicKey: PublicKey, event: CallHistory) {
-        val textRes = when (event) {
-            CallHistory.Outgoing -> R.string.call_history_outgoing
-            CallHistory.Incoming -> R.string.call_history_incoming
-            CallHistory.Missed -> R.string.call_history_missed
-            CallHistory.Cancelled -> R.string.call_history_cancelled
+        val tag = when (event) {
+            CallHistory.Outgoing -> "[CALL_HISTORY_OUTGOING]"
+            CallHistory.Incoming -> "[CALL_HISTORY_INCOMING]"
+            CallHistory.Missed -> "[CALL_HISTORY_MISSED]"
+            CallHistory.Cancelled -> "[CALL_HISTORY_CANCELLED]"
         }
         val sender = when (event) {
             CallHistory.Outgoing, CallHistory.Cancelled -> Sender.Sent
@@ -365,7 +392,7 @@ class CallManager @Inject constructor(
         messageRepository.add(
             Message(
                 publicKey = publicKey.string(),
-                message = context.getString(textRes),
+                message = tag,
                 sender = sender,
                 type = MessageType.Action,
                 correlationId = Int.MIN_VALUE,

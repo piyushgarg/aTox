@@ -218,6 +218,14 @@ class ToxWrapper(
         }
     }
 
+    fun getFriendPublicKey(friendNumber: Int): ByteArray? = synchronized(this) {
+        try {
+            nativeTox.toxGetFriendPublicKey(toxPtr, friendNumber)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     /**
      * Отправляет приватное текстовое сообщение другу.
      *

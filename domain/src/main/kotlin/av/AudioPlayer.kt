@@ -17,7 +17,7 @@ private fun intToChannel(channels: Int) = when (channels) {
 
 class AudioPlayer(sampleRate: Int, channels: Int) {
     private val minBufferSize =
-        AudioTrack.getMinBufferSize(sampleRate, intToChannel(channels), AudioFormat.ENCODING_PCM_16BIT)
+        AudioTrack.getMinBufferSize(sampleRate, intToChannel(channels), AudioFormat.ENCODING_PCM_16BIT) * 2
     private val audioTrack = if (Build.VERSION.SDK_INT < 23) {
         // TODO(robinlinden): Verify that this works on old devices.
         @Suppress("DEPRECATION") // I can't find a non-deprecated alternative for lower SDK versions.

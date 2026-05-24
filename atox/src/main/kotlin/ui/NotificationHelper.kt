@@ -15,6 +15,7 @@ import android.graphics.Rect
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
@@ -52,6 +53,7 @@ private const val TAG = "NotificationHelper"
 private const val MESSAGE = "aTox messages"
 private const val FRIEND_REQUEST = "aTox friend requests"
 private const val CALL = "aTox calls"
+private const val EXTRA_REQUEST_PROMOTED_ONGOING = "android.requestPromotedOngoing"
 private const val GROUP_MESSAGE = "aTox group messages"
 
 @Singleton
@@ -281,6 +283,39 @@ class NotificationHelper @Inject constructor(
         notifier.notify("$groupName$senderName".hashCode(), notificationBuilder.build())
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+    fun showGroupInviteNotification(
+        friendPk: String,
+        groupName: String,
+        silent: Boolean = false
+    ) {
+        if (!permissionManager.canPostNotifications()) {
+            Log.w(TAG, "Received group invite, notifications disallowed")
+            return
+        }
+
+        val mainIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            friendPk.hashCode(),
+            mainIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notificationBuilder = NotificationCompat.Builder(context, GROUP_MESSAGE)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setSmallIcon(android.R.drawable.sym_action_chat)
+            .setContentTitle(context.getString(R.string.group_invite))
+            .setContentText(context.getString(R.string.group_invite_confirm, groupName))
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setSilent(silent)
+
+        notifier.notify(friendPk.hashCode(), notificationBuilder.build())
+    }
+
     fun dismissCallNotification(pk: PublicKey) = notifier.cancel(pk.string().hashCode() + CALL.hashCode())
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
@@ -302,6 +337,19 @@ class NotificationHelper @Inject constructor(
             mainIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val hangupIntent = PendingIntentCompat.getBroadcast(
+            context,
+            "${contact.publicKey}_end_call".hashCode(),
+            Intent(context, ActionReceiver::class.java)
+                .putExtra(KEY_CONTACT_PK, contact.publicKey)
+                .putExtra(KEY_ACTION, Action.CallEnd),
+            PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val callPerson = Person.Builder()
+            .setName(contact.name.ifEmpty { context.getString(R.string.contact_default_name) })
+            .setKey(contact.publicKey)
+            .setImportant(true)
+            .build()
 
         val notificationBuilder = NotificationCompat.Builder(context, CALL)
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -316,26 +364,39 @@ class NotificationHelper @Inject constructor(
             .setUsesChronometer(true)
             .setWhen(System.currentTimeMillis())
             .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .addExtras(Bundle().apply { putBoolean(EXTRA_REQUEST_PROMOTED_ONGOING, true) })
             .addAction(
                 NotificationCompat.Action
                     .Builder(
                         IconCompat.createWithResource(context, R.drawable.ic_call_end),
                         context.getString(R.string.end_call),
-                        PendingIntentCompat.getBroadcast(
-                            context,
-                            "${contact.publicKey}_end_call".hashCode(),
-                            Intent(context, ActionReceiver::class.java)
-                                .putExtra(KEY_CONTACT_PK, contact.publicKey)
-                                .putExtra(KEY_ACTION, Action.CallEnd),
-                            PendingIntent.FLAG_UPDATE_CURRENT,
-                        ),
+                        hangupIntent,
                     )
                     .build(),
             )
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setSilent(true)
 
-        notifier.notify(contact.publicKey.hashCode() + CALL.hashCode(), notificationBuilder.build())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            notificationBuilder.setStyle(NotificationCompat.CallStyle.forOngoingCall(callPerson, hangupIntent))
+        }
+
+        try {
+            notifier.notify(contact.publicKey.hashCode() + CALL.hashCode(), notificationBuilder.build())
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "Failed to post CallStyle notification, falling back to standard style", e)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                notificationBuilder.setStyle(null)
+            }
+            try {
+                notifier.notify(contact.publicKey.hashCode() + CALL.hashCode(), notificationBuilder.build())
+            } catch (ex: Exception) {
+                Log.e(TAG, "Failed to post fallback call notification", ex)
+            }
+        }
     }
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
@@ -426,5 +487,9 @@ class NotificationHelper @Inject constructor(
             mainIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    fun invalidateAvatar(uri: android.net.Uri) {
+        Picasso.get().invalidate(uri)
     }
 }

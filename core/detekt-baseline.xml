@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>EmptyClassBlock:FileTransfer.kt$FileTransfer${ }</ID>
+    <ID>MagicNumber:UserSettingsRepository.kt$UserSettingsRepository$100</ID>
+  </CurrentIssues>
+</SmellBaseline>

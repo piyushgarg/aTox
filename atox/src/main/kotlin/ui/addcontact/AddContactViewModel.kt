@@ -4,14 +4,19 @@
 
 package ltd.evilcorp.atox.ui.addcontact
 
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.asLiveData
+import androidx.lifecycle.viewModelScope
 import java.util.Date
 import javax.inject.Inject
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.repository.MessageRepository
 import ltd.evilcorp.core.model.Contact
@@ -23,34 +28,57 @@ import ltd.evilcorp.domain.tox.Tox
 import ltd.evilcorp.core.tox.ToxID
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 
+import ltd.evilcorp.atox.domain.usecase.AddContactUseCase
+
 class AddContactViewModel @Inject constructor(
-    private val scope: CoroutineScope,
-    private val messageRepository: MessageRepository,
+    private val addContactUseCase: AddContactUseCase,
     private val contactManager: ContactManager,
     private val tox: Tox,
     private val toxStarter: ToxStarter,
 ) : ViewModel() {
     val toxId by lazy { tox.toxId }
-    val contacts: LiveData<List<Contact>> = contactManager.getAll().asLiveData()
+    val contacts: StateFlow<List<Contact>> = contactManager.getAll()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
+    private val _errorResId = MutableStateFlow<Int?>(null)
+    val errorResId = _errorResId.asStateFlow()
+
+    private val _uiEvents = MutableSharedFlow<AddContactUiEvent>()
+    val uiEvents = _uiEvents.asSharedFlow()
+
+    sealed interface AddContactUiEvent {
+        object Success : AddContactUiEvent
+        data class ShowError(val errorResId: Int) : AddContactUiEvent
+    }
 
     fun isToxRunning() = tox.started
     fun tryLoadTox(): Boolean = toxStarter.tryLoadTox(null) == ToxSaveStatus.Ok
 
-    private fun addToChatLog(publicKey: String, message: String) = scope.launch {
-        messageRepository.add(
-            Message(
-                publicKey,
-                message,
-                Sender.Sent,
-                MessageType.Normal,
-                0,
-                Date().time,
-            ),
-        )
-    }
+    fun addContact(toxIdStr: String, message: String) {
+        val trimmedToxId = toxIdStr.trim()
+        if (trimmedToxId.length < 64) {
+            _errorResId.value = R.string.add_contact_error_invalid
+            return
+        }
 
-    fun addContact(toxId: ToxID, message: String) = runBlocking {
-        contactManager.add(toxId, message).join()
-        addToChatLog(toxId.toPublicKey().string(), message)
+        _errorResId.value = null
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            runCatching {
+                addContactUseCase.execute(ToxID(trimmedToxId), message)
+                _uiEvents.emit(AddContactUiEvent.Success)
+            }.onFailure {
+                _errorResId.value = R.string.create_profile_error_failed
+            }
+            _isLoading.value = false
+        }
     }
 }

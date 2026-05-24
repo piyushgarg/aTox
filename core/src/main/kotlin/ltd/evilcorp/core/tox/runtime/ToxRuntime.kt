@@ -318,6 +318,12 @@ class ToxRuntime @Inject constructor(
     fun getFriendNumber(pk: PublicKey): Int =
         toxWrapper.getFriendNumberByPublicKey(pk)
 
+    /**
+     * Возвращает публичный ключ друга по его нативному номеру.
+     */
+    fun getFriendPublicKey(friendNumber: Int): ByteArray? =
+        toxWrapper.getFriendPublicKey(friendNumber)
+
     /** Начинает аудио/видеовызов. */
     fun startCall(pk: PublicKey) = toxWrapper.startCall(pk)
     /** Принимает входящий вызов. */

@@ -52,6 +52,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -82,6 +84,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.flowWithLifecycle
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ltd.evilcorp.atox.R
@@ -97,13 +108,20 @@ import ltd.evilcorp.core.model.DateFormatPreference
 import ltd.evilcorp.core.model.FtAutoAccept
 import ltd.evilcorp.core.model.TimeFormatPreference
 import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.atox.ui.settings.components.SettingsRootContent
+import ltd.evilcorp.atox.ui.settings.screens.SettingsAppearanceScreen
+import ltd.evilcorp.atox.ui.settings.screens.SettingsChatScreen
+import ltd.evilcorp.atox.ui.settings.screens.SettingsConnectionScreen
 
 private enum class SettingsDestination {
     Root,
+    Appearance,
+    Chat,
+    Sounds,
+    Connection,
+    Backup,
     Language,
     Theme,
-    Sounds,
-    Backup,
 }
 
 private enum class SoundPickerTarget {
@@ -112,6 +130,14 @@ private enum class SoundPickerTarget {
     Notification,
     ActiveChat,
 }
+
+private data class SearchableSetting(
+    val title: String,
+    val subtitle: String,
+    val destination: SettingsDestination,
+    val category: String,
+    val onTrigger: (() -> Unit)? = null
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,9 +152,13 @@ fun SettingsScreen(
     onBack: () -> Unit = {},
     showBackButton: Boolean = true,
     vmFactory: ViewModelProvider.Factory? = null,
+    onTitleChanged: (String) -> Unit = {},
+    onBackActionChanged: ((() -> Unit)?) -> Unit = {},
+    onSearchActionChanged: ((() -> Unit)?) -> Unit = {},
     viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory)
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val backupViewModel: BackupSettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory)
     val focusManager = LocalFocusManager.current
     val storedSettings by settings.state.collectAsState()
     val haptic = LocalHapticFeedback.current
@@ -137,7 +167,10 @@ fun SettingsScreen(
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
+
     var destination by remember { mutableStateOf(SettingsDestination.Root) }
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
 
     val appThemeMode = appearance.themeMode
     val dynamicColor = appearance.dynamicColorEnabled
@@ -175,19 +208,18 @@ fun SettingsScreen(
     var showTimeFormatDialog by remember { mutableStateOf(false) }
     var backupPasswordEnabled by remember { mutableStateOf(false) }
     var backupPassword by remember { mutableStateOf("") }
-    val mandatoryBackupId = remember(viewModel.backupProviders) { viewModel.backupProviders.firstOrNull()?.id.orEmpty() }
-    var selectedBackupIds by remember(viewModel.backupProviders) {
-        mutableStateOf(viewModel.backupProviders.map { it.id }.toSet())
+    val mandatoryBackupId = remember(backupViewModel.backupProviders) { backupViewModel.backupProviders.firstOrNull()?.id.orEmpty() }
+    var selectedBackupIds by remember(backupViewModel.backupProviders) {
+        mutableStateOf(backupViewModel.backupProviders.map { it.id }.toSet())
     }
     var soundPickerTarget by remember { mutableStateOf(SoundPickerTarget.Call) }
-    val backupExporting by viewModel.backupExporting.observeAsState(false)
-    val backupExportStatus by viewModel.backupExportStatus.observeAsState()
+    val backupExporting by backupViewModel.backupExporting.collectAsState()
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         if (uri != null) {
-            viewModel.exportBackup(
-                uri = uri,
+            backupViewModel.exportBackup(
+                uriString = uri.toString(),
                 selectedIds = selectedBackupIds + mandatoryBackupId,
                 password = backupPassword.takeIf { backupPasswordEnabled },
             )
@@ -205,6 +237,49 @@ fun SettingsScreen(
                 SoundPickerTarget.ActiveChat -> settings.activeChatSoundUri = pickedUri?.toString().orEmpty()
             }
             performHaptic()
+        }
+    }
+
+    val autoSaveDirectoryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+            }
+            settings.autoSaveDirectoryUri = uri.toString()
+            performHaptic()
+        }
+    }
+
+    val autoSaveDirectoryLabel = remember(storedSettings.autoSaveDirectoryUri) {
+        val uriString = storedSettings.autoSaveDirectoryUri
+        if (uriString.isBlank()) {
+            context.getString(R.string.settings_auto_save_directory_default)
+        } else {
+            runCatching {
+                val uri = Uri.parse(uriString)
+                val docId = android.provider.DocumentsContract.getTreeDocumentId(uri)
+                val parts = docId.split(":")
+                if (parts.size > 1) {
+                    parts[1]
+                } else {
+                    docId
+                }
+            }.getOrElse {
+                uriString.substringAfterLast("/")
+            }.takeIf { it.isNotBlank() } ?: "Folder"
+        }
+    }
+
+    var cacheSizeText by remember { mutableStateOf(context.getString(R.string.settings_cache_calculating)) }
+    LaunchedEffect(destination) {
+        if (destination == SettingsDestination.Chat) {
+            val sizeBytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                viewModel.getCacheSize()
+            }
+            cacheSizeText = formatSize(context, sizeBytes)
         }
     }
 
@@ -241,387 +316,298 @@ fun SettingsScreen(
         )
     }
 
-    val title = when (destination) {
-        SettingsDestination.Root -> stringResource(R.string.settings)
-        SettingsDestination.Language -> stringResource(R.string.select_language)
-        SettingsDestination.Theme -> stringResource(R.string.settings_app_theme_dialog_title)
-        SettingsDestination.Sounds -> stringResource(R.string.settings_sounds_group)
-        SettingsDestination.Backup -> stringResource(R.string.backup_title)
+    val searchItems = remember(languages, currentLanguageCode, appThemeMode) {
+        listOf(
+            SearchableSetting(
+                title = context.getString(R.string.language),
+                subtitle = languages.find { it.first == currentLanguageCode }?.second ?: "English",
+                destination = SettingsDestination.Language,
+                category = context.getString(R.string.appearance_and_design)
+            ),
+            SearchableSetting(
+                title = context.getString(R.string.pref_heading_theme),
+                subtitle = when (appThemeMode) {
+                    AppCompatDelegate.MODE_NIGHT_YES -> context.getString(R.string.pref_theme_dark)
+                    AppCompatDelegate.MODE_NIGHT_NO -> context.getString(R.string.pref_theme_light)
+                    else -> context.getString(R.string.pref_theme_follow_system)
+                },
+                destination = SettingsDestination.Theme,
+                category = context.getString(R.string.appearance_and_design)
+            ),
+            SearchableSetting(
+                title = context.getString(R.string.settings_sounds_group),
+                subtitle = context.getString(R.string.settings_sounds_summary),
+                destination = SettingsDestination.Sounds,
+                category = context.getString(R.string.settings_sounds_group)
+            ),
+            SearchableSetting(
+                title = context.getString(R.string.backup_title),
+                subtitle = context.getString(R.string.backup_settings_subtitle),
+                destination = SettingsDestination.Backup,
+                category = context.getString(R.string.settings_privacy_group)
+            ),
+            SearchableSetting(
+                title = context.getString(R.string.settings_clear_cache_title),
+                subtitle = context.getString(R.string.settings_clear_cache_title),
+                destination = SettingsDestination.Root,
+                category = context.getString(R.string.settings_storage_group)
+            ),
+            SearchableSetting(
+                title = context.getString(R.string.settings_proxy_type),
+                subtitle = context.getString(R.string.settings_proxy_type),
+                destination = SettingsDestination.Root,
+                category = context.getString(R.string.settings_proxy_group),
+                onTrigger = { showProxyDialog = true }
+            )
+        )
     }
 
-    LaunchedEffect(backupExportStatus) {
-        val success = backupExportStatus ?: return@LaunchedEffect
-        Toast.makeText(
-            context,
-            if (success) context.getString(R.string.backup_export_success) else context.getString(R.string.backup_export_failure),
-            Toast.LENGTH_LONG,
-        ).show()
-        viewModel.consumeBackupExportStatus()
+    val title = when (destination) {
+        SettingsDestination.Root -> stringResource(R.string.settings)
+        SettingsDestination.Appearance -> stringResource(R.string.appearance_and_design)
+        SettingsDestination.Chat -> stringResource(R.string.settings_ft_group)
+        SettingsDestination.Sounds -> stringResource(R.string.settings_sounds_group)
+        SettingsDestination.Connection -> stringResource(R.string.settings_network_group)
+        SettingsDestination.Backup -> stringResource(R.string.backup_title)
+        SettingsDestination.Language -> stringResource(R.string.select_language)
+        SettingsDestination.Theme -> stringResource(R.string.settings_app_theme_dialog_title)
+    }
+
+    LaunchedEffect(destination, title, showBackButton) {
+        if (!showBackButton) {
+            onTitleChanged(title)
+            onBackActionChanged(
+                if (destination != SettingsDestination.Root) {
+                    {
+                        performHaptic()
+                        destination = when (destination) {
+                            SettingsDestination.Language, SettingsDestination.Theme -> SettingsDestination.Appearance
+                            else -> SettingsDestination.Root
+                        }
+                    }
+                } else null
+            )
+            onSearchActionChanged(
+                if (destination == SettingsDestination.Root) {
+                    {
+                        performHaptic()
+                        isSearchActive = true
+                    }
+                } else null
+            )
+        }
+    }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(viewModel, lifecycleOwner) {
+        viewModel.uiEvents
+            .flowWithLifecycle(lifecycleOwner.lifecycle)
+            .collect { event ->
+                when (event) {
+                    is SettingsUiEvent.ShowToast -> {
+                        Toast.makeText(context, context.getString(event.messageResId), Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+    }
+
+    LaunchedEffect(backupViewModel, lifecycleOwner) {
+        backupViewModel.uiEvents
+            .flowWithLifecycle(lifecycleOwner.lifecycle)
+            .collect { event ->
+                when (event) {
+                    is BackupUiEvent.ShowToast -> {
+                        Toast.makeText(context, context.getString(event.messageResId), Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
     }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(
-                title = { Text(title, fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    if (destination != SettingsDestination.Root) {
-                        IconButton(onClick = {
-                            performHaptic()
-                            destination = SettingsDestination.Root
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            if (showBackButton) {
+                TopAppBar(
+                    title = { Text(title, fontWeight = FontWeight.SemiBold) },
+                    navigationIcon = {
+                        if (destination != SettingsDestination.Root) {
+                            IconButton(onClick = {
+                                performHaptic()
+                                destination = when (destination) {
+                                    SettingsDestination.Language, SettingsDestination.Theme -> SettingsDestination.Appearance
+                                    else -> SettingsDestination.Root
+                                }
+                            }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            }
+                        } else {
+                            IconButton(onClick = {
+                                performHaptic()
+                                onBack()
+                            }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            }
                         }
-                    } else if (showBackButton) {
-                        IconButton(onClick = {
-                            performHaptic()
-                            onBack()
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
                 )
-            )
+            }
         }
-    ) { paddingValues ->
+    ) { scaffoldPadding ->
+        val paddingValues = if (showBackButton) scaffoldPadding else PaddingValues(0.dp)
         when (destination) {
             SettingsDestination.Root -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(paddingValues)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
-                ) {
-                    item {
-                        SettingsGroup(title = stringResource(R.string.appearance_and_design)) {
-                            SettingsClickableRow(
-                                title = stringResource(R.string.language),
-                                subtitle = languages.find { it.first == currentLanguageCode }?.second ?: "English"
-                            ) {
-                                performHaptic()
-                                destination = SettingsDestination.Language
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            val themeLabel = when (appThemeMode) {
-                                AppCompatDelegate.MODE_NIGHT_YES -> stringResource(R.string.pref_theme_dark)
-                                AppCompatDelegate.MODE_NIGHT_NO -> stringResource(R.string.pref_theme_light)
-                                else -> stringResource(R.string.pref_theme_follow_system)
-                            }
-                            SettingsClickableRow(
-                                title = stringResource(R.string.pref_heading_theme),
-                                subtitle = themeLabel
-                            ) {
-                                performHaptic()
-                                destination = SettingsDestination.Theme
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            val timeFormatLabel = when (timeFormatPreference) {
-                                TimeFormatPreference.System -> stringResource(R.string.settings_time_format_system)
-                                TimeFormatPreference.Hours24 -> stringResource(R.string.settings_time_format_24h)
-                                TimeFormatPreference.Hours12 -> stringResource(R.string.settings_time_format_12h)
-                            }
-                            val dateFormatLabel = when (dateFormatPreference) {
-                                DateFormatPreference.System -> stringResource(R.string.settings_date_format_system)
-                                DateFormatPreference.DMY -> stringResource(R.string.settings_date_format_dmy)
-                                DateFormatPreference.DMYDots -> stringResource(R.string.settings_date_format_dmy_dots)
-                                DateFormatPreference.MDY -> stringResource(R.string.settings_date_format_mdy)
-                                DateFormatPreference.YMD -> stringResource(R.string.settings_date_format_ymd)
-                            }
-                            SettingsClickableRow(
-                                title = stringResource(R.string.settings_date_format_title),
-                                subtitle = dateFormatLabel
-                            ) {
-                                performHaptic()
-                                showDateFormatDialog = true
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsClickableRow(
-                                title = stringResource(R.string.settings_time_format_title),
-                                subtitle = timeFormatLabel
-                            ) {
-                                performHaptic()
-                                showTimeFormatDialog = true
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                SettingsSwitchRow(
-                                    title = stringResource(R.string.dynamic_theme),
-                                    subtitle = stringResource(R.string.settings_dynamic_theme_subtitle),
-                                    checked = dynamicColor
-                                ) { checked ->
-                                    performHaptic()
-                                    onDynamicColorChanged(checked)
-                                }
-                                if (!dynamicColor) {
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                                    val activePreset = AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
-                                    SettingsClickableRow(
-                                        title = stringResource(R.string.accent_color),
-                                        subtitle = activePreset.name
-                                    ) {
-                                        performHaptic()
-                                        showAccentColorDialog = true
-                                    }
-                                }
-                            } else {
-                                val activePreset = AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
-                                SettingsClickableRow(
-                                    title = stringResource(R.string.accent_color),
-                                    subtitle = activePreset.name
-                                ) {
-                                    performHaptic()
-                                    showAccentColorDialog = true
-                                }
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsSwitchRow(
-                                title = stringResource(R.string.pref_haptic_title),
-                                subtitle = stringResource(R.string.pref_haptic_summary),
-                                checked = storedSettings.hapticEnabled
-                            ) { checked ->
-                                settings.hapticEnabled = checked
-                                performHaptic()
-                            }
+                SettingsRootContent(
+                    paddingValues = paddingValues,
+                    currentLanguageLabel = languages.find { it.first == currentLanguageCode }?.second ?: "English",
+                    themeLabel = when (appThemeMode) {
+                        AppCompatDelegate.MODE_NIGHT_YES -> stringResource(R.string.pref_theme_dark)
+                        AppCompatDelegate.MODE_NIGHT_NO -> stringResource(R.string.pref_theme_light)
+                        else -> stringResource(R.string.pref_theme_follow_system)
+                    },
+                    onAppearanceClick = {
+                        performHaptic()
+                        destination = SettingsDestination.Appearance
+                    },
+                    onChatClick = {
+                        performHaptic()
+                        destination = SettingsDestination.Chat
+                    },
+                    onSoundsClick = {
+                        performHaptic()
+                        destination = SettingsDestination.Sounds
+                    },
+                    onConnectionClick = {
+                        performHaptic()
+                        destination = SettingsDestination.Connection
+                    },
+                    onBackupClick = {
+                        performHaptic()
+                        destination = SettingsDestination.Backup
+                    }
+                )
+            }
+            SettingsDestination.Appearance -> {
+                SettingsAppearanceScreen(
+                    paddingValues = paddingValues,
+                    currentLanguageCode = currentLanguageCode,
+                    languages = languages,
+                    appThemeMode = appThemeMode,
+                    timeFormatPreference = timeFormatPreference,
+                    dateFormatPreference = dateFormatPreference,
+                    dynamicColor = dynamicColor,
+                    currentAccentSeed = currentAccentSeed,
+                    hapticEnabled = storedSettings.hapticEnabled,
+                    performHaptic = performHaptic,
+                    onLanguageClick = {
+                        performHaptic()
+                        destination = SettingsDestination.Language
+                    },
+                    onThemeClick = {
+                        performHaptic()
+                        destination = SettingsDestination.Theme
+                    },
+                    onDateFormatClick = {
+                        performHaptic()
+                        showDateFormatDialog = true
+                    },
+                    onTimeFormatClick = {
+                        performHaptic()
+                        showTimeFormatDialog = true
+                    },
+                    onDynamicColorChanged = { checked ->
+                        performHaptic()
+                        onDynamicColorChanged(checked)
+                    },
+                    onAccentColorClick = {
+                        performHaptic()
+                        showAccentColorDialog = true
+                    },
+                    onHapticEnabledChanged = { checked ->
+                        settings.hapticEnabled = checked
+                        performHaptic()
+                    }
+                )
+            }
+            SettingsDestination.Chat -> {
+                SettingsChatScreen(
+                    paddingValues = paddingValues,
+                    ftAutoAccept = ftAutoAccept,
+                    autoSaveToDownloads = storedSettings.autoSaveToDownloads,
+                    autoSaveDirectoryLabel = autoSaveDirectoryLabel,
+                    cacheSizeText = cacheSizeText,
+                    enableReplies = storedSettings.enableReplies,
+                    performHaptic = performHaptic,
+                    onFtAutoAcceptClick = {
+                        performHaptic()
+                        showFtAcceptDialog = true
+                    },
+                    onAutoSaveToDownloadsChanged = { checked ->
+                        performHaptic()
+                        settings.autoSaveToDownloads = checked
+                    },
+                    onAutoSaveDirectoryClick = {
+                        performHaptic()
+                        autoSaveDirectoryLauncher.launch(null)
+                    },
+                    onClearCacheClick = {
+                        performHaptic()
+                        viewModel.clearCache()
+                        cacheSizeText = formatSize(context, 0)
+                    },
+                    onEnableRepliesChanged = { checked ->
+                        performHaptic()
+                        settings.enableReplies = checked
+                    }
+                )
+            }
+            SettingsDestination.Connection -> {
+                SettingsConnectionScreen(
+                    paddingValues = paddingValues,
+                    udpEnabled = udpEnabled,
+                    runAtStartup = runAtStartup,
+                    bootstrapNodeSource = bootstrapNodeSource,
+                    disableScreenshots = disableScreenshots,
+                    confirmQuitting = confirmQuitting,
+                    confirmCalling = confirmCalling,
+                    proxyType = proxyType,
+                    proxyAddress = proxyAddress,
+                    proxyPortInput = proxyPortInput,
+                    focusManager = focusManager,
+                    performHaptic = performHaptic,
+                    onUdpEnabledChanged = { checked ->
+                        viewModel.setUdpEnabled(checked)
+                    },
+                    onRunAtStartupChanged = { checked ->
+                        viewModel.setRunAtStartup(checked)
+                    },
+                    onBootstrapNodesClick = {
+                        showBootstrapDialog = true
+                    },
+                    onDisableScreenshotsChanged = { checked ->
+                        onDisableScreenshotsChanged(checked)
+                    },
+                    onConfirmQuittingChanged = { checked ->
+                        settings.confirmQuitting = checked
+                    },
+                    onConfirmCallingChanged = { checked ->
+                        settings.confirmCalling = checked
+                    },
+                    onProxyTypeClick = {
+                        showProxyDialog = true
+                    },
+                    onProxyAddressChanged = {
+                        settings.proxyAddress = it
+                    },
+                    onProxyPortInputChanged = {
+                        if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                            proxyPortInput = it
+                            if (it.isNotEmpty()) settings.proxyPort = it.toIntOrNull() ?: 0
                         }
                     }
-
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_sounds_group)) {
-                            SettingsClickableRow(
-                                title = stringResource(R.string.settings_sounds_group),
-                                subtitle = stringResource(R.string.settings_sounds_summary)
-                            ) {
-                                performHaptic()
-                                destination = SettingsDestination.Sounds
-                            }
-                        }
-                    }
-
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_privacy_group)) {
-                            SettingsClickableRow(
-                                title = stringResource(R.string.backup_title),
-                                subtitle = stringResource(R.string.backup_settings_subtitle)
-                            ) {
-                                performHaptic()
-                                destination = SettingsDestination.Backup
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsSwitchRow(
-                                title = stringResource(R.string.pref_block_screenshots),
-                                subtitle = stringResource(R.string.pref_block_screenshots_description),
-                                checked = disableScreenshots
-                            ) { checked ->
-                                performHaptic()
-                                onDisableScreenshotsChanged(checked)
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsSwitchRow(
-                                title = stringResource(R.string.pref_confirm_quitting),
-                                subtitle = stringResource(R.string.quit_confirm),
-                                checked = confirmQuitting
-                            ) { checked ->
-                                performHaptic()
-                                settings.confirmQuitting = checked
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsSwitchRow(
-                                title = stringResource(R.string.pref_confirm_calling),
-                                subtitle = stringResource(R.string.call_confirm),
-                                checked = confirmCalling
-                            ) { checked ->
-                                performHaptic()
-                                settings.confirmCalling = checked
-                            }
-                        }
-                    }
-
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_network_group)) {
-                            SettingsSwitchRow(
-                                title = stringResource(R.string.pref_udp_enabled),
-                                subtitle = stringResource(R.string.pref_udp_enabled),
-                                checked = udpEnabled
-                            ) { checked ->
-                                performHaptic()
-                                viewModel.setUdpEnabled(checked)
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsSwitchRow(
-                                title = stringResource(R.string.pref_run_at_startup),
-                                subtitle = stringResource(R.string.settings_start_on_boot_sub),
-                                checked = runAtStartup
-                            ) { checked ->
-                                performHaptic()
-                                viewModel.setRunAtStartup(checked)
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            val bootstrapLabel = when (bootstrapNodeSource) {
-                                BootstrapNodeSource.BuiltIn -> stringResource(R.string.settings_nodes_builtin)
-                                BootstrapNodeSource.UserProvided -> stringResource(R.string.settings_nodes_user)
-                            }
-                            SettingsClickableRow(
-                                title = stringResource(R.string.settings_nodes_list),
-                                subtitle = bootstrapLabel
-                            ) {
-                                performHaptic()
-                                showBootstrapDialog = true
-                            }
-                        }
-                    }
-
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_ft_group)) {
-                            val ftLabel = when (ftAutoAccept) {
-                                FtAutoAccept.None -> stringResource(R.string.pref_ft_auto_accept_none)
-                                FtAutoAccept.Images -> stringResource(R.string.pref_ft_auto_accept_images)
-                                FtAutoAccept.All -> stringResource(R.string.pref_ft_auto_accept_all)
-                            }
-                            SettingsClickableRow(
-                                title = stringResource(R.string.pref_heading_ft_auto_accept),
-                                subtitle = ftLabel
-                            ) {
-                                performHaptic()
-                                showFtAcceptDialog = true
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-
-                            SettingsSwitchRow(
-                                title = stringResource(R.string.settings_auto_save_title),
-                                subtitle = stringResource(R.string.settings_auto_save_subtitle),
-                                checked = storedSettings.autoSaveToDownloads
-                            ) { checked ->
-                                performHaptic()
-                                settings.autoSaveToDownloads = checked
-                            }
-                        }
-                    }
-
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_storage_group)) {
-                            var cacheSizeText by remember { mutableStateOf(context.getString(R.string.settings_cache_calculating)) }
-
-                            LaunchedEffect(Unit) {
-                                val sizeBytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    viewModel.getCacheSize()
-                                }
-                                cacheSizeText = formatSize(context, sizeBytes)
-                            }
-
-                            SettingsClickableRow(
-                                title = stringResource(R.string.settings_clear_cache_title),
-                                subtitle = stringResource(R.string.settings_clear_cache_subtitle, cacheSizeText)
-                            ) {
-                                performHaptic()
-                                viewModel.clearCache()
-                                cacheSizeText = formatSize(context, 0)
-                            }
-                        }
-                    }
-
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_proxy_group)) {
-                            val proxyLabel = when (proxyType) {
-                                ProxyType.None -> stringResource(R.string.pref_proxy_type_none)
-                                ProxyType.HTTP -> stringResource(R.string.pref_proxy_type_http)
-                                ProxyType.SOCKS5 -> stringResource(R.string.pref_proxy_type_socks5)
-                            }
-                            SettingsClickableRow(
-                                title = stringResource(R.string.settings_proxy_type),
-                                subtitle = proxyLabel
-                            ) {
-                                performHaptic()
-                                showProxyDialog = true
-                            }
-                            if (proxyType != ProxyType.None) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    OutlinedTextField(
-                                        value = proxyAddress,
-                                        onValueChange = { settings.proxyAddress = it },
-                                        label = { Text(stringResource(R.string.settings_proxy_address)) },
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(
-                                            capitalization = KeyboardCapitalization.None,
-                                            autoCorrectEnabled = false,
-                                            imeAction = ImeAction.Next
-                                        ),
-                                        keyboardActions = KeyboardActions(
-                                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    OutlinedTextField(
-                                        value = proxyPortInput,
-                                        onValueChange = {
-                                            if (it.isEmpty() || it.all { char -> char.isDigit() }) {
-                                                proxyPortInput = it
-                                                if (it.isNotEmpty()) settings.proxyPort = it.toIntOrNull() ?: 0
-                                            }
-                                        },
-                                        label = { Text(stringResource(R.string.settings_proxy_port)) },
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(
-                                            keyboardType = KeyboardType.Number,
-                                            autoCorrectEnabled = false,
-                                            imeAction = ImeAction.Done
-                                        ),
-                                        keyboardActions = KeyboardActions(
-                                            onDone = { focusManager.clearFocus() }
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_status_group)) {
-                            SettingsSwitchRow(
-                                title = stringResource(R.string.pref_auto_away),
-                                subtitle = stringResource(R.string.settings_auto_away_sub),
-                                checked = autoAwayEnabled
-                            ) { checked ->
-                                performHaptic()
-                                settings.autoAwayEnabled = checked
-                            }
-                            if (autoAwayEnabled) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    OutlinedTextField(
-                                        value = autoAwaySecondsInput,
-                                        onValueChange = {
-                                            if (it.isEmpty() || it.all { char -> char.isDigit() }) {
-                                                autoAwaySecondsInput = it
-                                                if (it.isNotEmpty()) settings.autoAwaySeconds = it.toLongOrNull() ?: 180L
-                                            }
-                                        },
-                                        label = { Text(stringResource(R.string.settings_auto_away_timeout)) },
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(
-                                            keyboardType = KeyboardType.Number,
-                                            autoCorrectEnabled = false,
-                                            imeAction = ImeAction.Done
-                                        ),
-                                        keyboardActions = KeyboardActions(
-                                            onDone = { focusManager.clearFocus() }
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                )
             }
             SettingsDestination.Language -> {
                 SelectionScreen(
@@ -630,7 +616,7 @@ fun SettingsScreen(
                     selectedKey = currentLanguageCode,
                     onSelect = { localeTag ->
                         performHaptic()
-                        destination = SettingsDestination.Root
+                        destination = SettingsDestination.Appearance
                         onLocaleTagChanged(localeTag)
                     }
                 )
@@ -647,7 +633,7 @@ fun SettingsScreen(
                     selectedKey = appThemeMode,
                     onSelect = { themeMode ->
                         performHaptic()
-                        destination = SettingsDestination.Root
+                        destination = SettingsDestination.Appearance
                         onThemeChanged(themeMode)
                     }
                 )
@@ -788,7 +774,7 @@ fun SettingsScreen(
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                         )
                     }
-                    viewModel.backupProviders.forEach { provider ->
+                    backupViewModel.backupProviders.forEach { provider ->
                         item(key = provider.id) {
                             val mandatory = provider.id == mandatoryBackupId
                             BackupModuleCard(
@@ -851,6 +837,145 @@ fun SettingsScreen(
                                     stringResource(R.string.backup_create)
                                 }
                             )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (isSearchActive) {
+        Popup(
+            onDismissRequest = {
+                searchQuery = ""
+                isSearchActive = false
+            },
+            properties = PopupProperties(
+                focusable = true,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = false,
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = {
+                                searchQuery = ""
+                                isSearchActive = false
+                            }
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text(stringResource(R.string.search_settings)) },
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    }
+                    
+                    HorizontalDivider()
+                    
+                    val filteredItems = remember(searchQuery, searchItems) {
+                        if (searchQuery.isBlank()) {
+                            emptyList()
+                        } else {
+                            searchItems.filter {
+                                it.title.contains(searchQuery, ignoreCase = true) ||
+                                it.subtitle.contains(searchQuery, ignoreCase = true) ||
+                                it.category.contains(searchQuery, ignoreCase = true)
+                            }
+                        }
+                    }
+                    
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (filteredItems.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (searchQuery.isBlank()) {
+                                            stringResource(R.string.search_settings)
+                                        } else {
+                                            stringResource(R.string.search_no_results)
+                                        },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            items(filteredItems) { item ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            performHaptic()
+                                            searchQuery = ""
+                                            isSearchActive = false
+                                            if (item.onTrigger != null) {
+                                                item.onTrigger.invoke()
+                                            } else {
+                                                destination = item.destination
+                                            }
+                                        }
+                                        .padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = item.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = item.subtitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = item.category,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            }
                         }
                     }
                 }

@@ -45,23 +45,39 @@ class BackupUseCase @Inject constructor(
         return password?.takeIf(String::isNotBlank)?.let { encrypt(zipBytes, it) } ?: zipBytes
     }
 
-    fun import(data: ByteArray, password: String? = null) {
-        val zipBytes = if (data.startsWith(ENCRYPTION_MAGIC.encodeToByteArray())) {
-            decrypt(data, password.orEmpty())
-        } else {
-            data
-        }
+    fun import(data: ByteArray, password: String? = null, skipIds: Set<String> = emptySet()) {
+        val zipBytes = decryptIfNeeded(data, password)
         val providerById = providers.associateBy { it.id }
 
         ZipInputStream(ByteArrayInputStream(zipBytes)).use { zip ->
             generateSequence { zip.nextEntry }.forEach { entry ->
                 val id = entry.name.removeSuffix(".bin")
+                if (id in skipIds) return@forEach
                 val provider = providerById[id] ?: return@forEach
                 provider.deserialize(zip.readBytes())
                 zip.closeEntry()
             }
         }
     }
+
+    fun providerData(data: ByteArray, password: String? = null, id: String): ByteArray? {
+        ZipInputStream(ByteArrayInputStream(decryptIfNeeded(data, password))).use { zip ->
+            generateSequence { zip.nextEntry }.forEach { entry ->
+                if (entry.name == "$id.bin") {
+                    return zip.readBytes()
+                }
+                zip.closeEntry()
+            }
+        }
+        return null
+    }
+
+    private fun decryptIfNeeded(data: ByteArray, password: String?): ByteArray =
+        if (data.startsWith(ENCRYPTION_MAGIC.encodeToByteArray())) {
+            decrypt(data, password.orEmpty())
+        } else {
+            data
+        }
 
     private fun encrypt(data: ByteArray, password: String): ByteArray {
         val salt = SecureRandom().generateSeed(SALT_SIZE)

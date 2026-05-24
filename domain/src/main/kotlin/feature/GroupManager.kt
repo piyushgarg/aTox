@@ -9,6 +9,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -21,8 +24,10 @@ import ltd.evilcorp.core.model.GroupPrivacyState
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.Sender
+import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.repository.GroupRepository
+import ltd.evilcorp.core.repository.MessageRepository
 import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
 import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.domain.tox.Tox
@@ -59,6 +64,7 @@ class GroupManager @Inject constructor(
     private val groupRepository: GroupRepository,
     private val contactRepository: ContactRepository,
     private val chatManager: ChatManager,
+    private val messageRepository: MessageRepository,
     private val tox: Tox,
 ) {
     var activeGroup = ""
@@ -77,6 +83,9 @@ class GroupManager @Inject constructor(
     private val _connectionStatuses = MutableStateFlow<Map<String, GroupConnectionStatus>>(emptyMap())
     val connectionStatuses: Flow<Map<String, GroupConnectionStatus>> = _connectionStatuses
 
+    private val _groupMigratedEvent = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 10)
+    val groupMigratedEvent: SharedFlow<Pair<String, String>> = _groupMigratedEvent.asSharedFlow()
+
     fun connectionStatus(chatId: String): GroupConnectionStatus =
         _connectionStatuses.value[chatId] ?: GroupConnectionStatus.Disconnected
 
@@ -88,38 +97,124 @@ class GroupManager @Inject constructor(
         _pendingInvite.value = invite
     }
 
-    private suspend fun reconnectWithRetry(chatId: String, groupNumber: Int, maxRetries: Int = 5) {
-        for (attempt in 0 until maxRetries) {
-            val ok = tox.groupReconnect(groupNumber)
-            if (ok) return
-            Log.w("GroupManager", "Reconnect attempt $attempt failed for group $chatId, retrying in ${(attempt + 1) * 2}s")
-            delay(2000L * (attempt + 1))
+    fun getPendingInvite(): GroupInvite? = _pendingInvite.value
+
+    private val reconnectJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
+
+    fun cancelReconnect(chatId: String) {
+        reconnectJobs.remove(chatId)?.cancel()
+    }
+
+    fun notifyGroupMigrated(oldChatId: String, newChatId: String) {
+        scope.launch {
+            _groupMigratedEvent.emit(Pair(oldChatId, newChatId))
         }
-        Log.e("GroupManager", "All $maxRetries reconnect attempts failed for group $chatId")
-        setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+    }
+
+    fun checkAndUpdateGroupMetadata(chatId: String) {
+        scope.launch {
+            val group = groupRepository.get(chatId).firstOrNull() ?: return@launch
+            if (group.groupNumber < 0) return@launch
+            
+            // 1. Проверяем и обновляем имя группы, если оно еще не прилетело по сети
+            if (group.name.isEmpty() || group.name == "Unknown Group" || group.name.startsWith("unknown_")) {
+                val groupNameBytes = tox.groupGetName(group.groupNumber)
+                val groupName = groupNameBytes?.decodeToString()
+                if (!groupName.isNullOrBlank() && groupName != "Unknown Group") {
+                    groupRepository.setName(chatId, groupName)
+                }
+            }
+
+            // 2. Проверяем и обновляем пустые publicKey у участников группы для загрузки аватарок
+            val peers = groupRepository.getPeers(chatId).firstOrNull() ?: emptyList()
+            peers.forEach { peer ->
+                if (peer.publicKey.isEmpty() && peer.peerId >= 0 && !peer.isOurselves) {
+                    val peerKeyBytes = tox.groupPeerGetPublicKey(group.groupNumber, peer.peerId)
+                    val peerKey = peerKeyBytes?.toHexString()?.uppercase() ?: ""
+                    if (peerKey.isNotEmpty()) {
+                        val updatedPeer = peer.copy(publicKey = peerKey)
+                        groupRepository.addPeer(updatedPeer)
+                        Log.i("GroupManager", "Synchronously updated empty publicKey for peer ${peer.name} (${peer.peerId}) -> $peerKey")
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun reconnectWithRetry(chatId: String, groupNumber: Int, maxRetries: Int = 999999) {
+        for (attempt in 0 until maxRetries) {
+            val currentStatus = connectionStatus(chatId)
+            // Stop retrying if the group has successfully connected, or reconnect was aborted (e.g. user left the group)
+            if (currentStatus == GroupConnectionStatus.Connected || (currentStatus == GroupConnectionStatus.Disconnected && attempt > 0)) {
+                Log.d("GroupManager", "reconnectWithRetry for group $chatId stopped: status is $currentStatus")
+                return
+            }
+
+            val ok = tox.groupReconnect(groupNumber)
+            Log.d("GroupManager", "Reconnect attempt $attempt for group $chatId returned: $ok")
+            if (ok) {
+                setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+            }
+            
+            // Адаптивная задержка (Exponential Back-off) для экономии батареи и сети:
+            // - первые 10 попыток: каждые 5 секунд (быстрое переподключение)
+            // - следующие 20 попыток: каждые 15 секунд
+            // - все последующие попытки: каждые 30 секунд
+            val delayMs = when {
+                attempt < 10 -> 5000L
+                attempt < 30 -> 15000L
+                else -> 30000L
+            }
+            delay(delayMs)
+        }
+        
+        val finalStatus = connectionStatus(chatId)
+        if (finalStatus == GroupConnectionStatus.Reconnecting || finalStatus == GroupConnectionStatus.Connecting) {
+            Log.e("GroupManager", "All $maxRetries reconnect attempts failed for group $chatId")
+            setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+        }
     }
 
     fun reconnectAll() {
         scope.launch {
             val groups = groupRepository.getAll().firstOrNull() ?: return@launch
+            Log.d("GroupManager", "reconnectAll found ${groups.size} groups in database")
             for (group in groups) {
+                val currentStatus = connectionStatus(group.chatId)
+                Log.d("GroupManager", "Group ${group.chatId} database status connected: ${group.connected}, current status state: $currentStatus, groupNumber: ${group.groupNumber}")
+                
+                if (currentStatus == GroupConnectionStatus.Connected) {
+                    continue
+                }
+                
+                reconnectJobs[group.chatId]?.cancel()
+                
                 groupRepository.setConnected(group.chatId, false)
                 setConnectionStatus(group.chatId, GroupConnectionStatus.Reconnecting)
                 if (group.groupNumber >= 0) {
-                    reconnectWithRetry(group.chatId, group.groupNumber)
+                    Log.d("GroupManager", "Launching reconnectWithRetry for group ${group.chatId}")
+                    val job = scope.launch {
+                        reconnectWithRetry(group.chatId, group.groupNumber)
+                    }
+                    reconnectJobs[group.chatId] = job
+                } else {
+                    Log.w("GroupManager", "Group ${group.chatId} has invalid groupNumber ${group.groupNumber}, setting Disconnected")
+                    setConnectionStatus(group.chatId, GroupConnectionStatus.Disconnected)
                 }
             }
         }
     }
 
     fun scheduleAutoReconnect(chatId: String, groupNumber: Int) {
-        scope.launch {
+        reconnectJobs[chatId]?.cancel()
+        val job = scope.launch {
             delay(3000)
             val g = groupRepository.get(chatId).firstOrNull()
             if (g == null || g.connected) return@launch
             setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
             reconnectWithRetry(chatId, groupNumber)
         }
+        reconnectJobs[chatId] = job
     }
 
     fun resendPendingMessages(chatId: String) {
@@ -156,6 +251,10 @@ class GroupManager @Inject constructor(
 
     fun declineInvite() {
         _pendingInvite.value = null
+    }
+
+    fun getDefaultSelfName(): String {
+        return tox.getName().ifEmpty { "User" }
     }
 
     fun getAll(): Flow<List<Group>> = groupRepository.getAll()
@@ -231,8 +330,19 @@ class GroupManager @Inject constructor(
         )
 
         if (groupNumber >= 0) {
-            val chatIdBytes = tox.groupGetChatId(groupNumber)
+            var chatIdBytes = tox.groupGetChatId(groupNumber)
+            var attempts = 0
+            while (chatIdBytes == null && attempts < 100) {
+                try {
+                    Thread.sleep(10)
+                } catch (e: InterruptedException) {
+                    break
+                }
+                chatIdBytes = tox.groupGetChatId(groupNumber)
+                attempts++
+            }
             val chatId = chatIdBytes?.toHexString() ?: "unknown_$groupNumber"
+            android.util.Log.i("GroupManager", "Joined group number $groupNumber, chatId = $chatId (attempts = $attempts)")
 
             val groupNameBytes = tox.groupGetName(groupNumber)
             val groupName = groupNameBytes?.decodeToString() ?: "Unknown Group"
@@ -246,10 +356,10 @@ class GroupManager @Inject constructor(
                 selfPeerId = selfPeerId,
                 selfRole = selfRole.name,
                 groupNumber = groupNumber,
-                connected = true,
+                connected = false,
             )
             groupRepository.add(group)
-            setConnectionStatus(chatId, GroupConnectionStatus.Connected)
+            setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
 
             val ourPeer = GroupPeer(
                 groupChatId = chatId,
@@ -265,7 +375,27 @@ class GroupManager @Inject constructor(
         return groupNumber
     }
 
+    fun joinGroupWithBytes(
+        friendPublicKey: String,
+        inviteDataHex: String,
+        selfName: String,
+        password: String? = null,
+    ): Int {
+        val pk = PublicKey(friendPublicKey)
+        val friendNo = tox.getFriendNumber(pk)
+        if (friendNo < 0) return -5 // Friend not found
+
+        val inviteData = try {
+            inviteDataHex.hexToByteArray()
+        } catch (e: Exception) {
+            return -4 // Invalid hex format
+        }
+
+        return joinGroup(friendNo, inviteData, selfName, password)
+    }
+
     fun leaveGroup(chatId: String) = scope.launch {
+        cancelReconnect(chatId)
         val g = groupRepository.get(chatId).firstOrNull()
         g?.let {
             if (it.groupNumber >= 0) {
@@ -358,6 +488,14 @@ class GroupManager @Inject constructor(
         return result
     }
 
+    fun getChatIdByGroupNumber(groupNumber: Int): String? {
+        var result: String? = null
+        runBlocking {
+            result = groupRepository.findChatIdByGroupNumber(groupNumber)
+        }
+        return result
+    }
+
     fun inviteFriend(chatId: String, friendPublicKey: String): Boolean {
         var result = false
         runBlocking {
@@ -365,17 +503,28 @@ class GroupManager @Inject constructor(
             if (group != null && group.groupNumber >= 0) {
                 val pk = PublicKey(friendPublicKey)
                 val friendNumber = tox.getFriendNumber(pk)
+                
+                // Всегда отображаем красивую интерактивную карточку-приглашение в чате у себя (у отправителя)
+                val inviteText = "[GROUP_INVITE:${group.name}|${group.chatId}]"
+                messageRepository.add(
+                    Message(
+                        publicKey = friendPublicKey.lowercase(),
+                        message = inviteText,
+                        sender = Sender.Sent,
+                        type = MessageType.Normal,
+                        correlationId = 0,
+                        timestamp = java.util.Date().time
+                    )
+                )
+                
                 if (friendNumber >= 0) {
                     val contact = contactRepository.get(friendPublicKey).firstOrNull()
                     val isOnline = contact?.connectionStatus != ConnectionStatus.None
                     if (isOnline) {
-                        result = tox.groupInviteSend(group.groupNumber, friendNumber)
-                    } else {
-                        val inviteText = "Join my group \"${group.name}\"!\nChat ID: ${group.chatId}"
-                        chatManager.sendMessage(pk, inviteText, MessageType.Normal)
-                        result = true
+                        tox.groupInviteSend(group.groupNumber, friendNumber)
                     }
                 }
+                result = true
             }
         }
         return result
@@ -417,6 +566,16 @@ class GroupManager @Inject constructor(
             )
             groupRepository.add(group)
             setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+
+            // Connection timeout to prevent hanging in Connecting status forever
+            scope.launch {
+                delay(45000)
+                val g = groupRepository.get(chatId).firstOrNull()
+                if (g != null && !g.connected && connectionStatus(chatId) == GroupConnectionStatus.Connecting) {
+                    Log.w("GroupManager", "Direct join connection timeout for $chatId")
+                    setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+                }
+            }
 
             val ourPeer = GroupPeer(
                 groupChatId = chatId,

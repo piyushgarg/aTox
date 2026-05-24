@@ -95,6 +95,11 @@ class Tox @Inject constructor(
 
     fun getFriendNumber(publicKey: PublicKey): Int = runtime.getFriendNumber(publicKey)
 
+    fun getFriendPublicKey(friendNumber: Int): PublicKey? {
+        val bytes = runtime.getFriendPublicKey(friendNumber) ?: return null
+        return PublicKey.fromBytes(bytes)
+    }
+
     fun friendGetLastOnline(publicKey: PublicKey): Long = runtime.friendGetLastOnline(publicKey)
 
     fun getStatus() = runtime.getStatus()

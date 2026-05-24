@@ -22,6 +22,7 @@ class GroupRepository @Inject constructor(
     private val groupPeerDao: GroupPeerDao,
 ) {
     fun get(chatId: String): Flow<Group?> = groupDao.load(chatId)
+    fun getDirect(chatId: String): Group? = groupDao.loadDirect(chatId)
     fun getAll(): Flow<List<Group>> = groupDao.loadAll()
     fun exists(chatId: String): Boolean = groupDao.exists(chatId) > 0
 

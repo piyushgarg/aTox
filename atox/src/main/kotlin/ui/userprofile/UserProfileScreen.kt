@@ -1,100 +1,102 @@
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
 package ltd.evilcorp.atox.ui.userprofile
 
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.QrCode
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.Canvas
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.material.icons.automirrored.filled.RotateRight
-import androidx.compose.material.icons.filled.Refresh
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Matrix
-import io.nayuki.qrcodegen.QrCode
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.common.QrCodeView
 import ltd.evilcorp.atox.ui.theme.StatusAvailable
 import ltd.evilcorp.atox.ui.theme.StatusAway
 import ltd.evilcorp.atox.ui.theme.StatusBusy
+import ltd.evilcorp.atox.ui.userprofile.components.AvatarEditDialog
 import ltd.evilcorp.core.model.User
 import ltd.evilcorp.core.model.UserStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserProfileScreen(
-    userState: State<User?>,
+    user: User?,
     toxId: String,
+    avatar: android.graphics.Bitmap?,
+    cropState: AvatarCropUiState = AvatarCropUiState.Idle,
     onBack: () -> Unit = {},
     showBackButton: Boolean = true,
     onSetName: (String) -> Unit,
     onSetStatusMessage: (String) -> Unit,
     onSetStatus: (UserStatus) -> Unit,
     onLogout: () -> Unit = {},
-    onAvatarChanged: () -> Unit = {}
+    onAvatarChanged: () -> Unit = {},
+    onResetCropState: () -> Unit = {},
+    onCropAndSaveAvatar: (android.graphics.Bitmap, Float, Float, Float, Float, Float) -> Unit
 ) {
-    val user = userState.value
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
-    var selfAvatarVersion by remember { mutableStateOf(0) }
-    val filesDir = context.filesDir
-    val selfAvatarFile = remember { java.io.File(filesDir, "self_avatar.png") }
-    val selfAvatarBitmap = remember(selfAvatarVersion) {
-        if (selfAvatarFile.exists() && selfAvatarFile.length() > 0L) {
-            try {
-                android.graphics.BitmapFactory.decodeFile(selfAvatarFile.absolutePath)?.asImageBitmap()
-            } catch (e: Exception) {
-                null
-            }
-        } else null
+    val selfAvatarBitmap = remember(avatar) {
+        avatar?.asImageBitmap()
     }
 
     var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    LaunchedEffect(cropState) {
+        when (cropState) {
+            is AvatarCropUiState.Success -> {
+                onAvatarChanged()
+                onResetCropState()
+                selectedImageUri = null
+            }
+            is AvatarCropUiState.Failure -> {
+                Toast.makeText(context, context.getString(R.string.avatar_too_large), Toast.LENGTH_LONG).show()
+                onResetCropState()
+                selectedImageUri = null
+            }
+            else -> {}
+        }
+    }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
         if (uri != null) {
@@ -107,24 +109,7 @@ fun UserProfileScreen(
     var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     var showQrDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.profile), fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    if (showBackButton) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
-            )
-        }
-    ) { paddingValues ->
+    val profileContent = @Composable { paddingValues: PaddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -151,27 +136,34 @@ fun UserProfileScreen(
                         .clickable { launcher.launch("image/*") },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (selfAvatarBitmap != null) {
-                        Image(
-                            bitmap = selfAvatarBitmap,
-                            contentDescription = stringResource(R.string.profile_photo_description),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
-                    } else {
-                        val initials = remember(user?.name) {
-                            val name = user?.name ?: ""
-                            if (name.isEmpty()) "U" else {
-                                val parts = name.split(" ")
-                                if (parts.size == 1) name.take(1) else name.take(1) + parts[1].take(1)
+                    androidx.compose.animation.Crossfade(
+                        targetState = selfAvatarBitmap,
+                        label = "AvatarCrossfade"
+                    ) { bitmap ->
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap,
+                                contentDescription = stringResource(R.string.profile_photo_description),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            val initials = remember(user?.name) {
+                                val name = user?.name ?: ""
+                                if (name.isEmpty()) "U" else {
+                                    val parts = name.split(" ")
+                                    if (parts.size == 1) name.take(1) else name.take(1) + parts[1].take(1)
+                                }
+                            }
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = initials.uppercase(),
+                                    style = MaterialTheme.typography.headlineLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
-                        Text(
-                            text = initials.uppercase(),
-                            style = MaterialTheme.typography.headlineLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
                 }
 
@@ -183,6 +175,7 @@ fun UserProfileScreen(
                     shadowElevation = 4.dp,
                     modifier = Modifier
                         .size(32.dp)
+                        .minimumInteractiveComponentSize()
                         .clickable { launcher.launch("image/*") }
                 ) {
                     Box(
@@ -451,6 +444,29 @@ fun UserProfileScreen(
         }
     }
 
+    if (showBackButton) {
+        Scaffold(
+            contentWindowInsets = WindowInsets(0),
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.profile), fontWeight = FontWeight.SemiBold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                )
+            }
+        ) { paddingValues ->
+            profileContent(paddingValues)
+        }
+    } else {
+        profileContent(PaddingValues(0.dp))
+    }
+
     if (showLogoutConfirmDialog) {
         AlertDialog(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -526,277 +542,34 @@ fun UserProfileScreen(
         )
     }
 
-    if (selectedImageUri != null) {
+    if (cropState is AvatarCropUiState.Processing) {
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {},
+            title = { Text(stringResource(R.string.settings_cache_calculating)) },
+            text = {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+        )
+    }
+
+    if (selectedImageUri != null && cropState !is AvatarCropUiState.Processing) {
         AvatarEditDialog(
             imageUri = selectedImageUri!!,
             onDismiss = { selectedImageUri = null },
-            onConfirm = { croppedBitmap ->
-                val maxBytes = 64 * 1024
-                val destFile = java.io.File(context.filesDir, "self_avatar.png")
-                var quality = 90
-                var success = false
-
-                while (quality > 10) {
-                    val bos = java.io.ByteArrayOutputStream()
-                    croppedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, bos)
-                    val bytes = bos.toByteArray()
-                    if (bytes.size <= maxBytes) {
-                        destFile.writeBytes(bytes)
-                        success = true
-                        break
-                    }
-                    quality -= 10
-                }
-
-                if (!success) {
-                    val bos = java.io.ByteArrayOutputStream()
-                    croppedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 10, bos)
-                    val bytes = bos.toByteArray()
-                    if (bytes.size <= maxBytes) {
-                        destFile.writeBytes(bytes)
-                        success = true
-                    }
-                }
-
-                croppedBitmap.recycle()
-
-                if (success) {
-                    selfAvatarVersion++
-                    onAvatarChanged()
-                } else {
-                    Toast.makeText(context, context.getString(R.string.avatar_too_large), Toast.LENGTH_LONG).show()
-                }
-                selectedImageUri = null
+            onConfirm = { originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth ->
+                onCropAndSaveAvatar(originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth)
             }
         )
     }
-}
-
-@Composable
-fun AvatarEditDialog(
-    imageUri: android.net.Uri,
-    onDismiss: () -> Unit,
-    onConfirm: (android.graphics.Bitmap) -> Unit
-) {
-    val context = LocalContext.current
-    val originalBitmap = remember(imageUri) {
-        try {
-            val inputStream = context.contentResolver.openInputStream(imageUri)
-            val bmp = android.graphics.BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-            bmp
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    if (originalBitmap == null) {
-        LaunchedEffect(Unit) {
-            onDismiss()
-        }
-        return
-    }
-
-    var scale by remember { mutableStateOf(1f) }
-    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
-    var rotation by remember { mutableStateOf(0f) }
-    var viewportWidth by remember { mutableStateOf(0f) }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false
-        )
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Header
-                Text(
-                    text = stringResource(R.string.avatar_editor_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-
-                // Viewport area with circle crop frame
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .onGloballyPositioned { coordinates ->
-                            viewportWidth = coordinates.size.width.toFloat()
-                        }
-                        .pointerInput(Unit) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                scale = (scale * zoom).coerceIn(1f, 5f)
-                                offset += pan
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Loaded Bitmap rendering
-                    Image(
-                        bitmap = originalBitmap.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer(
-                                scaleX = scale,
-                                scaleY = scale,
-                                translationX = offset.x,
-                                translationY = offset.y,
-                                rotationZ = rotation
-                            )
-                    )
-
-                    // Circular visiere overlay with semi-transparent background
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val canvasWidth = size.width
-                        val canvasHeight = size.height
-                        val circleRadius = 125.dp.toPx() // viewport width is ~250.dp, radius is 125.dp
-
-                        val androidCanvas = drawContext.canvas.nativeCanvas
-                        val layer = androidCanvas.saveLayer(0f, 0f, canvasWidth, canvasHeight, null)
-                        with(drawContext.canvas) {
-                            // 1. Draw solid dark background overlay
-                            drawRect(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f))
-                            
-                            // 2. Punch a circle hole in the middle
-                            drawCircle(
-                                color = androidx.compose.ui.graphics.Color.Transparent,
-                                radius = circleRadius,
-                                center = center,
-                                blendMode = androidx.compose.ui.graphics.BlendMode.Clear
-                            )
-                            
-                            // 3. Draw premium white border around crop frame
-                            drawCircle(
-                                color = androidx.compose.ui.graphics.Color.White,
-                                radius = circleRadius,
-                                center = center,
-                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
-                            )
-                            
-                            androidCanvas.restore()
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Zoom slider
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = stringResource(R.string.avatar_editor_zoom) + ": ${String.format("%.1fx", scale)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Slider(
-                        value = scale,
-                        onValueChange = { scale = it },
-                        valueRange = 1f..5f,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Controls row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = {
-                        rotation = (rotation + 90f) % 360f
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.avatar_editor_rotate))
-                    }
-
-                    TextButton(onClick = {
-                        scale = 1f
-                        offset = androidx.compose.ui.geometry.Offset.Zero
-                        rotation = 0f
-                    }) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.avatar_editor_reset))
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Confirmation / Dismiss buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.avatar_editor_cancel))
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Button(
-                        onClick = {
-                            val cropped = cropAvatar(originalBitmap, scale, offset, rotation, if (viewportWidth > 0f) viewportWidth else 500f)
-                            onConfirm(cropped)
-                        }
-                    ) {
-                        Text(stringResource(R.string.avatar_editor_save))
-                    }
-                }
-            }
-        }
-    }
-}
-
-fun cropAvatar(bitmap: Bitmap, scale: Float, offset: androidx.compose.ui.geometry.Offset, rotation: Float, viewportWidth: Float): Bitmap {
-    val cropped = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(cropped)
-    val matrix = android.graphics.Matrix()
-    
-    // 1. Center the original bitmap in the origin space
-    matrix.postTranslate(-bitmap.width / 2f, -bitmap.height / 2f)
-    
-    // 2. Base scale: fit the shortest dimension to the viewport
-    val fitScale = viewportWidth / Math.min(bitmap.width, bitmap.height)
-    val totalScale = fitScale * scale * (256f / viewportWidth)
-    matrix.postScale(totalScale, totalScale)
-    
-    // 3. Rotation
-    matrix.postRotate(rotation)
-    
-    // 4. Translate by user offset scaled to 256x256 target coordinates and center at (128, 128)
-    val scaleFactor = 256f / viewportWidth
-    matrix.postTranslate(128f + offset.x * scaleFactor, 128f + offset.y * scaleFactor)
-    
-    val paint = android.graphics.Paint().apply {
-        isFilterBitmap = true
-    }
-    canvas.drawBitmap(bitmap, matrix, paint)
-    return cropped
 }
 
 @Composable
 fun StatusRow(
     title: String,
-    color: androidx.compose.ui.graphics.Color,
+    color: Color,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -831,94 +604,5 @@ fun StatusRow(
                     .background(MaterialTheme.colorScheme.primary)
             )
         }
-    }
-}
-
-@Composable
-fun QrCodeView(
-    text: String,
-    modifier: Modifier = Modifier,
-    contentColor: Color = Color.Black
-) {
-    val qr = remember(text) {
-        try {
-            QrCode.encodeText(text, QrCode.Ecc.MEDIUM)
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    if (qr != null) {
-        Canvas(modifier = modifier) {
-            val size = qr.size
-            val cellSize = this.size.width / size
-            for (y in 0 until size) {
-                for (x in 0 until size) {
-                    if (qr.getModule(x, y)) {
-                        drawRect(
-                            color = contentColor,
-                            topLeft = androidx.compose.ui.geometry.Offset(x * cellSize, y * cellSize),
-                            size = androidx.compose.ui.geometry.Size(cellSize + 0.5f, cellSize + 0.5f)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-fun compressAndSaveAvatar(context: Context, uri: android.net.Uri): Boolean {
-    val maxBytes = 64 * 1024
-    try {
-        val inputStream = context.contentResolver.openInputStream(uri) ?: return false
-        val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream) ?: return false
-        inputStream.close()
-
-        val maxDim = 256
-        val width = originalBitmap.width
-        val height = originalBitmap.height
-        val scaledBitmap = if (width > maxDim || height > maxDim) {
-            val ratio = width.toFloat() / height.toFloat()
-            val newWidth = if (ratio > 1) maxDim else (maxDim * ratio).toInt()
-            val newHeight = if (ratio > 1) (maxDim / ratio).toInt() else maxDim
-            android.graphics.Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
-        } else {
-            originalBitmap
-        }
-
-        val destFile = java.io.File(context.filesDir, "self_avatar.png")
-        var quality = 90
-        var success = false
-
-        while (quality > 10) {
-            val bos = java.io.ByteArrayOutputStream()
-            scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, bos)
-            val bytes = bos.toByteArray()
-            if (bytes.size <= maxBytes) {
-                destFile.writeBytes(bytes)
-                success = true
-                break
-            }
-            quality -= 10
-        }
-
-        if (!success) {
-            val bos = java.io.ByteArrayOutputStream()
-            scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 10, bos)
-            val bytes = bos.toByteArray()
-            if (bytes.size <= maxBytes) {
-                destFile.writeBytes(bytes)
-                success = true
-            }
-        }
-
-        if (scaledBitmap != originalBitmap) {
-            scaledBitmap.recycle()
-        }
-        originalBitmap.recycle()
-        return success
-    } catch (e: Exception) {
-        android.util.Log.e("UserProfileScreen", "Failed to compress/save avatar", e)
-        return false
     }
 }

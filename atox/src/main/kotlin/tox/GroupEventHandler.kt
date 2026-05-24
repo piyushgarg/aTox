@@ -13,11 +13,15 @@ import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.repository.GroupRepository
+import ltd.evilcorp.core.repository.MessageRepository
+import ltd.evilcorp.core.repository.FileTransferRepository
+import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.model.Group
 import ltd.evilcorp.core.model.GroupMessage
 import ltd.evilcorp.core.model.GroupPeer
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.Sender
+import ltd.evilcorp.core.model.FileTransfer
 import ltd.evilcorp.core.tox.enums.ToxGroupExitType
 import ltd.evilcorp.core.tox.enums.ToxGroupJoinFail
 import ltd.evilcorp.core.tox.enums.ToxGroupModEvent
@@ -36,15 +40,43 @@ class GroupEventHandler @Inject constructor(
     private val scope: CoroutineScope,
     private val groupRepository: GroupRepository,
     private val contactRepository: ContactRepository,
+    private val messageRepository: MessageRepository,
     private val groupManager: GroupManager,
     private val notificationHelper: NotificationHelper,
     private val systemSoundPlayer: SystemSoundPlayer,
     private val tox: Tox,
     private val settings: Settings,
+    private val fileTransferRepository: FileTransferRepository,
 ) {
     fun onGroupInvite(friendNo: Int, inviteData: ByteArray, groupName: String) {
         scope.launch {
             Log.i(TAG, "Group invite from friendNo=$friendNo: $groupName")
+            try {
+                val friendPkObject = tox.getFriendPublicKey(friendNo)
+                if (friendPkObject != null) {
+                    val friendPk = friendPkObject.string().lowercase()
+                    val inviteDataHex = inviteData.joinToString("") { "%02x".format(it) }
+                    val inviteText = "[GROUP_INVITE:$groupName|$inviteDataHex]"
+                    
+                    val alreadyExists = messageRepository.exists(friendPk, inviteText)
+                    if (!alreadyExists) {
+                        val msg = Message(
+                            publicKey = friendPk,
+                            message = inviteText,
+                            sender = Sender.Received,
+                            type = MessageType.Normal,
+                            correlationId = 0,
+                            timestamp = java.util.Date().time
+                        )
+                        messageRepository.add(msg)
+                        
+                        systemSoundPlayer.playNotificationSound(settings.notificationSoundUri, settings.notificationSoundVolume)
+                        notificationHelper.showGroupInviteNotification(friendPk, groupName)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error inserting group invite to chat", e)
+            }
         }
         val invite = GroupInvite(friendNo = friendNo, inviteData = inviteData, groupName = groupName)
         groupManager.setPendingInvite(invite)
@@ -61,6 +93,9 @@ class GroupEventHandler @Inject constructor(
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
 
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
+            checkAndUpdateGroupMetadata(groupNo, chatId)
+
             val peerNameBytes = tox.groupPeerGetName(groupNo, peerId)
             val peerName = peerNameBytes?.decodeToString() ?: "Unknown"
 
@@ -76,14 +111,68 @@ class GroupEventHandler @Inject constructor(
                 return@launch
             }
 
+            val isFile = message.startsWith("[FILE:")
+            val isVoice = message.startsWith("[VOICE:")
+            val msgType = if (isFile || isVoice) MessageType.FileTransfer else type.toMessageType()
+            var corrId = messageId
+
+            if (isFile) {
+                try {
+                    val parts = message.removePrefix("[FILE:").removeSuffix("]").split("|")
+                    if (parts.size >= 3) {
+                        val fileName = parts[0]
+                        val fileSize = parts[1].toLong()
+                        val originalCorrId = parts[2].toInt()
+                        corrId = originalCorrId
+
+                        val ft = FileTransfer(
+                            publicKey = chatId,
+                            fileNumber = originalCorrId,
+                            fileKind = ltd.evilcorp.core.model.FileKind.Data.ordinal,
+                            fileSize = fileSize,
+                            fileName = fileName,
+                            outgoing = false,
+                            progress = ltd.evilcorp.core.model.FT_NOT_STARTED,
+                            destination = "",
+                        )
+                        fileTransferRepository.add(ft)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to parse incoming group file message: $message", e)
+                }
+            } else if (isVoice) {
+                try {
+                    val parts = message.removePrefix("[VOICE:").removeSuffix("]").split("|")
+                    if (parts.size >= 2) {
+                        val duration = parts[0].toInt()
+                        val originalCorrId = parts[1].toInt()
+                        corrId = originalCorrId
+
+                        val ft = FileTransfer(
+                            publicKey = chatId,
+                            fileNumber = originalCorrId,
+                            fileKind = ltd.evilcorp.core.model.FileKind.Data.ordinal,
+                            fileSize = duration * 1000L,
+                            fileName = "voice_message_${originalCorrId}.m4a",
+                            outgoing = false,
+                            progress = ltd.evilcorp.core.model.FT_NOT_STARTED,
+                            destination = "",
+                        )
+                        fileTransferRepository.add(ft)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to parse incoming group voice message: $message", e)
+                }
+            }
+
             val groupMsg = GroupMessage(
                 groupChatId = chatId,
                 peerId = peerId,
                 senderName = peerName,
                 message = message,
                 sender = if (isOurPeer) Sender.Sent else Sender.Received,
-                type = type.toMessageType(),
-                correlationId = messageId,
+                type = msgType,
+                correlationId = corrId,
                 timestamp = Date().time,
             )
             groupRepository.addMessage(groupMsg)
@@ -103,6 +192,9 @@ class GroupEventHandler @Inject constructor(
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
 
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
+            checkAndUpdateGroupMetadata(groupNo, chatId)
+
             val group = groupRepository.get(chatId).firstOrNull() ?: return@launch
 
             val peerNameBytes = tox.groupPeerGetName(groupNo, peerId)
@@ -110,7 +202,7 @@ class GroupEventHandler @Inject constructor(
 
             if (peerId != group.selfPeerId) {
                 val peerKeyBytes = tox.groupPeerGetPublicKey(groupNo, peerId)
-                val peerKey = peerKeyBytes?.toHexString() ?: ""
+                val peerKey = peerKeyBytes?.toHexString()?.uppercase() ?: ""
 
                 val alreadyExistsByPubKey = peerKey.isNotEmpty() && groupRepository.peerExistsByPublicKey(chatId, peerKey)
 
@@ -156,16 +248,24 @@ class GroupEventHandler @Inject constructor(
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
 
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
+            checkAndUpdateGroupMetadata(groupNo, chatId)
+
             val group = groupRepository.get(chatId).firstOrNull() ?: return@launch
 
-            val isSelf = peerId == group.selfPeerId
+            val currentSelfPeerId = tox.groupSelfGetPeerId(groupNo)
+            val isSelf = peerId == group.selfPeerId || (currentSelfPeerId >= 0 && peerId == currentSelfPeerId)
 
             if (isSelf) {
-                if (exitType == ToxGroupExitType.SELF_DISCONNECTED) {
+                if (exitType != ToxGroupExitType.QUIT && exitType != ToxGroupExitType.KICK) {
                     groupRepository.setConnected(chatId, false)
                     groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
-                    Log.i(TAG, "Self disconnected from group $chatId (will reconnect)")
+                    Log.i(TAG, "Self technical disconnect ($exitType) from group $chatId, scheduling auto reconnect")
                     groupManager.scheduleAutoReconnect(chatId, group.groupNumber)
+                } else {
+                    groupRepository.setConnected(chatId, false)
+                    groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+                    Log.i(TAG, "Self left or kicked ($exitType) from group $chatId")
                 }
                 return@launch
             }
@@ -211,6 +311,7 @@ class GroupEventHandler @Inject constructor(
         scope.launch {
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
             groupRepository.setTopic(chatId, topic)
             Log.i(TAG, "Group topic changed in $chatId")
         }
@@ -220,6 +321,7 @@ class GroupEventHandler @Inject constructor(
         scope.launch {
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
             groupRepository.setPeerName(chatId, peerId, name)
         }
     }
@@ -228,6 +330,7 @@ class GroupEventHandler @Inject constructor(
         scope.launch {
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
             groupRepository.setPasswordProtected(chatId, password.isNotEmpty())
         }
     }
@@ -236,6 +339,7 @@ class GroupEventHandler @Inject constructor(
         scope.launch {
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
             val userStatus = when (status) {
                 ltd.evilcorp.core.tox.enums.ToxUserStatus.NONE -> ltd.evilcorp.core.model.UserStatus.None
                 ltd.evilcorp.core.tox.enums.ToxUserStatus.AWAY -> ltd.evilcorp.core.model.UserStatus.Away
@@ -249,6 +353,7 @@ class GroupEventHandler @Inject constructor(
         scope.launch {
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
             val state = when (privacyState) {
                 ToxGroupPrivacyState.PUBLIC -> ltd.evilcorp.core.model.GroupPrivacyState.Public
                 ToxGroupPrivacyState.PRIVATE -> ltd.evilcorp.core.model.GroupPrivacyState.Private
@@ -279,6 +384,7 @@ class GroupEventHandler @Inject constructor(
         scope.launch {
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
             val peerNameBytes = tox.groupPeerGetName(groupNo, peerId)
             val peerName = peerNameBytes?.decodeToString() ?: "Unknown"
             Log.i(TAG, "Private message in group $chatId from $peerName: $message")
@@ -289,15 +395,13 @@ class GroupEventHandler @Inject constructor(
         scope.launch {
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
             groupRepository.setConnected(chatId, true)
             groupRepository.setGroupNumber(chatId, groupNo)
             groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Connected)
+            groupManager.cancelReconnect(chatId)
 
-            val groupNameBytes = tox.groupGetName(groupNo)
-            val groupName = groupNameBytes?.decodeToString()
-            if (!groupName.isNullOrBlank()) {
-                groupRepository.setName(chatId, groupName)
-            }
+            checkAndUpdateGroupMetadata(groupNo, chatId)
 
             groupManager.resendPendingMessages(chatId)
 
@@ -310,9 +414,8 @@ class GroupEventHandler @Inject constructor(
             Log.e(TAG, "Failed to join groupNo=$groupNo, reason=$joinFail")
             val chatId = groupRepository.findChatIdByGroupNumber(groupNo)
             if (chatId != null) {
+                groupRepository.setConnected(chatId, false)
                 groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
-                groupRepository.deleteAllPeers(chatId)
-                groupRepository.deleteByChatId(chatId)
             }
             if (joinFail == ToxGroupJoinFail.INVALID_PASSWORD) {
                 android.widget.Toast.makeText(
@@ -329,6 +432,7 @@ class GroupEventHandler @Inject constructor(
             val chatIdBytes = tox.groupGetChatId(groupNo)
             val chatId = chatIdBytes?.toHexString() ?: return@launch
 
+            checkAndMigrateTemporaryGroup(groupNo, chatId)
             val sourceNameBytes = tox.groupPeerGetName(groupNo, sourcePeerId)
             val sourceName = sourceNameBytes?.decodeToString() ?: "Unknown"
 
@@ -342,6 +446,106 @@ class GroupEventHandler @Inject constructor(
                 }
                 if (role != null) {
                     groupRepository.setPeerRole(chatId, targetPeerId, role)
+                }
+            }
+        }
+    }
+
+    private suspend fun checkAndMigrateTemporaryGroup(groupNo: Int, realChatId: String) {
+        val existingChatId = groupRepository.findChatIdByGroupNumber(groupNo)
+        if (existingChatId != null && !existingChatId.equals(realChatId, ignoreCase = true)) {
+            Log.i(TAG, "Migrating temporary group from $existingChatId to $realChatId")
+            try {
+                val tempGroup = groupRepository.getDirect(existingChatId)
+                if (tempGroup != null) {
+                    val newGroup = tempGroup.copy(chatId = realChatId)
+                    
+                    // Переносим пиров
+                    val peers = groupRepository.getPeers(existingChatId).firstOrNull() ?: emptyList()
+                    // Переносим сообщения
+                    val messages = groupRepository.getMessages(existingChatId).firstOrNull() ?: emptyList()
+                    
+                    // Удаляем старую группу
+                    groupRepository.deleteAllPeers(existingChatId)
+                    groupRepository.deleteMessages(existingChatId)
+                    groupRepository.deleteByChatId(existingChatId)
+                    
+                    // Добавляем новую
+                    groupRepository.add(newGroup)
+                    
+                    peers.forEach { peer ->
+                        groupRepository.addPeer(peer.copy(groupChatId = realChatId))
+                    }
+                    
+                    messages.forEach { msg ->
+                        groupRepository.addMessage(msg.copy(groupChatId = realChatId))
+                    }
+                    
+                    // Переносим статус подключения в менеджер
+                    val oldStatus = groupManager.connectionStatus(existingChatId)
+                    groupManager.setConnectionStatus(realChatId, oldStatus)
+                    
+                    // Уведомляем активный UI о смене идентификатора группы
+                    groupManager.notifyGroupMigrated(existingChatId, realChatId)
+                    
+                    Log.i(TAG, "Successfully migrated groupNo=$groupNo to $realChatId")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to migrate temporary group from $existingChatId to $realChatId", e)
+            }
+        }
+    }
+
+    private suspend fun checkAndUpdateGroupMetadata(groupNo: Int, chatId: String) {
+        val group = groupRepository.get(chatId).firstOrNull() ?: return
+
+        // 1. Проверяем и обновляем имя группы
+        if (group.name.isEmpty() || group.name == "Unknown Group" || group.name.startsWith("unknown_")) {
+            val groupNameBytes = tox.groupGetName(groupNo)
+            val groupName = groupNameBytes?.decodeToString()
+            if (!groupName.isNullOrBlank() && groupName != "Unknown Group") {
+                groupRepository.setName(chatId, groupName)
+            }
+        }
+
+        // 2. Проверяем и обновляем selfPeerId и selfRole
+        val currentSelfPeerId = tox.groupSelfGetPeerId(groupNo)
+        val currentSelfRole = tox.groupSelfGetRole(groupNo)
+        if (currentSelfPeerId >= 0 && (group.selfPeerId != currentSelfPeerId || group.selfRole != currentSelfRole.name)) {
+            groupRepository.setSelfPeerId(chatId, currentSelfPeerId)
+            groupRepository.setSelfRole(chatId, currentSelfRole.name)
+
+            // Пересоздаем нашего собственного пира в group_peers
+            groupRepository.deletePeerById(chatId, -1)
+            val ourPk = tox.publicKey.string()
+            groupRepository.deletePeerByPublicKey(chatId, ourPk)
+            groupRepository.deletePeerById(chatId, currentSelfPeerId)
+
+            val ourPeer = GroupPeer(
+                groupChatId = chatId,
+                peerId = currentSelfPeerId,
+                name = tox.getName(),
+                publicKey = ourPk,
+                role = currentSelfRole.name,
+                isOurselves = true,
+            )
+            groupRepository.addPeer(ourPeer)
+        }
+
+        // 3. Обновляем общее количество участников
+        val count = groupRepository.peerCountDirect(chatId)
+        groupRepository.setPeerCount(chatId, count)
+
+        // 4. Проверяем и обновляем пустые publicKey у участников группы
+        val peers = groupRepository.getPeers(chatId).firstOrNull() ?: emptyList()
+        peers.forEach { peer ->
+            if (peer.publicKey.isEmpty() && peer.peerId >= 0 && !peer.isOurselves) {
+                val peerKeyBytes = tox.groupPeerGetPublicKey(groupNo, peer.peerId)
+                val peerKey = peerKeyBytes?.toHexString()?.uppercase() ?: ""
+                if (peerKey.isNotEmpty()) {
+                    val updatedPeer = peer.copy(publicKey = peerKey)
+                    groupRepository.addPeer(updatedPeer)
+                    Log.i(TAG, "Updated empty publicKey for peer ${peer.name} (${peer.peerId}) -> $peerKey")
                 }
             }
         }

@@ -29,4 +29,7 @@ class MessageRepository @Inject internal constructor(
 
     fun setReceipt(conversation: String, correlationId: Int, timestamp: Long) =
         messageDao.setReceipt(conversation, correlationId, timestamp)
+
+    fun exists(conversation: String, message: String): Boolean =
+        messageDao.exists(conversation, message)
 }

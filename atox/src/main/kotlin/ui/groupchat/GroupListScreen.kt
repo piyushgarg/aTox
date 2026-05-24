@@ -10,7 +10,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GroupAdd
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.foundation.lazy.rememberLazyListState
+import ltd.evilcorp.atox.ui.theme.StatusAvailable
+import ltd.evilcorp.atox.ui.theme.StatusAway
+import ltd.evilcorp.atox.ui.theme.StatusOffline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,12 +28,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.core.model.Group
-import ltd.evilcorp.core.model.GroupPeer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,115 +50,136 @@ fun GroupListScreen(
     val haptic = LocalHapticFeedback.current
     var showLeaveDialog by remember { mutableStateOf<Group?>(null) }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.groups), fontWeight = FontWeight.SemiBold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        if (groups.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.GroupAdd,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(72.dp)
                 )
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
-        ) {
-            if (groups.isEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.GroupAdd,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = stringResource(R.string.no_groups),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.no_groups_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(onClick = {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.no_groups),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.no_groups_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                Button(
+                    onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onCreateGroupClick()
-                    }) {
-                        Text(stringResource(R.string.create_group))
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(onClick = {
+                    },
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(48.dp),
+                    shape = CircleShape
+                ) {
+                    Text(stringResource(R.string.create_group))
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onJoinGroupClick()
-                    }) {
-                        Text(stringResource(R.string.join_group))
+                    },
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(48.dp),
+                    shape = CircleShape
+                ) {
+                    Text(stringResource(R.string.join_group))
+                }
+            }
+        } else {
+            val lazyListState = rememberLazyListState()
+            val isExpanded = remember {
+                derivedStateOf {
+                    lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset == 0
+                }
+            }
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        top = 4.dp,
+                        bottom = 96.dp
+                    )
+                ) {
+                    items(groups) { group ->
+                        GroupItemCard(
+                            group = group,
+                            connectionStatus = connectionStatuses[group.chatId] ?: GroupConnectionStatus.Disconnected,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onGroupClick(group)
+                            },
+                            onLongClick = {
+                                showLeaveDialog = group
+                            }
+                        )
                     }
                 }
-            } else {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        contentPadding = PaddingValues(vertical = 4.dp)
+
+                // Modern M3 FAB Stack - Double padding bottom issue fixed!
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 16.dp, end = 16.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Secondary FAB: Join Group
+                    SmallFloatingActionButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onJoinGroupClick()
+                        },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        shape = CircleShape
                     ) {
-                        items(groups) { group ->
-                            GroupItemCard(
-                                group = group,
-                                connectionStatus = connectionStatuses[group.chatId] ?: GroupConnectionStatus.Disconnected,
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onGroupClick(group)
-                                },
-                                onLongClick = {
-                                    showLeaveDialog = group
-                                }
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Link,
+                            contentDescription = stringResource(R.string.join_group)
+                        )
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onCreateGroupClick()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.GroupAdd, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.create_group))
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onJoinGroupClick()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(stringResource(R.string.join_group))
-                        }
-                    }
+                    // Primary Extended FAB: Create Group
+                    ExtendedFloatingActionButton(
+                        expanded = isExpanded.value,
+                        icon = { Icon(Icons.Default.GroupAdd, contentDescription = null) },
+                        text = { Text(stringResource(R.string.create_group)) },
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onCreateGroupClick()
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = CircleShape
+                    )
                 }
             }
         }
@@ -206,51 +232,51 @@ fun GroupItemCard(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier.size(48.dp)
+            ) {
+                val isOnline = connectionStatus == GroupConnectionStatus.Connected
                 Box(
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(
+                            if (isOnline) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val isOnline = connectionStatus == GroupConnectionStatus.Connected
+                    Icon(
+                        imageVector = Icons.Default.Group,
+                        contentDescription = null,
+                        tint = if (isOnline) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .align(Alignment.BottomEnd)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(2.dp)
+                ) {
+                    val dotColor = when (connectionStatus) {
+                        GroupConnectionStatus.Connected -> StatusAvailable
+                        GroupConnectionStatus.Connecting,
+                        GroupConnectionStatus.Reconnecting -> StatusAway
+                        GroupConnectionStatus.Disconnected -> StatusOffline
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
-                            .background(
-                                if (isOnline) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = if (isOnline) MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .align(Alignment.BottomEnd)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.background)
-                            .padding(2.dp)
-                    ) {
-                        val dotColor = when (connectionStatus) {
-                            GroupConnectionStatus.Connected -> Color(0xFF4CAF50)
-                            GroupConnectionStatus.Connecting,
-                            GroupConnectionStatus.Reconnecting -> Color(0xFFFFA726)
-                            GroupConnectionStatus.Disconnected -> Color(0xFF9E9E9E)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                                .background(dotColor)
-                        )
-                    }
+                            .background(dotColor)
+                    )
                 }
+            }
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -293,9 +319,9 @@ fun GroupItemCard(
                     GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
                 }
                 val statusColor = when (connectionStatus) {
-                    GroupConnectionStatus.Connected -> Color(0xFF4CAF50)
+                    GroupConnectionStatus.Connected -> StatusAvailable
                     GroupConnectionStatus.Connecting,
-                    GroupConnectionStatus.Reconnecting -> Color(0xFFFFA726)
+                    GroupConnectionStatus.Reconnecting -> StatusAway
                     GroupConnectionStatus.Disconnected -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Text(

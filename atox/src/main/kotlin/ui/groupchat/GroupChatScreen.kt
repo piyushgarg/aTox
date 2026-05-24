@@ -5,36 +5,13 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -59,6 +36,11 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.media.SystemSoundPlayer
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.ui.common.formatChatTime
+import ltd.evilcorp.atox.ui.common.ContactAvatar
+import ltd.evilcorp.atox.ui.chat.components.ChatInputBar
+import android.widget.Toast
+import ltd.evilcorp.atox.ui.chat.components.VoiceMessageCard
+import ltd.evilcorp.atox.ui.chat.components.FileTransferCard
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.core.model.Group
@@ -66,6 +48,26 @@ import ltd.evilcorp.core.model.GroupMessage
 import ltd.evilcorp.core.model.GroupPeer
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.Sender
+import ltd.evilcorp.core.model.FileTransfer
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+
+// Material 3 Pastel Colors for Sender Names and Avatars
+private val PeerColors = listOf(
+    Color(0xFFBA68C8), // Purple
+    Color(0xFF7986CB), // Indigo
+    Color(0xFF64B5F6), // Blue
+    Color(0xFF4DD0E1), // Cyan
+    Color(0xFF4DB6AC), // Teal
+    Color(0xFF81C784), // Green
+    Color(0xFFFFB74D), // Orange
+    Color(0xFFF06292), // Pink
+)
+
+private fun getPeerColor(peerName: String): Color {
+    val hash = peerName.hashCode().let { if (it < 0) -it else it }
+    return PeerColors[hash % PeerColors.size]
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,31 +77,64 @@ fun GroupChatScreen(
     peersState: State<List<GroupPeer>?>,
     contactsState: State<List<Contact>>,
     connectionStatusState: State<GroupConnectionStatus>,
+    fileTransfersState: State<List<FileTransfer>>,
     settings: Settings,
     onBack: () -> Unit,
     onSendMessage: (String) -> Unit,
+    onSendFile: (android.net.Uri) -> Unit,
+    onSendVoice: (android.net.Uri) -> Unit,
+    onAcceptFt: (Int) -> Unit,
+    onRejectFt: (Int) -> Unit,
+    onCancelFt: (GroupMessage) -> Unit,
+    onSaveAsClick: (Int, String) -> Unit,
+    onOpenFile: (FileTransfer) -> Unit,
     onLeaveGroup: () -> Unit,
     onCopyInvite: () -> Unit,
     onInviteFriend: (friendPublicKey: String) -> Unit,
     systemSoundPlayer: SystemSoundPlayer,
+    onInviteClick: (() -> Unit) -> Unit = {},
+    onPeersClick: (() -> Unit) -> Unit = {},
+    onLeaveClick: (() -> Unit) -> Unit = {},
+    onGroupInfoChanged: (name: String, topic: String, peersCount: Int, status: GroupConnectionStatus) -> Unit = { _, _, _, _ -> },
 ) {
     val group = groupState.value
     val messages = messagesState.value ?: emptyList()
     val peers = peersState.value ?: emptyList()
     val connStatus = connectionStatusState.value
     val listState = rememberLazyListState()
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            if (listState.firstVisibleItemIndex <= 2) {
+                listState.scrollToItem(0)
+            }
+        }
+    }
+
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val selfAvatarUri = remember {
+        val file = java.io.File(context.filesDir, "self_avatar.png")
+        if (file.exists()) file.toURI().toString() else ""
+    }
 
-    var textInput by remember { mutableStateOf("") }
     val isKeyboardOpen = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showPeersDialog by remember { mutableStateOf(false) }
     var showInviteDialog by remember { mutableStateOf(false) }
+    var inviteSearchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(showInviteDialog) {
+        if (!showInviteDialog) {
+            inviteSearchQuery = ""
+        }
+    }
+
     var inviteResultText by remember { mutableStateOf<String?>(null) }
     val contacts = contactsState.value
+    val fileTransfers = fileTransfersState.value
 
     val inviteCopiedText = stringResource(R.string.group_invite_copied)
     val inviteSentText = stringResource(R.string.group_invite_sent)
@@ -109,16 +144,54 @@ fun GroupChatScreen(
     var isCopying by remember { mutableStateOf(false) }
     var invitingContactId by remember { mutableStateOf<String?>(null) }
 
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            onSendFile(uri)
+        }
+    }
+
+    val activeFtIdToSave = remember { mutableStateOf(-1) }
+    val saveFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("*/*")
+    ) { uri: android.net.Uri? ->
+        if (uri != null && activeFtIdToSave.value != -1) {
+            onSaveAsClick(activeFtIdToSave.value, uri.toString())
+        }
+    }
+
+    val performHaptic = {
+        if (settings.hapticEnabled) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
+
+    LaunchedEffect(group, connStatus) {
+        onGroupInfoChanged(
+            group?.name.orEmpty(),
+            group?.topic.orEmpty(),
+            group?.peerCount ?: 0,
+            connStatus
+        )
+    }
+
+    DisposableEffect(Unit) {
+        onInviteClick { showInviteDialog = true }
+        onPeersClick { showPeersDialog = true }
+        onLeaveClick { showLeaveDialog = true }
+        onDispose {
+            onInviteClick {}
+            onPeersClick {}
+            onLeaveClick {}
+        }
+    }
+
     LaunchedEffect(group?.chatId) {
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
     }
 
-    LaunchedEffect(messages.size, isKeyboardOpen) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
-    }
 
     if (showLeaveDialog) {
         AlertDialog(
@@ -143,259 +216,302 @@ fun GroupChatScreen(
     }
 
     if (showPeersDialog) {
-        AlertDialog(
+        ModalBottomSheet(
             onDismissRequest = { showPeersDialog = false },
-            title = { Text(stringResource(R.string.group_peers)) },
-            text = {
-                Column(modifier = Modifier.heightIn(max = 300.dp)) {
-                    peers.forEach { peer ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.group_peers),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)
+                ) {
+                    items(peers) { peer ->
+                        val matchingContact = contacts.find { it.publicKey.equals(peer.publicKey, ignoreCase = true) }
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (peer.isOurselves) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.surfaceVariant
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = peer.name.take(1).uppercase(),
-                                    color = if (peer.isOurselves) MaterialTheme.colorScheme.onPrimary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = peer.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (peer.isOurselves) FontWeight.Bold else FontWeight.Normal
-                                )
-                                Text(
-                                    text = stringResource(
-                                        when (peer.role) {
-                                            "Owner" -> R.string.group_role_owner
-                                            "Moderator" -> R.string.group_role_moderator
-                                            "Observer" -> R.string.group_role_observer
-                                            else -> R.string.group_role_user
-                                        }
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (peer.isOurselves) {
-                                Text(
-                                    text = "(${stringResource(R.string.profile)})",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                            ListItem(
+                                leadingContent = {
+                                    ContactAvatar(
+                                        name = peer.name.ifEmpty { "Unknown" },
+                                        publicKey = peer.publicKey,
+                                        avatarUri = if (peer.isOurselves) selfAvatarUri else (matchingContact?.avatarUri ?: ""),
+                                        size = 40.dp,
+                                        fontSize = 15.sp
+                                    )
+                                },
+                                headlineContent = {
+                                    Text(
+                                        text = peer.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (peer.isOurselves) FontWeight.Bold else FontWeight.Normal,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        text = stringResource(
+                                            when (peer.role) {
+                                                "Owner" -> R.string.group_role_owner
+                                                "Moderator" -> R.string.group_role_moderator
+                                                "Observer" -> R.string.group_role_observer
+                                                else -> R.string.group_role_user
+                                            }
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
                         }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPeersDialog = false }) {
-                    Text(stringResource(R.string.close))
-                }
+                Spacer(modifier = Modifier.height(24.dp))
             }
-        )
+        }
     }
 
     if (showInviteDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!isCopying && invitingContactId == null) showInviteDialog = false
-            },
-            title = { Text(stringResource(R.string.group_invite_friend)) },
-            text = {
-                Column(modifier = Modifier.heightIn(max = 300.dp)) {
+        ModalBottomSheet(
+            onDismissRequest = { showInviteDialog = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.group_invite),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isCopying) {
+                            performHaptic()
+                            isCopying = true
+                            scope.launch {
+                                onCopyInvite()
+                                isCopying = false
+                                showInviteDialog = false
+                                Toast.makeText(context, inviteCopiedText, Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable(enabled = !isCopying && invitingContactId == null) {
-                                isCopying = true
-                                scope.launch(Dispatchers.IO) {
-                                    try {
-                                        onCopyInvite()
-                                        withContext(Dispatchers.Main) {
-                                            showInviteDialog = false
-                                            inviteResultText = inviteCopiedText
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            inviteResultText = inviteFailedText
-                                        }
-                                    } finally {
-                                        withContext(Dispatchers.Main) {
-                                            isCopying = false
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(8.dp),
+                            .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (isCopying) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
+                                strokeWidth = 2.0.dp,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         } else {
                             Icon(Icons.Default.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
                         Text(
                             text = if (isCopying) "Generating link..." else stringResource(R.string.group_copy_invite),
                             style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
                             color = if (isCopying) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
                         )
                     }
+                }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = stringResource(R.string.group_invite_select_friend),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 4.dp)
+                OutlinedTextField(
+                    value = inviteSearchQuery,
+                    onValueChange = { inviteSearchQuery = it },
+                    placeholder = { Text(stringResource(R.string.contact_list_search_placeholder)) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (inviteSearchQuery.isNotEmpty()) {
+                            IconButton(onClick = { inviteSearchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
                     )
+                )
 
-                    if (contacts.isEmpty()) {
-                        Text(
-                            text = "No friends to invite",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                Text(
+                    text = stringResource(R.string.group_invite_select_friend),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                val filteredContacts = remember(contacts, inviteSearchQuery) {
+                    if (inviteSearchQuery.isEmpty()) {
+                        contacts
                     } else {
-                        contacts.forEach { contact ->
+                        contacts.filter { contact ->
+                            contact.name.contains(inviteSearchQuery, ignoreCase = true) ||
+                            contact.publicKey.contains(inviteSearchQuery, ignoreCase = true)
+                        }
+                    }
+                }
+
+                if (filteredContacts.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (inviteSearchQuery.isEmpty()) "No friends to invite" else "No matching friends",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)
+                    ) {
+                        items(filteredContacts) { contact ->
                             val alreadyInGroup = peers.any { it.publicKey == contact.publicKey }
                             val isThisContactInviting = invitingContactId == contact.publicKey
                             val anyActionPending = isCopying || invitingContactId != null
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                                    .clickable(
-                                        enabled = !alreadyInGroup && !anyActionPending,
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            invitingContactId = contact.publicKey
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            ) {
+                                ListItem(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(
+                                            enabled = !alreadyInGroup && !anyActionPending,
+                                            onClick = {
+                                                performHaptic()
+                                                invitingContactId = contact.publicKey
 
-                                            scope.launch(Dispatchers.IO) {
-                                                try {
-                                                    onInviteFriend(contact.publicKey)
-                                                    withContext(Dispatchers.Main) {
-                                                        showInviteDialog = false
-                                                        inviteResultText = inviteSentText
-                                                    }
-                                                } catch (e: Exception) {
-                                                    withContext(Dispatchers.Main) {
-                                                        inviteResultText = inviteFailedText
-                                                    }
-                                                } finally {
-                                                    withContext(Dispatchers.Main) {
-                                                        invitingContactId = null
+                                                scope.launch(Dispatchers.IO) {
+                                                    try {
+                                                        onInviteFriend(contact.publicKey)
+                                                        withContext(Dispatchers.Main) {
+                                                            showInviteDialog = false
+                                                            inviteResultText = inviteSentText
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        withContext(Dispatchers.Main) {
+                                                            inviteResultText = inviteFailedText
+                                                        }
+                                                    } finally {
+                                                        withContext(Dispatchers.Main) {
+                                                            invitingContactId = null
+                                                        }
                                                     }
                                                 }
                                             }
-                                        }
-                                    )
-                                    .padding(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isThisContactInviting) {
-                                                Color.Transparent
-                                            } else if (contact.connectionStatus == ltd.evilcorp.core.model.ConnectionStatus.None) {
-                                                MaterialTheme.colorScheme.surfaceVariant
-                                            } else {
-                                                Color(0xFF4CAF50)
-                                            }
                                         ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isThisContactInviting) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.fillMaxSize(),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    } else {
-                                        Text(
-                                            text = (contact.name.ifEmpty { contact.publicKey.take(2) }).take(1).uppercase(),
-                                            color = if (contact.connectionStatus == ltd.evilcorp.core.model.ConnectionStatus.None)
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            else
-                                                Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = if (anyActionPending && !isThisContactInviting) {
-                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                    leadingContent = {
+                                        if (isThisContactInviting) {
+                                            Box(
+                                                modifier = Modifier.size(40.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
                                         } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                            ContactAvatar(
+                                                name = contact.name,
+                                                publicKey = contact.publicKey,
+                                                avatarUri = contact.avatarUri,
+                                                size = 40.dp,
+                                                fontSize = 15.sp
+                                            )
                                         }
-
-
-                                    )
-                                    if (alreadyInGroup) {
+                                    },
+                                    headlineContent = {
                                         Text(
-                                            text = "Already in group",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                            text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = if (anyActionPending && !isThisContactInviting) {
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            }
                                         )
-                                    } else if (isThisContactInviting) {
-                                        Text(
-                                            text = "Sending invitation...",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
+                                    },
+                                    supportingContent = {
+                                        if (alreadyInGroup) {
+                                            Text(
+                                                text = "Already in group",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                            )
+                                        } else if (isThisContactInviting) {
+                                            Text(
+                                                text = "Sending invitation...",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        } else if (contact.connectionStatus != ltd.evilcorp.core.model.ConnectionStatus.None) {
+                                            Text(
+                                                text = stringResource(R.string.chat_status_online),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    },
+                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                                )
                             }
                         }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !isCopying && invitingContactId == null,
-                    onClick = { showInviteDialog = false }
-                ) {
-                    Text(stringResource(R.string.close))
-                }
+                Spacer(modifier = Modifier.height(24.dp))
             }
-        )
+        }
     }
-
 
     if (inviteResultText != null) {
         AlertDialog(
@@ -411,175 +527,146 @@ fun GroupChatScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val name = group?.name?.ifEmpty { stringResource(R.string.contact_default_name) }
-                            ?: stringResource(R.string.contact_default_name)
-                        Column(
-                            modifier = Modifier.wrapContentHeight(),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = name,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            val topic = group?.topic
-                            if (!topic.isNullOrEmpty()) {
-                                Text(
-                                    text = topic,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val dotColor = when (connStatus) {
-                                        GroupConnectionStatus.Connected -> Color(0xFF4CAF50)
-                                        GroupConnectionStatus.Connecting,
-                                        GroupConnectionStatus.Reconnecting -> Color(0xFFFFA726)
-                                        GroupConnectionStatus.Disconnected -> Color(0xFF9E9E9E)
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(dotColor)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    val statusText = when (connStatus) {
-                                        GroupConnectionStatus.Connected -> stringResource(R.string.group_connected)
-                                        GroupConnectionStatus.Connecting -> stringResource(R.string.group_connecting)
-                                        GroupConnectionStatus.Reconnecting -> stringResource(R.string.group_connecting)
-                                        GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
-                                    }
-                                    Text(
-                                        text = statusText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        text = stringResource(R.string.group_peer_count, group?.peerCount ?: 0),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onBack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_drawer_close))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showInviteDialog = true
-                    }) {
-                        Icon(Icons.Default.PersonAdd, contentDescription = stringResource(R.string.group_invite))
-                    }
-                    IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showPeersDialog = true
-                    }) {
-                        Icon(Icons.Default.Person, contentDescription = stringResource(R.string.group_peers))
-                    }
-                    IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showLeaveDialog = true
-                    }) {
-                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.group_leave))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
-            )
-        },
-        bottomBar = {
-            Surface(
-                tonalElevation = 8.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 8.dp, bottom = if (isKeyboardOpen) 16.dp else 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextField(
-                        value = textInput,
-                        onValueChange = { textInput = it },
-                        placeholder = { Text(stringResource(R.string.group_write_placeholder)) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(24.dp)),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
-                        maxLines = 4,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    FilledIconButton(
-                        onClick = {
-                            if (textInput.trim().isNotEmpty()) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onSendMessage(textInput)
-                                textInput = ""
-                            }
-                        },
-                        modifier = Modifier.size(48.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
-                    }
-                }
-            }
-        }
+        topBar = {},
+        bottomBar = {}
     ) { paddingValues ->
-        Box(
+        val showScrollToBottomFab by remember {
+            derivedStateOf { listState.firstVisibleItemIndex > 2 }
+        }
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
+                .padding(top = paddingValues.calculateTopPadding())
+                .navigationBarsPadding()
+                .imePadding()
         ) {
-            LazyColumn(
-                state = listState,
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
+                    .weight(1f)
+                    .fillMaxWidth()
             ) {
-                items(messages.size) { index ->
-                    val msg = messages[index]
-                    GroupMessageBubble(
-                        msg = msg,
-                        settings = settings,
-                        peers = peers,
-                    )
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    reverseLayout = true,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 12.dp)
+                ) {
+                    items(
+                        count = messages.size,
+                        key = { index -> messages[messages.size - 1 - index].id }
+                    ) { index ->
+                        val rawIndex = messages.size - 1 - index
+                        val msg = messages[rawIndex]
+                        val previousMsg = messages.getOrNull(rawIndex - 1)
+                        val currentHeader = remember(msg.timestamp, settings.dateFormatPreference) {
+                            ltd.evilcorp.atox.ui.common.formatMessageDateHeader(
+                                context = context,
+                                timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
+                                dateFormatPreference = settings.dateFormatPreference,
+                            )
+                        }
+                        val previousHeader = previousMsg?.let {
+                            remember(it.timestamp, settings.dateFormatPreference) {
+                                ltd.evilcorp.atox.ui.common.formatMessageDateHeader(
+                                    context = context,
+                                    timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
+                                    dateFormatPreference = settings.dateFormatPreference,
+                                )
+                            }
+                        }
+
+                        Column {
+                            if (rawIndex == 0 || currentHeader != previousHeader) {
+                                ltd.evilcorp.atox.ui.chat.components.DateSeparator(label = currentHeader)
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+
+                            GroupMessageBubble(
+                                msg = msg,
+                                settings = settings,
+                                peers = peers,
+                                contacts = contacts,
+                                fileTransfers = fileTransfers,
+                                onAcceptFt = { ftId ->
+                                    performHaptic()
+                                    onAcceptFt(ftId)
+                                },
+                                onRejectFt = { ftId ->
+                                    performHaptic()
+                                    onRejectFt(ftId)
+                                },
+                                onCancelFt = { m ->
+                                    performHaptic()
+                                    onCancelFt(m)
+                                },
+                                onSaveAsClick = { ftId, fileName ->
+                                    performHaptic()
+                                    activeFtIdToSave.value = ftId
+                                    saveFileLauncher.launch(fileName)
+                                },
+                                onOpenFile = onOpenFile,
+                                onHaptic = performHaptic
+                            )
+                        }
+                    }
                 }
+
+                if (showScrollToBottomFab) {
+                    FloatingActionButton(
+                        onClick = {
+                            performHaptic()
+                            scope.launch {
+                                listState.scrollToItem(0)
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(bottom = 16.dp, end = 16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Scroll to Bottom",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            }
+
+            // Beautiful Unified Chat Input Bar!
+            Surface(
+                tonalElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                ChatInputBar(
+                    contact = null, // Passing null forces group chat defaults
+                    settings = settings,
+                    systemSoundPlayer = systemSoundPlayer,
+                    onSendMessage = { msg ->
+                        performHaptic()
+                        onSendMessage(msg)
+                    },
+                    onTypingChanged = {},
+                    onAttachClick = {
+                        performHaptic()
+                        filePickerLauncher.launch("*/*")
+                    },
+                    onHaptic = performHaptic,
+                    replyingToMessage = null,
+                    onCancelReply = {},
+                    onSendVoice = { uri ->
+                        performHaptic()
+                        onSendVoice(uri)
+                    },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer)
+                )
             }
         }
     }
@@ -591,9 +678,16 @@ fun GroupMessageBubble(
     msg: GroupMessage,
     settings: Settings,
     peers: List<GroupPeer>,
+    contacts: List<Contact>,
+    fileTransfers: List<FileTransfer>,
+    onAcceptFt: (Int) -> Unit,
+    onRejectFt: (Int) -> Unit,
+    onCancelFt: (GroupMessage) -> Unit,
+    onSaveAsClick: (Int, String) -> Unit,
+    onOpenFile: (FileTransfer) -> Unit,
+    onHaptic: () -> Unit
 ) {
     val context = LocalContext.current
-    val haptic = LocalHapticFeedback.current
 
     if (msg.type == MessageType.GroupEvent) {
         val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
@@ -606,12 +700,19 @@ fun GroupMessageBubble(
                 .padding(vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = msg.message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+                tonalElevation = 1.dp,
+            ) {
+                Text(
+                    text = msg.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = timeString,
@@ -645,59 +746,184 @@ fun GroupMessageBubble(
     val shape = if (isOutgoing) {
         RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 2.dp)
     } else {
-        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 2.dp, bottomEnd = 16.dp)
+        RoundedCornerShape(topStart = 2.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
     }
 
-    Column(
+    // Map GroupMessage to regular Message object to perfectly satisfy shared FileTransfer Card interfaces!
+    val mappedMessage = remember(msg) {
+        ltd.evilcorp.core.model.Message(
+            publicKey = msg.groupChatId,
+            message = msg.message,
+            sender = msg.sender,
+            type = msg.type,
+            correlationId = msg.correlationId,
+            timestamp = msg.timestamp
+        ).apply { this.id = msg.id }
+    }
+
+    val peerColor = remember(senderName) { getPeerColor(senderName) }
+
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = alignment
+        horizontalArrangement = if (isOutgoing) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom
     ) {
+        // 1. Telegram Style Round Avatar on the left side of incoming messages!
         if (!isOutgoing) {
-            Text(
-                text = senderName,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
+            val matchingContact = contacts.find { it.publicKey.equals(senderPeer?.publicKey ?: "", ignoreCase = true) }
+            ContactAvatar(
+                name = senderName,
+                publicKey = senderPeer?.publicKey ?: "",
+                avatarUri = matchingContact?.avatarUri ?: "",
+                size = 32.dp,
+                fontSize = 13.sp
             )
+            Spacer(modifier = Modifier.width(8.dp))
         }
-        Surface(
-            modifier = Modifier.combinedClickable(
-                onClick = {},
-                onLongClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    val clip = android.content.ClipData.newPlainText("message", msg.message)
-                    clipboard.setPrimaryClip(clip)
-                    android.widget.Toast.makeText(context, ltd.evilcorp.atox.R.string.message_copied, android.widget.Toast.LENGTH_SHORT).show()
-                }
-            ),
-            color = containerColor,
-            contentColor = contentColor,
-            shape = shape,
-            tonalElevation = 1.dp
+
+        // 2. Message Bubble Column
+        Column(
+            modifier = Modifier.widthIn(max = 280.dp),
+            horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
         ) {
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Text(
-                    text = msg.message,
-                    fontSize = 15.sp,
-                    color = contentColor
+            Surface(
+                color = containerColor,
+                contentColor = contentColor,
+                shape = shape,
+                tonalElevation = 1.dp,
+                modifier = Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        onHaptic()
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("message", msg.message)
+                        clipboard.setPrimaryClip(clip)
+                        android.widget.Toast.makeText(context, R.string.message_copied, android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
-                    val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
-                    formatChatTime(context, time, settings.timeFormatPreference)
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text(
-                        text = timeString,
-                        fontSize = 10.sp,
-                        color = contentColor.copy(alpha = 0.7f)
-                    )
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    // 3. Colored Sender Name on top of incoming group chat messages!
+                    if (!isOutgoing) {
+                        Text(
+                            text = senderName,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = peerColor,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    val isVoice = if (msg.type == MessageType.FileTransfer) {
+                        val ft = fileTransfers.find { it.fileNumber == msg.correlationId || it.id == msg.correlationId }
+                        ft != null && ft.fileName.startsWith("voice_message_")
+                    } else {
+                        false
+                    }
+
+                    // 4. Message Content (Text / File / Voice card)
+                    if (msg.type == MessageType.FileTransfer) {
+                        val ft = fileTransfers.find { it.fileNumber == msg.correlationId || it.id == msg.correlationId }
+                        if (ft != null) {
+                            if (ft.fileName.startsWith("voice_message_")) {
+                                VoiceMessageCard(
+                                    ft = ft,
+                                    contentColor = contentColor,
+                                    onAcceptFt = onAcceptFt,
+                                    onRejectFt = onRejectFt,
+                                    msg = mappedMessage,
+                                    isOutgoing = isOutgoing,
+                                    settings = settings
+                                )
+                            } else {
+                                FileTransferCard(
+                                    ft = ft,
+                                    msg = mappedMessage,
+                                    onHaptic = onHaptic,
+                                    contentColor = contentColor,
+                                    onAcceptFt = onAcceptFt,
+                                    onRejectFt = onRejectFt,
+                                    onCancelFt = { onCancelFt(msg) },
+                                    onSaveAsClick = onSaveAsClick,
+                                    onOpenFile = onOpenFile
+                                )
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = contentColor)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = msg.message,
+                                    fontSize = 15.sp,
+                                    color = contentColor
+                                )
+                            }
+                        }
+                    } else {
+                        // Render standard Text or Action messages
+                        val isImageMarker = msg.message.startsWith("[FILE:") && msg.message.contains("|")
+                        val isVoiceMarker = msg.message.startsWith("[VOICE:") && msg.message.contains("|")
+                        
+                        val displayText = when {
+                            isImageMarker -> stringResource(R.string.ft_status_waiting)
+                            isVoiceMarker -> stringResource(R.string.voice_message)
+                            else -> msg.message
+                        }
+                        
+                        Text(
+                            text = displayText,
+                            fontSize = 15.sp,
+                            color = contentColor
+                        )
+                    }
+
+                    // 5. Chat Time and Sending Indicators
+                    if (!isVoice) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
+                            val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
+                            formatChatTime(context, time, settings.timeFormatPreference)
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End,
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text(
+                                text = timeString,
+                                fontSize = 10.sp,
+                                color = contentColor.copy(alpha = 0.7f)
+                            )
+                            if (isOutgoing) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                if (msg.timestamp == 0L) {
+                                    Icon(
+                                        imageVector = Icons.Default.AccessTime,
+                                        contentDescription = "Sending",
+                                        tint = contentColor.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                } else {
+                                    Box(modifier = Modifier.size(width = 18.dp, height = 12.dp)) {
+                                        Icon(
+                                            imageVector = Icons.Default.Done,
+                                            contentDescription = "Delivered",
+                                            tint = contentColor.copy(alpha = 0.7f),
+                                            modifier = Modifier.size(12.dp).align(Alignment.CenterStart)
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.Done,
+                                            contentDescription = "Delivered",
+                                            tint = contentColor.copy(alpha = 0.7f),
+                                            modifier = Modifier.size(12.dp).align(Alignment.CenterEnd)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

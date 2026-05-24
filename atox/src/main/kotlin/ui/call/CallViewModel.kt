@@ -5,41 +5,67 @@
 
 package ltd.evilcorp.atox.ui.call
 
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.asLiveData
+import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import ltd.evilcorp.atox.service.ProximityScreenOff
-import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.ContactManager
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
+import ltd.evilcorp.domain.feature.NotificationManager
+import ltd.evilcorp.domain.feature.ProximityManager
 
 class CallViewModel @Inject constructor(
-    private val scope: CoroutineScope,
     private val callManager: CallManager,
-    private val notificationHelper: NotificationHelper,
+    private val notificationManager: NotificationManager,
     private val contactManager: ContactManager,
-    private val proximityScreenOff: ProximityScreenOff,
+    private val proximityManager: ProximityManager,
 ) : ViewModel() {
     private var publicKey = PublicKey("")
     private val activePublicKey = MutableStateFlow<PublicKey?>(null)
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val contact: LiveData<Contact?> = activePublicKey
+    private val _callDuration = MutableStateFlow("00:00")
+    val callDuration = _callDuration.asStateFlow()
+
+    private var durationJob: Job? = null
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val contact: StateFlow<Contact?> = activePublicKey
         .filterNotNull()
         .flatMapLatest { pk -> contactManager.get(pk) }
-        .asLiveData()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    init {
+        viewModelScope.launch {
+            callManager.inCall.collect { state ->
+                durationJob?.cancel()
+                if (state is CallState.Active) {
+                    val startTime = state.connectedAt
+                    durationJob = viewModelScope.launch {
+                        while (true) {
+                            val elapsedMs = android.os.SystemClock.elapsedRealtime() - startTime
+                            val elapsedSec = elapsedMs / 1000
+                            val minutes = elapsedSec / 60
+                            val seconds = elapsedSec % 60
+                            _callDuration.value = String.format("%02d:%02d", minutes, seconds)
+                            delay(1000)
+                        }
+                    }
+                } else {
+                    _callDuration.value = "00:00"
+                }
+            }
+        }
+    }
 
     fun setActiveContact(pk: PublicKey) {
         publicKey = pk
@@ -47,7 +73,7 @@ class CallViewModel @Inject constructor(
     }
 
     fun startCall() {
-        scope.launch {
+        viewModelScope.launch {
             val state = callManager.inCall.value
             val started = when (state) {
                 CallState.Idle -> callManager.startOutgoingCall(publicKey)
@@ -64,13 +90,13 @@ class CallViewModel @Inject constructor(
             }
 
             callManager.startSendingAudio()
-            notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).first() ?: Contact(publicKey.string()))
+            notificationManager.showOngoingCallNotification(contactManager.get(publicKey).first() ?: Contact(publicKey.string()))
         }
     }
 
-    fun endCall() = scope.launch {
+    fun endCall() = viewModelScope.launch {
         callManager.endCall(publicKey)
-        notificationHelper.dismissCallNotification(publicKey)
+        notificationManager.dismissCallNotification(publicKey)
     }
 
     fun startSendingAudio() = callManager.startSendingAudio()
@@ -81,9 +107,9 @@ class CallViewModel @Inject constructor(
     fun toggleSpeakerphone() {
         callManager.toggleSpeakerphone()
         if (speakerphoneState.value) {
-            proximityScreenOff.release()
+            proximityManager.release()
         } else {
-            proximityScreenOff.acquire()
+            proximityManager.acquire()
         }
     }
 

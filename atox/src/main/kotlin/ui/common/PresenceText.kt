@@ -20,7 +20,14 @@ fun formatChatTime(
     timeFormatPreference: TimeFormatPreference,
 ): String {
     val pattern = when (timeFormatPreference) {
-        TimeFormatPreference.System -> if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a"
+        TimeFormatPreference.System -> {
+            val is24 = try {
+                DateFormat.is24HourFormat(context)
+            } catch (e: Throwable) {
+                true
+            }
+            if (is24) "HH:mm" else "h:mm a"
+        }
         TimeFormatPreference.Hours24 -> "HH:mm"
         TimeFormatPreference.Hours12 -> "h:mm a"
     }

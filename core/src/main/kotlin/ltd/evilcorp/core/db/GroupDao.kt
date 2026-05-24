@@ -24,6 +24,9 @@ interface GroupDao {
     @Query("SELECT * FROM groups WHERE chat_id = :chatId")
     fun load(chatId: String): Flow<Group?>
 
+    @Query("SELECT * FROM groups WHERE chat_id = :chatId")
+    fun loadDirect(chatId: String): Group?
+
     @Query("SELECT COUNT(*) FROM groups WHERE chat_id = :chatId")
     fun exists(chatId: String): Int
 

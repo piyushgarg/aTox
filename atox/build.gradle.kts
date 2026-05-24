@@ -92,6 +92,8 @@ dependencies {
 
     debugImplementation(libs.square.leakcanary)
 
+    testImplementation(kotlin("test-junit"))
+
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.test.rules)
     androidTestImplementation(libs.test.runner)
@@ -106,4 +108,3 @@ dependencies {
         }
     }
 }
-

@@ -15,7 +15,7 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun saveAll(messages: List<Message>)
 
-    @Query("SELECT * FROM messages WHERE conversation == :conversation")
+    @Query("SELECT * FROM messages WHERE conversation == :conversation ORDER BY id ASC")
     fun load(conversation: String): Flow<List<Message>>
 
     @Query("SELECT * FROM messages")
@@ -38,4 +38,7 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE id = :id")
     fun deleteMessage(id: Long)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE conversation == :conversation AND message == :message LIMIT 1)")
+    fun exists(conversation: String, message: String): Boolean
 }
