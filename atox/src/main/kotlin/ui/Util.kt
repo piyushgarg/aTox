@@ -30,3 +30,13 @@ internal fun contactListSorter(contact: Contact) = when {
     contact.connectionStatus == ConnectionStatus.None -> OFFLINE_CONTACT_SORT_PRIORITY
     else -> -contact.status.ordinal.toLong()
 }
+
+fun stripReplyPrefix(text: String): String {
+    if (text.startsWith("[reply:")) {
+        val index = text.indexOf("] ")
+        if (index != -1) {
+            return text.substring(index + 2)
+        }
+    }
+    return text
+}

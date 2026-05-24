@@ -4,18 +4,22 @@
 
 package ltd.evilcorp.domain.tox
 
-import ltd.evilcorp.domain.tox.enums.ToxConnection
-import ltd.evilcorp.domain.tox.enums.ToxFileKind
-import ltd.evilcorp.domain.tox.enums.ToxMessageType
-import ltd.evilcorp.domain.tox.enums.ToxUserStatus
+import ltd.evilcorp.core.tox.enums.ToxConnection
+import ltd.evilcorp.core.tox.enums.ToxFileKind
+import ltd.evilcorp.core.tox.enums.ToxMessageType
+import ltd.evilcorp.core.tox.enums.ToxUserStatus
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import ltd.evilcorp.core.vo.ConnectionStatus
-import ltd.evilcorp.core.vo.FileKind
-import ltd.evilcorp.core.vo.MessageType
-import ltd.evilcorp.core.vo.UserStatus
+import ltd.evilcorp.core.model.ConnectionStatus
+import ltd.evilcorp.core.model.FileKind
+import ltd.evilcorp.core.model.MessageType
+import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.core.tox.hexToBytes
+import ltd.evilcorp.core.tox.bytesToHex
+import ltd.evilcorp.core.tox.toToxType
+import ltd.evilcorp.core.tox.toToxtype
 
 private fun byteArrayOf(vararg bytes: Int) = ByteArray(bytes.size) { bytes[it].toByte() }
 
@@ -67,10 +71,10 @@ class ToxUtilTest {
 
     @Test
     fun `file kind can be converted`() {
-        assertEquals(ToxFileKind.AVATAR, FileKind.Avatar.ordinal)
-        assertEquals(ToxFileKind.AVATAR, FileKind.Avatar.toToxtype())
-        assertEquals(ToxFileKind.DATA, FileKind.Data.ordinal)
-        assertEquals(ToxFileKind.DATA, FileKind.Data.toToxtype())
+        assertEquals(ToxFileKind.AVATAR.ordinal, FileKind.Avatar.ordinal)
+        assertEquals(ToxFileKind.AVATAR.ordinal, FileKind.Avatar.toToxtype())
+        assertEquals(ToxFileKind.DATA.ordinal, FileKind.Data.ordinal)
+        assertEquals(ToxFileKind.DATA.ordinal, FileKind.Data.toToxtype())
     }
 
     @Test

@@ -11,7 +11,7 @@ import ltd.evilcorp.core.model.User
 
 @Database(
     entities = [Contact::class, FileTransfer::class, FriendRequest::class, Message::class, User::class],
-    version = 6,
+    version = 7,
 )
 @TypeConverters(Converters::class)
 abstract class Database : RoomDatabase() {

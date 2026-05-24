@@ -2,6 +2,7 @@ package ltd.evilcorp.atox.ui.common
 
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -11,21 +12,28 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.theme.ContactBackgrounds
 import ltd.evilcorp.atox.ui.theme.avatarContentColor
 import kotlin.math.abs
+
+private val avatarBitmapCache = LruCache<String, ImageBitmap>(64)
 
 @Composable
 fun ContactAvatar(
@@ -60,16 +68,23 @@ fun ContactAvatar(
         } ?: 0L
     }
 
-    val avatarBitmap = remember(avatarUri, lastModified) {
-        avatarUri.takeIf { it.isNotEmpty() }?.let {
-            runCatching {
-                val file = Uri.parse(it).path?.let(::File)
-                if (file != null && file.exists()) {
-                    BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
-                } else {
-                    null
-                }
-            }.getOrNull()
+    val avatarBitmap by produceState<ImageBitmap?>(initialValue = null, avatarUri, lastModified) {
+        value = if (avatarUri.isEmpty()) {
+            null
+        } else {
+            val cacheKey = "$avatarUri:$lastModified"
+            avatarBitmapCache.get(cacheKey) ?: withContext(Dispatchers.IO) {
+                runCatching {
+                    val file = Uri.parse(avatarUri).path?.let(::File)
+                    if (file != null && file.exists()) {
+                        BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()?.also {
+                            avatarBitmapCache.put(cacheKey, it)
+                        }
+                    } else {
+                        null
+                    }
+                }.getOrNull()
+            }
         }
     }
 
@@ -80,9 +95,10 @@ fun ContactAvatar(
             .background(avatarColor),
         contentAlignment = Alignment.Center,
     ) {
-        if (avatarBitmap != null) {
+        val bitmap = avatarBitmap
+        if (bitmap != null) {
             Image(
-                bitmap = avatarBitmap,
+                bitmap = bitmap,
                 contentDescription = stringResource(R.string.profile_photo_description),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

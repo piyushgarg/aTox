@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import ltd.evilcorp.core.repository.UserSettingsRepository
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
@@ -80,7 +81,7 @@ class FileTransferManager @Inject constructor(
 
     fun reset() {
         fileTransfers.clear()
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             fileTransferRepository.resetTransientData()
         }
     }
@@ -95,13 +96,29 @@ class FileTransferManager @Inject constructor(
                 outgoingFiles.remove(Pair(pk, ft.fileNumber))?.inputStream?.close()
                 releaseFilePermission(uri)
             } else {
-                File(ft.destination).delete()
+                scope.launch(Dispatchers.IO) {
+                    val path = ft.destination.toUri().path
+                    if (path != null) {
+                        File(path).delete()
+                    }
+                }
             }
         }
     }
 
     fun add(ft: FileTransfer): Int {
         Log.i(TAG, "Add ${ft.fileNumber} for ${ft.publicKey.fingerprint()}")
+        
+        // Defensive clean-up of stale/dead transfers with the same reused fileNumber
+        val existing = fileTransfers.find { it.publicKey == ft.publicKey && it.fileNumber == ft.fileNumber }
+        if (existing != null) {
+            Log.w(TAG, "Found stale active transfer with fileNumber ${ft.fileNumber} for ${ft.publicKey.fingerprint()}, removing it")
+            fileTransfers.remove(existing)
+            scope.launch(Dispatchers.IO) {
+                fileTransferRepository.updateProgress(existing.id, FT_REJECTED)
+            }
+        }
+
         return when (ft.fileKind) {
             FileKind.Data.ordinal -> {
                 val id = fileTransferRepository.add(ft).toInt()
@@ -142,24 +159,30 @@ class FileTransferManager @Inject constructor(
 
     fun accept(ft: FileTransfer) {
         Log.i(TAG, "Accept ${ft.fileNumber} for ${ft.publicKey.fingerprint()}")
-        val file = when (ft.fileKind) {
-            FileKind.Data.ordinal -> {
-                val dest = makeDestination(ft)
-                val file = File(dest.path!!)
-                file.parentFile!!.mkdirs()
-                file
+        scope.launch(Dispatchers.IO) {
+            val file = when (ft.fileKind) {
+                FileKind.Data.ordinal -> {
+                    val dest = makeDestination(ft)
+                    val file = File(dest.path!!)
+                    file.parentFile!!.mkdirs()
+                    file
+                }
+                FileKind.Avatar.ordinal -> wipAvatar(ft.fileName)
+                else -> {
+                    Log.e(TAG, "Got unknown file kind when accepting ft: $ft")
+                    return@launch
+                }
             }
-            FileKind.Avatar.ordinal -> wipAvatar(ft.fileName)
-            else -> {
-                Log.e(TAG, "Got unknown file kind when accepting ft: $ft")
-                return
+
+            try {
+                RandomAccessFile(file, "rwd").use { it.setLength(ft.fileSize) }
+                setDestination(ft, Uri.fromFile(file))
+                setProgress(ft, FT_STARTED)
+                tox.startFileTransfer(PublicKey(ft.publicKey), ft.fileNumber)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to accept file transfer", e)
             }
         }
-
-        RandomAccessFile(file, "rwd").use { it.setLength(ft.fileSize) }
-        setDestination(ft, Uri.fromFile(file))
-        setProgress(ft, FT_STARTED)
-        tox.startFileTransfer(PublicKey(ft.publicKey), ft.fileNumber)
     }
 
     fun reject(id: Int) {
@@ -171,15 +194,17 @@ class FileTransferManager @Inject constructor(
     fun reject(ft: FileTransfer) {
         Log.i(TAG, "Reject ${ft.fileNumber} for ${ft.publicKey.fingerprint()}")
         fileTransfers.remove(ft)
-        setProgress(ft, FT_REJECTED)
         tox.stopFileTransfer(PublicKey(ft.publicKey), ft.fileNumber)
-        if (ft.destination.isNotEmpty()) {
-            val uri = ft.destination.toUri()
-            if (ft.outgoing) {
-                outgoingFiles.remove(Pair(ft.publicKey, ft.fileNumber))?.inputStream?.close()
-                releaseFilePermission(uri)
-            } else {
-                uri.path?.let { File(it).delete() }
+        scope.launch(Dispatchers.IO) {
+            setProgress(ft, FT_REJECTED)
+            if (ft.destination.isNotEmpty()) {
+                val uri = ft.destination.toUri()
+                if (ft.outgoing) {
+                    outgoingFiles.remove(Pair(ft.publicKey, ft.fileNumber))?.inputStream?.close()
+                    releaseFilePermission(uri)
+                } else {
+                    uri.path?.let { File(it).delete() }
+                }
             }
         }
     }
@@ -187,14 +212,18 @@ class FileTransferManager @Inject constructor(
     private fun setDestination(ft: FileTransfer, destination: Uri) {
         ft.destination = destination.toString()
         if (ft.fileKind == FileKind.Data.ordinal) {
-            fileTransferRepository.setDestination(ft.id, destination.toString())
+            scope.launch(Dispatchers.IO) {
+                fileTransferRepository.setDestination(ft.id, destination.toString())
+            }
         }
     }
 
     private fun setProgress(ft: FileTransfer, progress: Long) {
         ft.progress = progress
         if (ft.fileKind == FileKind.Data.ordinal) {
-            fileTransferRepository.updateProgress(ft.id, progress)
+            scope.launch(Dispatchers.IO) {
+                fileTransferRepository.updateProgress(ft.id, progress)
+            }
         }
     }
 
@@ -235,12 +264,17 @@ class FileTransferManager @Inject constructor(
     fun transfersFor(publicKey: PublicKey) = fileTransferRepository.get(publicKey.string())
 
     suspend fun create(pk: PublicKey, file: Uri) = withContext(Dispatchers.IO) {
-        val (name, size) = context.contentResolver.query(file, null, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val fileSize = cursor.getLong(cursor.getColumnIndexOrThrow(OpenableColumns.SIZE))
-                val name = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
-                Pair(name, fileSize)
-            } else null
+        val (name, size) = if (file.scheme == "file") {
+            val f = File(file.path ?: return@withContext)
+            Pair(f.name, f.length())
+        } else {
+            context.contentResolver.query(file, null, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val fileSize = cursor.getLong(cursor.getColumnIndexOrThrow(OpenableColumns.SIZE))
+                    val name = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+                    Pair(name, fileSize)
+                } else null
+            }
         } ?: return@withContext
 
         // Copy the chosen file to the app's cache directory to get a permanent file:// URI
@@ -251,9 +285,19 @@ class FileTransferManager @Inject constructor(
             return@withContext
         }
 
+        val fileNo = tox.sendFile(pk, FileKind.Data, size, name)
+        
+        // Defensive clean-up of stale/dead transfers with the same reused fileNumber
+        val existing = fileTransfers.find { it.publicKey == pk.string() && it.fileNumber == fileNo }
+        if (existing != null) {
+            Log.w(TAG, "Found stale active outgoing transfer with fileNumber $fileNo, removing it")
+            fileTransfers.remove(existing)
+            fileTransferRepository.updateProgress(existing.id, FT_REJECTED)
+        }
+
         val ft = FileTransfer(
             pk.string(),
-            tox.sendFile(pk, FileKind.Data, size, name),
+            fileNo,
             FileKind.Data.ordinal,
             size,
             name,
@@ -267,7 +311,11 @@ class FileTransferManager @Inject constructor(
         )
         fileTransfers.add(ft.copy().apply { this.id = id })
 
-        val inputStream = resolver.openInputStream(cachedFileUri)
+        val inputStream = if (cachedFileUri.scheme == "file") {
+            java.io.FileInputStream(File(cachedFileUri.path ?: return@withContext))
+        } else {
+            resolver.openInputStream(cachedFileUri)
+        }
         if (inputStream == null) {
             reject(ft)
             return@withContext
@@ -279,9 +327,14 @@ class FileTransferManager @Inject constructor(
         val cacheDir = File(context.cacheDir, "outgoing")
         cacheDir.mkdirs()
         val destFile = File(cacheDir, "${java.util.UUID.randomUUID()}_$name")
-        resolver.openInputStream(uri)?.use { input ->
+        val input = if (uri.scheme == "file") {
+            java.io.FileInputStream(File(uri.path ?: throw java.io.FileNotFoundException("Null path for file URI")))
+        } else {
+            resolver.openInputStream(uri)
+        }
+        input?.use { inp ->
             destFile.outputStream().use { output ->
-                input.copyTo(output)
+                inp.copyTo(output)
             }
         }
         return destFile.toUri()
@@ -343,7 +396,7 @@ class FileTransferManager @Inject constructor(
         }
     }
 
-    suspend fun deleteAll(publicKey: PublicKey) {
+    suspend fun deleteAll(publicKey: PublicKey) = withContext(Dispatchers.IO) {
         fileTransferRepository.get(publicKey.string()).take(1).collect { fts ->
             fts.kForEach { delete(it.id) }
         }
@@ -397,7 +450,7 @@ class FileTransferManager @Inject constructor(
         }
     }
 
-    suspend fun delete(id: Int) {
+    suspend fun delete(id: Int) = withContext(Dispatchers.IO) {
         fileTransfers.find { it.id == id }?.let {
             if (!it.isComplete() && !it.isRejected()) {
                 reject(it)
@@ -406,7 +459,10 @@ class FileTransferManager @Inject constructor(
         }
         fileTransferRepository.get(id).take(1).collect {
             if (!it.outgoing && it.destination.startsWith("file://")) {
-                File(it.destination.toUri().path!!).delete()
+                val path = it.destination.toUri().path
+                if (path != null) {
+                    File(path).delete()
+                }
             }
             fileTransferRepository.delete(id)
         }
@@ -446,6 +502,12 @@ class FileTransferManager @Inject constructor(
             val sourceFile = File(ft.destination.toUri().path ?: return)
             if (!sourceFile.exists()) return
 
+            val configuredDirectory = userSettingsRepository.settings.value.autoSaveDirectoryUri
+            if (configuredDirectory.isNotBlank()) {
+                autoSaveFileToDirectory(ft, sourceFile, configuredDirectory.toUri())
+                return
+            }
+
             val resolver = context.contentResolver
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, ft.fileName)
@@ -468,6 +530,21 @@ class FileTransferManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Error auto-saving file ${ft.fileName} to public Downloads", e)
         }
+    }
+
+    private fun autoSaveFileToDirectory(ft: FileTransfer, sourceFile: File, directoryUri: Uri) {
+        val mimeType = MimeTypeMap.getSingleton()
+            .getMimeTypeFromExtension(sourceFile.extension.lowercase())
+            ?: "application/octet-stream"
+        val targetUri = DocumentsContract.createDocument(resolver, directoryUri, mimeType, ft.fileName)
+            ?: throw IllegalStateException("Failed to create ${ft.fileName} in $directoryUri")
+        resolver.openOutputStream(targetUri)?.use { out ->
+            sourceFile.inputStream().use { input ->
+                input.copyTo(out)
+            }
+        } ?: throw IllegalStateException("Failed to open $targetUri for writing")
+        Log.i(TAG, "Successfully auto-saved ${ft.fileName} to configured directory at $targetUri")
+        setDestination(ft, targetUri)
     }
 
     fun getCacheSize(): Long {

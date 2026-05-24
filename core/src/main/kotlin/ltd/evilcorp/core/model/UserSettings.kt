@@ -28,6 +28,20 @@ enum class AppSound {
     Ripple,
 }
 
+enum class BackupDestination {
+    Local,
+    GoogleDrive,
+    Nextcloud,
+    WebDav,
+}
+
+enum class BackupFrequency {
+    Off,
+    Daily,
+    Weekly,
+    Monthly,
+}
+
 data class UserSettings(
     val themeMode: Int = DEFAULT_THEME_MODE,
     val dynamicColorEnabled: Boolean = true,
@@ -58,4 +72,13 @@ data class UserSettings(
     val activeChatSoundUri: String = "",
     val hapticEnabled: Boolean = true,
     val autoSaveToDownloads: Boolean = true,
+    val autoSaveDirectoryUri: String = "",
+    val backupEncryptionEnabled: Boolean = false,
+    val backupEndToEndEncryptionEnabled: Boolean = false,
+    val automaticBackupEnabled: Boolean = false,
+    val backupFrequency: BackupFrequency = BackupFrequency.Off,
+    val backupGoogleAccount: String = "",
+    val backupUseCellular: Boolean = false,
+    val backupDestinationOrdinals: Set<Int> = setOf(BackupDestination.Local.ordinal),
+    val enableReplies: Boolean = true,
 )

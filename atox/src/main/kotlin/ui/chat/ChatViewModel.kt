@@ -5,24 +5,23 @@
 
 package ltd.evilcorp.atox.ui.chat
 
-import android.content.ContentResolver
-import android.content.Context
 import android.net.Uri
 import android.util.Log
-import android.widget.Toast
 import androidx.core.net.toUri
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.squareup.picasso.Picasso
 import javax.inject.Inject
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -49,7 +48,6 @@ import ltd.evilcorp.domain.feature.ExportManager
 import ltd.evilcorp.domain.feature.FileTransferManager
 
 private const val TAG = "ChatViewModel"
-private const val NAVIGATION_TRANSITION_MS = 300L
 
 enum class CallAvailability {
     Unavailable,
@@ -64,42 +62,50 @@ class ChatViewModel @Inject constructor(
     private val contactManager: ContactManager,
     private val fileTransferManager: FileTransferManager,
     private val notificationHelper: NotificationHelper,
-    private val resolver: ContentResolver,
-    private val context: Context,
-    private val scope: CoroutineScope,
+    private val fileExporter: FileExporter,
     private val settings: Settings,
 ) : ViewModel() {
     private var publicKey = PublicKey("")
     private var sentTyping = false
-    private var clearActiveChatJob: Job? = null
-    private var activeChatSideEffectsJob: Job? = null
 
     private val activePublicKey = MutableStateFlow<PublicKey?>(null)
+    private val contentPublicKey = MutableStateFlow<PublicKey?>(null)
+    private var contentActivationJob: Job? = null
+
+    val replyingToMessage = MutableStateFlow<Message?>(null)
+
+    fun setReplyingTo(message: Message?) {
+        replyingToMessage.value = message
+    }
+
+    sealed interface ChatUiEvent {
+        data class ShowToast(val messageResId: Int, val formatArg: String? = null) : ChatUiEvent
+    }
+
+    private val _uiEvents = MutableSharedFlow<ChatUiEvent>()
+    val uiEvents = _uiEvents.asSharedFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val contact: LiveData<Contact?> = activePublicKey
+    val contact: StateFlow<Contact?> = activePublicKey
         .filterNotNull()
         .flatMapLatest { pk -> contactManager.get(pk) }
-        .asLiveData()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val messages: LiveData<List<Message>> = activePublicKey
-        .filterNotNull()
-        .flatMapLatest { pk -> chatManager.messagesFor(pk) }
-        .distinctUntilChanged()
-        .asLiveData()
+    private val _messages = MutableStateFlow<List<Message>>(emptyList())
+    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val fileTransfers: LiveData<List<FileTransfer>> = activePublicKey
-        .filterNotNull()
-        .flatMapLatest { pk -> fileTransferManager.transfersFor(pk) }
-        .asLiveData()
+    private val _fileTransfers = MutableStateFlow<List<FileTransfer>>(emptyList())
+    val fileTransfers: StateFlow<List<FileTransfer>> = _fileTransfers.asStateFlow()
 
     fun callingNeedsConfirmation(): Boolean = settings.confirmCalling
-    val ongoingCall = callManager.inCall.asLiveData()
+    val ongoingCall = callManager.inCall
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val callState: LiveData<CallAvailability> = activePublicKey
+    val callState: StateFlow<CallAvailability> = activePublicKey
         .filterNotNull()
         .flatMapLatest { pk ->
             contactManager.get(pk)
@@ -123,51 +129,77 @@ class ChatViewModel @Inject constructor(
                             if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
                     }
                 }
-        }.asLiveData()
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = CallAvailability.Unavailable
+        )
 
     var contactOnline = false
 
-    fun send(message: String, type: MessageType) = chatManager.sendMessage(publicKey, message, type)
+    fun send(message: String, type: MessageType) {
+        val replyMsg = replyingToMessage.value
+        val textToSend = if (replyMsg != null && settings.enableReplies) {
+            "[reply:${replyMsg.message.hashCode()}] $message"
+        } else {
+            message
+        }
+        replyingToMessage.value = null
+        chatManager.sendMessage(publicKey, textToSend, type)
+    }
 
-    fun startCall() = scope.launch {
+    fun startCall() = viewModelScope.launch {
         if (callManager.startOutgoingCall(publicKey)) {
             callManager.startSendingAudio()
             notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).take(1).first() ?: Contact(publicKey.string()))
         }
     }
 
-    fun clearHistory() = scope.launch {
+    fun clearHistory() = viewModelScope.launch {
         chatManager.clearHistory(publicKey)
         fileTransferManager.deleteAll(publicKey)
     }
 
-    fun setActiveChat(pk: PublicKey, deferSideEffects: Boolean = false) {
-        if (pk.string().isNotEmpty()) {
-            clearActiveChatJob?.cancel()
-            clearActiveChatJob = null
-        }
-        activeChatSideEffectsJob?.cancel()
-
+    fun setActiveChat(pk: PublicKey) {
         if (pk.string().isEmpty()) {
             Log.i(TAG, "Clearing active chat")
             setTyping(false)
             activePublicKey.value = null
+            contentActivationJob?.cancel()
+            contentActivationJob = null
+            contentPublicKey.value = null
+            _messages.value = emptyList()
+            _fileTransfers.value = emptyList()
         } else {
             Log.i(TAG, "Setting active chat ${pk.fingerprint()}")
             activePublicKey.value = pk
+            _messages.value = ChatHistoryCache.get(pk.string())
+            _fileTransfers.value = ChatHistoryCache.getTransfers(pk.string())
+            contentActivationJob?.cancel()
+            contentPublicKey.value = null
+            contentActivationJob = viewModelScope.launch {
+                delay(450L)
+                if (activePublicKey.value == pk) {
+                    contentPublicKey.value = pk
+                    
+                    launch {
+                        chatManager.messagesFor(pk).collect { list ->
+                            _messages.value = list
+                            ChatHistoryCache.put(pk.string(), list.takeLast(15))
+                        }
+                    }
+                    
+                    launch {
+                        fileTransferManager.transfersFor(pk).collect { list ->
+                            _fileTransfers.value = list
+                            ChatHistoryCache.putTransfers(pk.string(), list)
+                        }
+                    }
+                }
+            }
         }
 
         publicKey = pk
-        if (deferSideEffects && pk.string().isNotEmpty()) {
-            activeChatSideEffectsJob = viewModelScope.launch {
-                delay(NAVIGATION_TRANSITION_MS)
-                if (publicKey == pk) {
-                    applyActiveChatSideEffects(pk)
-                }
-            }
-            return
-        }
-
         applyActiveChatSideEffects(pk)
     }
 
@@ -176,14 +208,13 @@ class ChatViewModel @Inject constructor(
         chatManager.activeChat = pk.string()
     }
 
-    fun clearActiveChatAfterNavigation(expectedPublicKey: PublicKey) {
-        activeChatSideEffectsJob?.cancel()
-        activeChatSideEffectsJob = null
-        clearActiveChatJob?.cancel()
-        clearActiveChatJob = viewModelScope.launch {
-            delay(NAVIGATION_TRANSITION_MS)
-            if (publicKey == expectedPublicKey) {
-                setActiveChat(PublicKey(""))
+    fun clearActiveChat(expectedPublicKey: PublicKey) {
+        if (publicKey == expectedPublicKey) {
+            viewModelScope.launch {
+                delay(450L)
+                if (publicKey == expectedPublicKey) {
+                    setActiveChat(PublicKey(""))
+                }
             }
         }
     }
@@ -196,75 +227,46 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun acceptFt(id: Int) = scope.launch {
+    fun acceptFt(id: Int) = viewModelScope.launch {
         fileTransferManager.accept(id)
     }
 
-    fun rejectFt(id: Int) = scope.launch {
+    fun rejectFt(id: Int) = viewModelScope.launch {
         fileTransferManager.reject(id)
     }
 
-    fun createFt(file: Uri) = scope.launch {
-        // Make sure there's no stale cached image in Picasso.
-        // This happens if the user sends 2 different files with the same path (e.g. by overwriting one with the other.)
-        Picasso.get().invalidate(file)
+    fun createFt(file: Uri) = viewModelScope.launch {
+        // Make sure there's no stale cached image in Picasso via NotificationHelper
+        notificationHelper.invalidateAvatar(file)
         fileTransferManager.create(publicKey, file)
     }
 
-    fun delete(msg: Message) = scope.launch {
+    fun delete(msg: Message) = viewModelScope.launch {
         if (msg.type == MessageType.FileTransfer) {
             fileTransferManager.delete(msg.correlationId)
         }
         chatManager.deleteMessage(msg.id)
     }
 
-    fun exportFt(id: Int, dest: Uri) = scope.launch {
+    fun exportFt(id: Int, dest: Uri) = viewModelScope.launch {
         fileTransferManager.get(id).take(1).collect { ft ->
-            launch(Dispatchers.IO) {
-                try {
-                    resolver.openInputStream(ft.destination.toUri())?.use { ins ->
-                        resolver.openOutputStream(dest).use { os ->
-                            ins.copyTo(os!!)
-                        }
-                    } ?: throw IllegalStateException("Unable to open ${ft.destination}")
-                } catch (e: Exception) {
-                    Log.e(TAG, e.toString())
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, R.string.export_file_failure, Toast.LENGTH_LONG).show()
-                    }
-                    return@launch
-                }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, R.string.export_file_success, Toast.LENGTH_LONG).show()
-                }
+            val result = fileExporter.exportFile(ft.destination, dest.toString())
+            if (result.isSuccess) {
+                _uiEvents.emit(ChatUiEvent.ShowToast(R.string.export_file_success))
+            } else {
+                _uiEvents.emit(ChatUiEvent.ShowToast(R.string.export_file_failure))
             }
         }
     }
 
-    fun backupHistory(publicKey: String, locationSave: Uri) = scope.launch {
+    fun backupHistory(publicKey: String, locationSave: Uri) = viewModelScope.launch {
         val backupContent = exportManager.generateExportMessagesJString(publicKey)
-        launch(Dispatchers.IO) {
-            try {
-                resolver.openOutputStream(locationSave).use { os ->
-                    backupContent.byteInputStream().copyTo(os!!)
-                }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        R.string.export_history_success,
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, e.toString())
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.export_history_failure, e.message),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-            }
+        val result = fileExporter.exportHistory(backupContent, locationSave.toString())
+        if (result.isSuccess) {
+            _uiEvents.emit(ChatUiEvent.ShowToast(R.string.export_history_success))
+        } else {
+            val errorMsg = result.exceptionOrNull()?.message
+            _uiEvents.emit(ChatUiEvent.ShowToast(R.string.export_history_failure, errorMsg))
         }
     }
 

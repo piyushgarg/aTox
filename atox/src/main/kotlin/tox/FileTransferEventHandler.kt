@@ -72,7 +72,7 @@ class FileTransferEventHandler @Inject constructor(
             }
 
             val autoAccept = settings.ftAutoAccept
-            if (autoAccept == FtAutoAccept.All || autoAccept == FtAutoAccept.Images && isImage(filename)) {
+            if (autoAccept == FtAutoAccept.All || (autoAccept == FtAutoAccept.Images && isImage(filename))) {
                 fileTransferManager.accept(id)
             }
         }

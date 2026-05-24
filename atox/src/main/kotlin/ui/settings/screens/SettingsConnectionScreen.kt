@@ -1,0 +1,190 @@
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
+package ltd.evilcorp.atox.ui.settings.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.settings.components.SettingsClickableRow
+import ltd.evilcorp.atox.ui.settings.components.SettingsGroup
+import ltd.evilcorp.atox.ui.settings.components.SettingsSwitchRow
+import ltd.evilcorp.core.model.BootstrapNodeSource
+import ltd.evilcorp.core.tox.save.ProxyType
+
+@Composable
+fun SettingsConnectionScreen(
+    paddingValues: PaddingValues,
+    udpEnabled: Boolean,
+    runAtStartup: Boolean,
+    bootstrapNodeSource: BootstrapNodeSource,
+    disableScreenshots: Boolean,
+    confirmQuitting: Boolean,
+    confirmCalling: Boolean,
+    proxyType: ProxyType,
+    proxyAddress: String,
+    proxyPortInput: String,
+    focusManager: FocusManager,
+    performHaptic: () -> Unit,
+    onUdpEnabledChanged: (Boolean) -> Unit,
+    onRunAtStartupChanged: (Boolean) -> Unit,
+    onBootstrapNodesClick: () -> Unit,
+    onDisableScreenshotsChanged: (Boolean) -> Unit,
+    onConfirmQuittingChanged: (Boolean) -> Unit,
+    onConfirmCallingChanged: (Boolean) -> Unit,
+    onProxyTypeClick: () -> Unit,
+    onProxyAddressChanged: (String) -> Unit,
+    onProxyPortInputChanged: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(paddingValues)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+    ) {
+        item {
+            SettingsGroup(title = stringResource(R.string.settings_network_group)) {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.pref_udp_enabled),
+                    subtitle = stringResource(R.string.pref_udp_enabled),
+                    checked = udpEnabled
+                ) { checked ->
+                    performHaptic()
+                    onUdpEnabledChanged(checked)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                SettingsSwitchRow(
+                    title = stringResource(R.string.pref_run_at_startup),
+                    subtitle = stringResource(R.string.settings_start_on_boot_sub),
+                    checked = runAtStartup
+                ) { checked ->
+                    performHaptic()
+                    onRunAtStartupChanged(checked)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                val bootstrapLabel = when (bootstrapNodeSource) {
+                    BootstrapNodeSource.BuiltIn -> stringResource(R.string.settings_nodes_builtin)
+                    BootstrapNodeSource.UserProvided -> stringResource(R.string.settings_nodes_user)
+                }
+                SettingsClickableRow(
+                    title = stringResource(R.string.settings_nodes_list),
+                    subtitle = bootstrapLabel
+                ) {
+                    performHaptic()
+                    onBootstrapNodesClick()
+                }
+            }
+        }
+
+        item {
+            SettingsGroup(title = stringResource(R.string.settings_proxy_group)) {
+                val proxyLabel = when (proxyType) {
+                    ProxyType.None -> stringResource(R.string.pref_proxy_type_none)
+                    ProxyType.HTTP -> stringResource(R.string.pref_proxy_type_http)
+                    ProxyType.SOCKS5 -> stringResource(R.string.pref_proxy_type_socks5)
+                }
+                SettingsClickableRow(
+                    title = stringResource(R.string.settings_proxy_type),
+                    subtitle = proxyLabel
+                ) {
+                    performHaptic()
+                    onProxyTypeClick()
+                }
+                if (proxyType != ProxyType.None) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        OutlinedTextField(
+                            value = proxyAddress,
+                            onValueChange = onProxyAddressChanged,
+                            label = { Text(stringResource(R.string.settings_proxy_address)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.None,
+                                autoCorrectEnabled = false,
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = proxyPortInput,
+                            onValueChange = onProxyPortInputChanged,
+                            label = { Text(stringResource(R.string.settings_proxy_port)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                autoCorrectEnabled = false,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { focusManager.clearFocus() }
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            SettingsGroup(title = stringResource(R.string.settings_privacy_group)) {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.pref_block_screenshots),
+                    subtitle = stringResource(R.string.pref_block_screenshots_description),
+                    checked = disableScreenshots
+                ) { checked ->
+                    performHaptic()
+                    onDisableScreenshotsChanged(checked)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                SettingsSwitchRow(
+                    title = stringResource(R.string.pref_confirm_quitting),
+                    subtitle = stringResource(R.string.quit_confirm),
+                    checked = confirmQuitting
+                ) { checked ->
+                    performHaptic()
+                    onConfirmQuittingChanged(checked)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                SettingsSwitchRow(
+                    title = stringResource(R.string.pref_confirm_calling),
+                    subtitle = stringResource(R.string.call_confirm),
+                    checked = confirmCalling
+                ) { checked ->
+                    performHaptic()
+                    onConfirmCallingChanged(checked)
+                }
+            }
+        }
+    }
+}

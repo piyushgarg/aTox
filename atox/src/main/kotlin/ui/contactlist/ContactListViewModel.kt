@@ -5,24 +5,16 @@
 
 package ltd.evilcorp.atox.ui.contactlist
 
-import android.content.ContentResolver
-import android.content.Context
-import android.net.Uri
-import android.widget.Toast
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.asLiveData
-import java.io.FileInputStream
-import java.io.FileNotFoundException
-import java.io.FileOutputStream
+import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import ltd.evilcorp.atox.R
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.first
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.atox.ui.NotificationHelper
@@ -41,106 +33,107 @@ import ltd.evilcorp.core.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.domain.tox.Tox
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
-import ltd.evilcorp.core.tox.save.SaveManager
-import ltd.evilcorp.core.db.Database
+import ltd.evilcorp.atox.domain.usecase.DeleteProfileUseCase
+
+import ltd.evilcorp.atox.domain.usecase.DeleteContactUseCase
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.debounce
 
 class ContactListViewModel @Inject constructor(
-    private val scope: CoroutineScope,
-    private val context: Context,
-    private val resolver: ContentResolver,
     private val callManager: CallManager,
     private val chatManager: ChatManager,
     private val contactManager: ContactManager,
     private val fileTransferManager: FileTransferManager,
-    private val friendRequestManager: FriendRequestManager,
     private val notificationHelper: NotificationHelper,
     private val tox: Tox,
-    private val toxStarter: ToxStarter,
     private val settings: Settings,
-    private val saveManager: SaveManager,
-    private val database: Database,
+    private val deleteProfileUseCase: DeleteProfileUseCase,
+    private val deleteContactUseCase: DeleteContactUseCase,
     userManager: UserManager,
 ) : ViewModel() {
     val publicKey by lazy { tox.publicKey }
 
-    val user: LiveData<User?> by lazy { userManager.get(publicKey).asLiveData() }
-    val contacts: LiveData<List<Contact>> = contactManager.getAll().asLiveData()
-    val friendRequests: LiveData<List<FriendRequest>> = friendRequestManager.getAll().asLiveData()
+    val user: StateFlow<User?> by lazy {
+        userManager.get(publicKey)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = null
+            )
+    }
 
-    fun isToxRunning() = tox.started
-    fun tryLoadTox(password: String?): ToxSaveStatus = toxStarter.tryLoadTox(password)
-    fun quitTox() = toxStarter.stopTox()
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
 
-    fun deleteProfileAndData() {
-        val pk = tox.publicKey
-        toxStarter.stopTox()
-        saveManager.delete(pk)
-        saveManager.list().forEach {
+    private val _selectedChatSnapshot = MutableStateFlow<Contact?>(null)
+    val selectedChatSnapshot = _selectedChatSnapshot.asStateFlow()
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun prepareOpenChat(contact: Contact) {
+        _selectedChatSnapshot.value = contact
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                saveManager.delete(PublicKey(it))
+                val messagesList = chatManager.messagesFor(PublicKey(contact.publicKey)).first()
+                ltd.evilcorp.atox.ui.chat.ChatHistoryCache.put(contact.publicKey, messagesList.takeLast(15))
+                
+                val transfersList = fileTransferManager.transfersFor(PublicKey(contact.publicKey)).first()
+                ltd.evilcorp.atox.ui.chat.ChatHistoryCache.putTransfers(contact.publicKey, transfersList)
             } catch (e: Exception) {
-                // Ignore
+                // ignore
             }
         }
-        scope.launch(Dispatchers.IO) {
-            database.clearAllTables()
+    }
+
+    val contacts: StateFlow<List<Contact>> = contactManager.getAll()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val visibleContacts: StateFlow<List<Contact>> = contactManager.getAll()
+        .combine(_searchQuery) { contactsList, query ->
+            ltd.evilcorp.atox.ui.contactlist.components.visibleChatContacts(contactsList, query)
+        }
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun isToxRunning() = tox.started
+
+    fun deleteProfileAndData() {
+        viewModelScope.launch {
+            deleteProfileUseCase.execute()
         }
     }
 
     fun quittingNeedsConfirmation(): Boolean = settings.confirmQuitting
 
-    fun acceptFriendRequest(friendRequest: FriendRequest) = friendRequestManager.accept(friendRequest)
-    fun rejectFriendRequest(friendRequest: FriendRequest) = friendRequestManager.reject(friendRequest)
     fun deleteContact(publicKey: PublicKey) {
-        callManager.endCall(publicKey)
-        notificationHelper.dismissNotifications(publicKey)
-        notificationHelper.dismissCallNotification(publicKey)
-        contactManager.delete(publicKey)
-        chatManager.clearHistory(publicKey)
-        scope.launch {
-            fileTransferManager.deleteAll(publicKey)
+        viewModelScope.launch {
+            deleteContactUseCase.execute(publicKey)
         }
     }
 
-    fun contactAdded(toxId: PublicKey): Boolean = runBlocking {
-        return@runBlocking contactManager.get(toxId).firstOrNull() != null
-    }
-
-    fun saveToxBackupTo(uri: Uri) = scope.launch(Dispatchers.IO) {
-        // Export the save.
-        try {
-            resolver.openFileDescriptor(uri, "w")!!.use { fd ->
-                FileOutputStream(fd.fileDescriptor).use { out ->
-                    out.write(tox.getSaveData())
-                }
-            }
-        } catch (_: FileNotFoundException) {
-            withContext(Dispatchers.Main) {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.tox_save_export_failure, context.getString(R.string.file_not_found)),
-                    Toast.LENGTH_LONG,
-                ).show()
-            }
-            return@launch
-        }
-
-        // Verify that the exported save can be imported.
-        resolver.openFileDescriptor(uri, "r")!!.use { fd ->
-            FileInputStream(fd.fileDescriptor).use { ios ->
-                val saveData = ios.readBytes()
-                val save = SaveOptions(saveData, true, ProxyType.None, "", 0)
-                val toast = when (val status = testToxSave(save, tox.password)) {
-                    ToxSaveStatus.Ok -> context.getText(R.string.tox_save_exported)
-                    else -> context.getString(R.string.tox_save_export_failure, status.name)
-                }
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, toast, Toast.LENGTH_LONG).show()
-                }
-            }
-        }
+    suspend fun contactAdded(toxId: PublicKey): Boolean {
+        return contactManager.get(toxId).firstOrNull() != null
     }
 
     fun onShareText(what: String, to: Contact) = chatManager.sendMessage(PublicKey(to.publicKey), what)
+
+    fun onShareFile(uri: android.net.Uri, to: Contact) {
+        viewModelScope.launch {
+            fileTransferManager.create(PublicKey(to.publicKey), uri)
+        }
+    }
 }

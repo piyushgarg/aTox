@@ -4,28 +4,30 @@
 
 package ltd.evilcorp.atox.ui.settings
 
-import android.content.ContentResolver
-import android.content.Context
-import android.net.Uri
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import java.io.File
 import javax.inject.Inject
 import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.appearance.AppearanceManager
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.model.BootstrapNodeSource
 import ltd.evilcorp.core.model.FtAutoAccept
-import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeJsonParser
+import ltd.evilcorp.core.model.DateFormatPreference
+import ltd.evilcorp.core.model.TimeFormatPreference
+import ltd.evilcorp.core.model.BackupFrequency
+import ltd.evilcorp.core.model.BackupDestination
 import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeRegistry
 import ltd.evilcorp.core.tox.save.ProxyType
 import ltd.evilcorp.core.tox.save.SaveOptions
@@ -33,46 +35,42 @@ import ltd.evilcorp.core.tox.save.ToxSaveStatus
 import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.domain.tox.Tox
 import ltd.evilcorp.domain.feature.FileTransferManager
+import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.backup.BackupDataProvider
 import ltd.evilcorp.domain.backup.BackupUseCase
+import ltd.evilcorp.core.db.Database
+import ltd.evilcorp.atox.domain.usecase.CheckProxyUseCase
+import ltd.evilcorp.atox.domain.usecase.ProxyStatus
+import ltd.evilcorp.atox.domain.usecase.ImportBootstrapNodesUseCase
 
 private const val TOX_SHUTDOWN_POLL_DELAY_MS = 200L
 
-enum class ProxyStatus {
-    Good,
-    BadPort,
-    BadHost,
-    BadType,
-    NotFound,
+sealed interface SettingsUiEvent {
+    data class ShowToast(val messageResId: Int) : SettingsUiEvent
 }
 
 class SettingsViewModel @Inject constructor(
-    private val context: Context,
-    private val resolver: ContentResolver,
     private val settings: Settings,
     private val appearanceManager: AppearanceManager,
     private val toxStarter: ToxStarter,
     private val tox: Tox,
-    private val nodeParser: BootstrapNodeJsonParser,
     private val nodeRegistry: BootstrapNodeRegistry,
     private val fileTransferManager: FileTransferManager,
-    private val backupUseCase: BackupUseCase,
+    private val checkProxyUseCase: CheckProxyUseCase,
+    private val importBootstrapNodesUseCase: ImportBootstrapNodesUseCase,
 ) : ViewModel() {
     private var restartNeeded = false
 
-    private val _proxyStatus = MutableLiveData<ProxyStatus>()
-    val proxyStatus: LiveData<ProxyStatus> get() = _proxyStatus
+    private val _proxyStatus = MutableStateFlow<ProxyStatus?>(null)
+    val proxyStatus: StateFlow<ProxyStatus?> get() = _proxyStatus
 
-    private val _committed = MutableLiveData<Boolean>().apply { value = false }
-    val committed: LiveData<Boolean> get() = _committed
+    private val _committed = MutableStateFlow(false)
+    val committed: StateFlow<Boolean> get() = _committed
 
-    val backupProviders: List<BackupDataProvider> = backupUseCase.providers
+    fun isToxStarted(): Boolean = tox.started
 
-    private val _backupExporting = MutableLiveData(false)
-    val backupExporting: LiveData<Boolean> get() = _backupExporting
-
-    private val _backupExportStatus = MutableLiveData<Boolean?>()
-    val backupExportStatus: LiveData<Boolean?> get() = _backupExportStatus
+    private val _uiEvents = MutableSharedFlow<SettingsUiEvent>()
+    val uiEvents = _uiEvents.asSharedFlow()
 
     fun nospamAvailable(): Boolean = tox.started
     fun getNospam(): Int = tox.nospam
@@ -87,11 +85,12 @@ class SettingsViewModel @Inject constructor(
     fun setTheme(theme: Int) {
         appearanceManager.updateThemeMode(
             when (theme) {
-            0 -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-            1 -> AppCompatDelegate.MODE_NIGHT_NO
-            2 -> AppCompatDelegate.MODE_NIGHT_YES
-            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-        })
+                0 -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                1 -> AppCompatDelegate.MODE_NIGHT_NO
+                2 -> AppCompatDelegate.MODE_NIGHT_YES
+                else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            }
+        )
     }
 
     fun getFtAutoAccept(): FtAutoAccept = settings.ftAutoAccept
@@ -153,20 +152,13 @@ class SettingsViewModel @Inject constructor(
     fun checkProxy() {
         checkProxyJob?.cancel(null)
         checkProxyJob = viewModelScope.launch(Dispatchers.IO) {
-            val saveStatus = testToxSave(
-                SaveOptions(saveData = null, getUdpEnabled(), getProxyType(), getProxyAddress(), getProxyPort()),
-                null,
+            val proxyStatusResult = checkProxyUseCase.execute(
+                getUdpEnabled(),
+                getProxyType(),
+                getProxyAddress(),
+                getProxyPort()
             )
-
-            val proxyStatus = when (saveStatus) {
-                ToxSaveStatus.BadProxyHost -> ProxyStatus.BadHost
-                ToxSaveStatus.BadProxyPort -> ProxyStatus.BadPort
-                ToxSaveStatus.BadProxyType -> ProxyStatus.BadType
-                ToxSaveStatus.ProxyNotFound -> ProxyStatus.NotFound
-                else -> ProxyStatus.Good
-            }
-
-            _proxyStatus.postValue(proxyStatus)
+            _proxyStatus.value = proxyStatusResult
         }
     }
 
@@ -212,25 +204,12 @@ class SettingsViewModel @Inject constructor(
         restartNeeded = true
     }
 
-    suspend fun validateNodeJson(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        val bytes = resolver.openInputStream(uri)?.use {
-            it.readBytes()
-        } ?: return@withContext false
-
-        return@withContext nodeParser.parse(bytes.decodeToString()).isNotEmpty()
+    suspend fun validateNodeJson(uriString: String): Boolean {
+        return importBootstrapNodesUseCase.validate(uriString)
     }
 
-    suspend fun importNodeJson(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        val bytes = resolver.openInputStream(uri)?.use {
-            it.readBytes()
-        } ?: return@withContext false
-
-        val out = File(context.filesDir, "user_nodes.json")
-        out.delete()
-        if (!out.createNewFile()) return@withContext false
-
-        out.outputStream().use { it.write(bytes) }
-        return@withContext true
+    suspend fun importNodeJson(uriString: String): Boolean {
+        return importBootstrapNodesUseCase.import(uriString)
     }
 
     fun getDisableScreenshots(): Boolean = settings.disableScreenshots
@@ -241,17 +220,89 @@ class SettingsViewModel @Inject constructor(
     fun getCacheSize(): Long = fileTransferManager.getCacheSize()
     fun clearCache() = fileTransferManager.clearCache()
 
-    fun exportBackup(uri: Uri, selectedIds: Set<String>, password: String?) = viewModelScope.launch(Dispatchers.IO) {
-        _backupExporting.postValue(true)
-        val success = runCatching {
-            val data = backupUseCase.export(selectedIds, password)
-            resolver.openOutputStream(uri)?.use { it.write(data) } ?: error("Unable to open destination")
-        }.isSuccess
-        _backupExporting.postValue(false)
-        _backupExportStatus.postValue(success)
+    fun setHapticEnabled(enabled: Boolean) {
+        settings.hapticEnabled = enabled
     }
 
-    fun consumeBackupExportStatus() {
-        _backupExportStatus.value = null
+    fun setDateFormatPreference(pref: DateFormatPreference) {
+        settings.dateFormatPreference = pref
     }
+
+    fun setTimeFormatPreference(pref: TimeFormatPreference) {
+        settings.timeFormatPreference = pref
+    }
+
+    fun setAutoSaveToDownloads(enabled: Boolean) {
+        settings.autoSaveToDownloads = enabled
+    }
+
+    fun setEnableReplies(enabled: Boolean) {
+        settings.enableReplies = enabled
+    }
+
+    fun setAutoSaveDirectoryUri(uri: String) {
+        settings.autoSaveDirectoryUri = uri
+    }
+
+    fun setSentMessageSoundVolume(volume: Int) {
+        settings.sentMessageSoundVolume = volume
+    }
+
+    fun setCallSoundVolume(volume: Int) {
+        settings.callSoundVolume = volume
+    }
+
+    fun setNotificationSoundVolume(volume: Int) {
+        settings.notificationSoundVolume = volume
+    }
+
+    fun setActiveChatSoundVolume(volume: Int) {
+        settings.activeChatSoundVolume = volume
+    }
+
+    fun setSentMessageSoundUri(uri: String) {
+        settings.sentMessageSoundUri = uri
+    }
+
+    fun setCallRingtoneUri(uri: String) {
+        settings.callRingtoneUri = uri
+    }
+
+    fun setNotificationSoundUri(uri: String) {
+        settings.notificationSoundUri = uri
+    }
+
+    fun setActiveChatSoundUri(uri: String) {
+        settings.activeChatSoundUri = uri
+    }
+
+    fun setBackupEncryptionEnabled(enabled: Boolean) {
+        settings.backupEncryptionEnabled = enabled
+    }
+
+    fun setBackupGoogleAccount(account: String) {
+        settings.backupGoogleAccount = account
+    }
+
+    fun setAutomaticBackupEnabled(enabled: Boolean) {
+        settings.automaticBackupEnabled = enabled
+    }
+
+    fun setBackupFrequency(frequency: BackupFrequency) {
+        settings.backupFrequency = frequency
+    }
+
+    fun setBackupUseCellular(useCellular: Boolean) {
+        settings.backupUseCellular = useCellular
+    }
+
+    fun setBackupDestinations(destinations: Set<BackupDestination>) {
+        settings.backupDestinations = destinations
+    }
+
+    fun setBackupEndToEndEncryptionEnabled(enabled: Boolean) {
+        settings.backupEndToEndEncryptionEnabled = enabled
+    }
+
+
 }

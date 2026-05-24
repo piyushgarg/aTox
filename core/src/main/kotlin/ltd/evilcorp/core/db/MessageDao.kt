@@ -15,7 +15,7 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun saveAll(messages: List<Message>)
 
-    @Query("SELECT * FROM messages WHERE conversation == :conversation")
+    @Query("SELECT * FROM messages WHERE conversation == :conversation ORDER BY id ASC")
     fun load(conversation: String): Flow<List<Message>>
 
     @Query("SELECT * FROM messages")

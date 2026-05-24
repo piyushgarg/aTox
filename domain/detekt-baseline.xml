@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:CallManager.kt$CallManager$100</ID>
+    <ID>MagicNumber:CallManager.kt$CallManager$100f</ID>
+    <ID>MagicNumber:CallManager.kt$CallManager$500</ID>
+    <ID>MagicNumber:CallManager.kt$CallManager$900</ID>
+  </CurrentIssues>
+</SmellBaseline>

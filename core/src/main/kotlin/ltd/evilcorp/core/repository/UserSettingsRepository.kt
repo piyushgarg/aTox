@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import javax.inject.Inject
@@ -22,6 +23,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import ltd.evilcorp.core.model.BootstrapNodeSource
+import ltd.evilcorp.core.model.BackupDestination
+import ltd.evilcorp.core.model.BackupFrequency
 import ltd.evilcorp.core.model.DateFormatPreference
 import ltd.evilcorp.core.model.DEFAULT_ACCENT_COLOR_SEED
 import ltd.evilcorp.core.model.DEFAULT_THEME_MODE
@@ -94,6 +97,7 @@ class UserSettingsRepository @Inject constructor(
     fun updateConfirmQuitting(confirm: Boolean) = update(Keys.confirmQuitting, confirm)
 
     fun updateConfirmCalling(confirm: Boolean) = update(Keys.confirmCalling, confirm)
+    fun updateEnableReplies(enabled: Boolean) = update(Keys.enableReplies, enabled)
 
     fun updateSentMessageSoundVolume(volume: Int) = update(Keys.sentMessageSoundVolume, volume.coerceIn(0, 100))
     fun updateSentMessageSoundUri(uri: String) = update(Keys.sentMessageSoundUri, uri)
@@ -113,6 +117,24 @@ class UserSettingsRepository @Inject constructor(
     fun updateHapticEnabled(enabled: Boolean) = update(Keys.hapticEnabled, enabled)
 
     fun updateAutoSaveToDownloads(enabled: Boolean) = update(Keys.autoSaveToDownloads, enabled)
+
+    fun updateAutoSaveDirectoryUri(uri: String) = update(Keys.autoSaveDirectoryUri, uri)
+
+    fun updateBackupEncryptionEnabled(enabled: Boolean) = update(Keys.backupEncryptionEnabled, enabled)
+
+    fun updateBackupEndToEndEncryptionEnabled(enabled: Boolean) = update(Keys.backupEndToEndEncryptionEnabled, enabled)
+
+    fun updateAutomaticBackupEnabled(enabled: Boolean) = update(Keys.automaticBackupEnabled, enabled)
+
+    fun updateBackupFrequency(frequency: BackupFrequency) = update(Keys.backupFrequencyOrdinal, frequency.ordinal)
+
+    fun updateBackupGoogleAccount(account: String) = update(Keys.backupGoogleAccount, account)
+
+    fun updateBackupUseCellular(enabled: Boolean) = update(Keys.backupUseCellular, enabled)
+
+    fun updateBackupDestinationOrdinals(ordinals: Set<Int>) {
+        update(Keys.backupDestinationOrdinals, ordinals.map(Int::toString).toSet())
+    }
 
     private fun <T> update(key: Preferences.Key<T>, value: T) {
         scope.launch {
@@ -166,6 +188,22 @@ class UserSettingsRepository @Inject constructor(
                 activeChatSoundUri = preferences[Keys.activeChatSoundUri] ?: "",
                 hapticEnabled = preferences[Keys.hapticEnabled] ?: true,
                 autoSaveToDownloads = preferences[Keys.autoSaveToDownloads] ?: true,
+                autoSaveDirectoryUri = preferences[Keys.autoSaveDirectoryUri] ?: "",
+                backupEncryptionEnabled = preferences[Keys.backupEncryptionEnabled] ?: false,
+                backupEndToEndEncryptionEnabled = preferences[Keys.backupEndToEndEncryptionEnabled] ?: false,
+                automaticBackupEnabled = preferences[Keys.automaticBackupEnabled] ?: false,
+                backupFrequency = BackupFrequency.entries[
+                    preferences[Keys.backupFrequencyOrdinal] ?: BackupFrequency.Off.ordinal
+                ],
+                backupGoogleAccount = preferences[Keys.backupGoogleAccount] ?: "",
+                backupUseCellular = preferences[Keys.backupUseCellular] ?: false,
+                backupDestinationOrdinals = preferences[Keys.backupDestinationOrdinals]
+                    ?.mapNotNull(String::toIntOrNull)
+                    ?.filter { it in BackupDestination.entries.indices }
+                    ?.toSet()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: setOf(BackupDestination.Local.ordinal),
+                enableReplies = preferences[Keys.enableReplies] ?: true,
             )
     }
 
@@ -199,5 +237,14 @@ class UserSettingsRepository @Inject constructor(
         val activeChatSoundUri = stringPreferencesKey("active_chat_sound_uri")
         val hapticEnabled = booleanPreferencesKey("haptic_enabled")
         val autoSaveToDownloads = booleanPreferencesKey("auto_save_to_downloads")
+        val autoSaveDirectoryUri = stringPreferencesKey("auto_save_directory_uri")
+        val backupEncryptionEnabled = booleanPreferencesKey("backup_encryption_enabled")
+        val backupEndToEndEncryptionEnabled = booleanPreferencesKey("backup_end_to_end_encryption_enabled")
+        val automaticBackupEnabled = booleanPreferencesKey("automatic_backup_enabled")
+        val backupFrequencyOrdinal = intPreferencesKey("backup_frequency")
+        val backupGoogleAccount = stringPreferencesKey("backup_google_account")
+        val backupUseCellular = booleanPreferencesKey("backup_use_cellular")
+        val backupDestinationOrdinals = stringSetPreferencesKey("backup_destination_ordinals")
+        val enableReplies = booleanPreferencesKey("enable_replies")
     }
 }

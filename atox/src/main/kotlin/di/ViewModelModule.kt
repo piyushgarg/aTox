@@ -14,11 +14,12 @@ import ltd.evilcorp.atox.ui.addcontact.AddContactViewModel
 import ltd.evilcorp.atox.ui.call.CallViewModel
 import ltd.evilcorp.atox.ui.chat.ChatViewModel
 import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
-import ltd.evilcorp.atox.ui.contactprofile.ContactProfileViewModel
 import ltd.evilcorp.atox.ui.createprofile.CreateProfileViewModel
-import ltd.evilcorp.atox.ui.friendrequest.FriendRequestViewModel
 import ltd.evilcorp.atox.ui.settings.SettingsViewModel
+import ltd.evilcorp.atox.ui.settings.BackupSettingsViewModel
 import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
+import ltd.evilcorp.atox.ui.navigation.AuthViewModel
+import ltd.evilcorp.atox.ui.friendrequest.FriendRequestsViewModel
 
 @MustBeDocumented
 @Target(
@@ -55,16 +56,6 @@ abstract class ViewModelModule {
 
     @Binds
     @IntoMap
-    @ViewModelKey(ContactProfileViewModel::class)
-    abstract fun bindContactProfileViewModel(vm: ContactProfileViewModel): ViewModel
-
-    @Binds
-    @IntoMap
-    @ViewModelKey(FriendRequestViewModel::class)
-    abstract fun bindFriendRequestViewModel(vm: FriendRequestViewModel): ViewModel
-
-    @Binds
-    @IntoMap
     @ViewModelKey(CreateProfileViewModel::class)
     abstract fun bindProfileViewModel(vm: CreateProfileViewModel): ViewModel
 
@@ -77,4 +68,19 @@ abstract class ViewModelModule {
     @IntoMap
     @ViewModelKey(UserProfileViewModel::class)
     abstract fun bindUserProfileViewModel(vm: UserProfileViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(AuthViewModel::class)
+    abstract fun bindAuthViewModel(vm: AuthViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(FriendRequestsViewModel::class)
+    abstract fun bindFriendRequestsViewModel(vm: FriendRequestsViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(BackupSettingsViewModel::class)
+    abstract fun bindBackupSettingsViewModel(vm: BackupSettingsViewModel): ViewModel
 }

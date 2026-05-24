@@ -49,4 +49,19 @@ class AppModule {
         fileTransferHistory,
         transferredFiles,
     )
+
+    @Provides
+    fun provideFileExporter(exporter: ltd.evilcorp.atox.ui.chat.AndroidFileExporter): ltd.evilcorp.atox.ui.chat.FileExporter = exporter
+
+    @Provides
+    fun provideSettingsFileProcessor(processor: ltd.evilcorp.atox.ui.settings.AndroidSettingsFileProcessor): ltd.evilcorp.atox.ui.settings.SettingsFileProcessor = processor
+
+    @Provides
+    fun provideProximityManager(manager: ltd.evilcorp.atox.service.AndroidProximityManager): ltd.evilcorp.domain.feature.ProximityManager = manager
+
+    @Provides
+    fun provideNotificationManager(manager: ltd.evilcorp.atox.ui.AndroidNotificationManager): ltd.evilcorp.domain.feature.NotificationManager = manager
+
+    @Provides
+    fun provideProfileBackupProcessor(processor: ltd.evilcorp.atox.ui.createprofile.AndroidProfileBackupProcessor): ltd.evilcorp.atox.ui.createprofile.ProfileBackupProcessor = processor
 }
