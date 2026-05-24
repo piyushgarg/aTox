@@ -95,9 +95,54 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
 }
 
 val MIGRATION_7_8 = object : Migration(7, 8) {
-    override fun migrate(db: SupportSQLiteDatabase) = db.execSQL(
-        "CREATE INDEX IF NOT EXISTS index_messages_conversation_id ON messages(conversation, id)",
-    )
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_messages_conversation_id ON messages(conversation, id)",
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `groups` (
+                `chat_id` TEXT NOT NULL, 
+                `name` TEXT NOT NULL, 
+                `topic` TEXT NOT NULL, 
+                `password_protected` INTEGER NOT NULL, 
+                `privacy_state` TEXT NOT NULL, 
+                `peer_count` INTEGER NOT NULL, 
+                `self_peer_id` INTEGER NOT NULL, 
+                `self_role` TEXT NOT NULL, 
+                `last_message` INTEGER NOT NULL, 
+                `has_unread_messages` INTEGER NOT NULL, 
+                `draft_message` TEXT NOT NULL, 
+                `connected` INTEGER NOT NULL, 
+                `group_number` INTEGER NOT NULL, 
+                PRIMARY KEY(`chat_id`))
+            """.trimIndent()
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `group_messages` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                `group_chat_id` TEXT NOT NULL, 
+                `peer_id` INTEGER NOT NULL, 
+                `sender_name` TEXT NOT NULL, 
+                `message` TEXT NOT NULL, 
+                `sender` INTEGER NOT NULL, 
+                `type` INTEGER NOT NULL, 
+                `correlation_id` INTEGER NOT NULL, 
+                `timestamp` INTEGER NOT NULL)
+            """.trimIndent()
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `group_peers` (
+                `group_chat_id` TEXT NOT NULL, 
+                `peer_id` INTEGER NOT NULL, 
+                `name` TEXT NOT NULL, 
+                `public_key` TEXT NOT NULL, 
+                `role` TEXT NOT NULL, 
+                `is_ourselves` INTEGER NOT NULL, 
+                `status` INTEGER NOT NULL, 
+                PRIMARY KEY(`group_chat_id`, `peer_id`))
+            """.trimIndent()
+        )
+    }
 }
 
 val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
