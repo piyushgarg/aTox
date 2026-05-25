@@ -525,6 +525,7 @@ fun AToxNavGraph(
                             val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
                             CreateGroupScreen(
                                 onBack = { mainNavController.popBackStack() },
+                                isCreatingState = groupListViewModel.isCreating,
                                 onCreateGroup = { name, privacyState, password ->
                                     val num = groupListViewModel.createGroup(name, privacyState, password)
                                     if (num >= 0) {

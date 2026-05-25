@@ -1,5 +1,10 @@
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
 package ltd.evilcorp.atox.ui.groupchat
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,6 +32,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.core.model.GroupPrivacyState
 
@@ -34,13 +40,15 @@ import ltd.evilcorp.core.model.GroupPrivacyState
 @Composable
 fun CreateGroupScreen(
     onBack: () -> Unit,
+    isCreatingState: StateFlow<Boolean>,
     onCreateGroup: suspend (String, GroupPrivacyState, String?) -> Boolean,
 ) {
     var groupName by remember { mutableStateOf("") }
     var privacyState by remember { mutableStateOf(GroupPrivacyState.Public) }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var isCreating by remember { mutableStateOf(false) }
+
+    val isCreating by isCreatingState.collectAsState()
 
     val haptic = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
@@ -169,13 +177,18 @@ fun CreateGroupScreen(
                         }
                     }
 
-                    if (privacyState == GroupPrivacyState.Private) {
+                    // Premium drop-down transition visibility animation for private group password entry field!
+                    AnimatedVisibility(
+                        visible = privacyState == GroupPrivacyState.Private,
+                        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+                    ) {
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
                             label = { Text(stringResource(R.string.group_password)) },
                             placeholder = { Text(stringResource(R.string.group_password_placeholder)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                             singleLine = true,
                             enabled = !isCreating,
                             shape = MaterialTheme.shapes.medium,
@@ -197,13 +210,9 @@ fun CreateGroupScreen(
                     Button(
                         onClick = {
                             if (groupName.isNotBlank() && !isCreating) {
-                                isCreating = true
                                 performHaptic()
                                 scope.launch {
-                                    val success = onCreateGroup(groupName.trim(), privacyState, password.takeIf { it.isNotBlank() })
-                                    if (!success) {
-                                        isCreating = false
-                                    }
+                                    onCreateGroup(groupName.trim(), privacyState, password.takeIf { it.isNotBlank() })
                                 }
                             }
                         },

@@ -7,6 +7,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.core.model.Group
@@ -24,11 +26,20 @@ class GroupListViewModel @Inject constructor(
     val connectionStatuses: StateFlow<Map<String, GroupConnectionStatus>> = groupManager.connectionStatuses
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    suspend fun createGroup(name: String, privacyState: GroupPrivacyState, password: String? = null): Int =
-        withContext(Dispatchers.IO) {
-            val nickname = groupManager.getDefaultSelfName()
-            groupManager.createGroup(privacyState, name, nickname, password)
+    private val _isCreating = MutableStateFlow(false)
+    val isCreating: StateFlow<Boolean> = _isCreating.asStateFlow()
+
+    suspend fun createGroup(name: String, privacyState: GroupPrivacyState, password: String? = null): Int {
+        _isCreating.value = true
+        return try {
+            withContext(Dispatchers.IO) {
+                val nickname = groupManager.getDefaultSelfName()
+                groupManager.createGroup(privacyState, name, nickname, password)
+            }
+        } finally {
+            _isCreating.value = false
         }
+    }
 
     suspend fun leaveGroup(group: Group) = withContext(Dispatchers.IO) {
         groupManager.leaveGroup(group.chatId)
