@@ -1126,8 +1126,10 @@ fun AToxNavGraph(
                     contacts = contactsState,
                     settings = settings,
                     onBack = { navController.popBackStack() },
-                    onContactSelect = { contact ->
-                        contactListViewModel.onShareText(messageText, contact)
+                    onContactsSelect = { selectedList ->
+                        selectedList.forEach { contact ->
+                            contactListViewModel.onShareText(messageText, contact)
+                        }
                         Toast.makeText(context, context.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
                         navController.popBackStack()
                     }
@@ -1151,30 +1153,36 @@ fun AToxNavGraph(
                         MainActivity.sharedContentState.value = null
                         navController.popBackStack()
                     },
-                    onContactSelect = { contact ->
+                    onContactsSelect = { selectedList ->
                         val content = MainActivity.sharedContentState.value
                         if (content != null) {
-                            when (content) {
-                                is SharedContent.Text -> {
-                                    contactListViewModel.onShareText(content.text, contact)
-                                    Toast.makeText(context, context.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
-                                }
-                                is SharedContent.File -> {
-                                    contactListViewModel.onShareFile(content.uri, contact)
-                                    Toast.makeText(context, context.getString(R.string.file_sharing_started), Toast.LENGTH_SHORT).show()
-                                }
-                                is SharedContent.MultipleFiles -> {
-                                    content.uris.forEach { uri ->
-                                        contactListViewModel.onShareFile(uri, contact)
+                            selectedList.forEach { contact ->
+                                when (content) {
+                                    is SharedContent.Text -> {
+                                        contactListViewModel.onShareText(content.text, contact)
                                     }
-                                    Toast.makeText(context, context.getString(R.string.file_sharing_started), Toast.LENGTH_SHORT).show()
+                                    is SharedContent.File -> {
+                                        contactListViewModel.onShareFile(content.uri, contact)
+                                    }
+                                    is SharedContent.MultipleFiles -> {
+                                        content.uris.forEach { uri ->
+                                            contactListViewModel.onShareFile(uri, contact)
+                                        }
+                                    }
                                 }
+                            }
+                            if (content is SharedContent.Text) {
+                                Toast.makeText(context, context.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, context.getString(R.string.file_sharing_started), Toast.LENGTH_SHORT).show()
                             }
                             MainActivity.sharedContentState.value = null
                         }
                         navController.popBackStack()
-                        mainNavController.navigate(AppRoutes.chat(contact.publicKey)) {
-                            popUpTo(AppRoutes.Chats) { inclusive = false }
+                        if (selectedList.size == 1) {
+                            mainNavController.navigate(AppRoutes.chat(selectedList.first().publicKey)) {
+                                popUpTo(AppRoutes.Chats) { inclusive = false }
+                            }
                         }
                     }
                 )
