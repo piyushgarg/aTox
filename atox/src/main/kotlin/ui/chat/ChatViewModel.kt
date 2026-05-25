@@ -66,7 +66,7 @@ class ChatViewModel @Inject constructor(
     private val notificationHelper: NotificationHelper,
     private val fileExporter: FileExporter,
     private val settings: Settings,
-) : ViewModel() {
+) : ViewModel(), IChatController {
     private var publicKey = PublicKey("")
     private var sentTyping = false
 
@@ -279,5 +279,29 @@ class ChatViewModel @Inject constructor(
     fun onEndCall() {
         callManager.endCall(publicKey)
         notificationHelper.dismissCallNotification(publicKey)
+    }
+
+    override fun sendMessage(message: String, type: MessageType) {
+        send(message, type)
+    }
+
+    override fun sendFile(uri: Uri) {
+        createFt(uri)
+    }
+
+    override fun sendVoice(uri: Uri) {
+        createFt(uri)
+    }
+
+    override fun acceptFileTransfer(id: Int) {
+        acceptFt(id)
+    }
+
+    override fun rejectFileTransfer(id: Int) {
+        rejectFt(id)
+    }
+
+    override fun setDraftMessage(draft: String) {
+        setDraft(draft)
     }
 }

@@ -45,7 +45,7 @@ class GroupChatViewModel @Inject constructor(
     private val systemSoundPlayer: SystemSoundPlayer,
     private val groupRepository: GroupRepository,
     private val fileTransferRepository: FileTransferRepository,
-) : ViewModel() {
+) : ViewModel(), ltd.evilcorp.atox.ui.chat.IChatController {
     private var chatId = ""
     private var metadataSyncJob: kotlinx.coroutines.Job? = null
 
@@ -111,7 +111,7 @@ class GroupChatViewModel @Inject constructor(
         }
     }
 
-    fun sendMessage(message: String, type: MessageType = MessageType.Normal, correlationId: Int = -1) {
+    fun sendMessageInternal(message: String, type: MessageType = MessageType.Normal, correlationId: Int = -1) {
         if (message.trim().isEmpty()) return
         
         viewModelScope.launch(Dispatchers.IO) {
@@ -129,7 +129,11 @@ class GroupChatViewModel @Inject constructor(
         }
     }
 
-    fun sendFile(uri: Uri) {
+    override fun sendMessage(message: String, type: MessageType) {
+        sendMessageInternal(message, type, -1)
+    }
+
+    override fun sendFile(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             val (name, size) = try {
                 if (uri.scheme == "file") {
@@ -182,11 +186,11 @@ class GroupChatViewModel @Inject constructor(
             val id = fileTransferRepository.add(ft).toInt()
 
             val signalMsg = "[FILE:$name|$size|$id]"
-            sendMessage(signalMsg, MessageType.FileTransfer, id)
+            sendMessageInternal(signalMsg, MessageType.FileTransfer, id)
         }
     }
 
-    fun sendVoice(uri: Uri) {
+    override fun sendVoice(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             val f = File(uri.path ?: return@launch)
             val name = f.name
@@ -206,7 +210,7 @@ class GroupChatViewModel @Inject constructor(
             val id = fileTransferRepository.add(ft).toInt()
 
             val signalMsg = "[VOICE:10|$id]"
-            sendMessage(signalMsg, MessageType.FileTransfer, id)
+            sendMessageInternal(signalMsg, MessageType.FileTransfer, id)
         }
     }
 
@@ -405,4 +409,16 @@ class GroupChatViewModel @Inject constructor(
     fun getChatId(): String? = groupManager.getChatId(chatId)
 
     fun inviteFriend(friendPublicKey: String): Boolean = groupManager.inviteFriend(chatId, friendPublicKey)
+
+    override fun acceptFileTransfer(id: Int) {
+        acceptFt(id)
+    }
+
+    override fun rejectFileTransfer(id: Int) {
+        rejectFt(id)
+    }
+
+    override fun setDraftMessage(draft: String) {
+        setDraft(draft)
+    }
 }

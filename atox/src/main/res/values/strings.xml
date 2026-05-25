@@ -386,6 +386,7 @@
     <string name="group_role_user">User</string>
     <string name="group_role_observer">Observer</string>
     <string name="group_already_member">You are already a member of this group</string>
+    <string name="group_already_in_group">Already in group</string>
     <string name="group_invalid_chat_id">Invalid Chat ID format</string>
     <string name="group_join_failed">Failed to join group</string>
     <string name="message_copied">Message copied</string>

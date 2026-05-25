@@ -349,6 +349,7 @@
     <string name="group_role_user">Участник</string>
     <string name="group_role_observer">Наблюдатель</string>
     <string name="group_already_member">Вы уже участник этой группы</string>
+    <string name="group_already_in_group">Уже в группе</string>
     <string name="group_invalid_chat_id">Неверный формат Chat ID</string>
     <string name="group_join_failed">Не удалось присоединиться к группе</string>
     <string name="message_copied">Сообщение скопировано</string>

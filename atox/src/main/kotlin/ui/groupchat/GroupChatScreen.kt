@@ -41,6 +41,8 @@ import ltd.evilcorp.atox.ui.chat.components.ChatInputBar
 import android.widget.Toast
 import ltd.evilcorp.atox.ui.chat.components.VoiceMessageCard
 import ltd.evilcorp.atox.ui.chat.components.FileTransferCard
+import ltd.evilcorp.atox.ui.groupchat.components.GroupPeersSheet
+import ltd.evilcorp.atox.ui.groupchat.components.GroupInviteSheet
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.core.model.Group
@@ -216,301 +218,24 @@ fun GroupChatScreen(
     }
 
     if (showPeersDialog) {
-        ModalBottomSheet(
+        GroupPeersSheet(
             onDismissRequest = { showPeersDialog = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.group_peers),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-                
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)
-                ) {
-                    items(peers) { peer ->
-                        val matchingContact = contacts.find { it.publicKey.equals(peer.publicKey, ignoreCase = true) }
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                        ) {
-                            ListItem(
-                                leadingContent = {
-                                    ContactAvatar(
-                                        name = peer.name.ifEmpty { "Unknown" },
-                                        publicKey = peer.publicKey,
-                                        avatarUri = if (peer.isOurselves) selfAvatarUri else (matchingContact?.avatarUri ?: ""),
-                                        size = 40.dp,
-                                        fontSize = 15.sp
-                                    )
-                                },
-                                headlineContent = {
-                                    Text(
-                                        text = peer.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = if (peer.isOurselves) FontWeight.Bold else FontWeight.Normal,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        text = stringResource(
-                                            when (peer.role) {
-                                                "Owner" -> R.string.group_role_owner
-                                                "Moderator" -> R.string.group_role_moderator
-                                                "Observer" -> R.string.group_role_observer
-                                                else -> R.string.group_role_user
-                                            }
-                                        ),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-        }
+            peers = peers,
+            contacts = contacts,
+            selfAvatarUri = selfAvatarUri
+        )
     }
 
     if (showInviteDialog) {
-        ModalBottomSheet(
+        GroupInviteSheet(
             onDismissRequest = { showInviteDialog = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.group_invite),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !isCopying) {
-                            performHaptic()
-                            isCopying = true
-                            scope.launch {
-                                onCopyInvite()
-                                isCopying = false
-                                showInviteDialog = false
-                                Toast.makeText(context, inviteCopiedText, Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (isCopying) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.0.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(Icons.Default.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = if (isCopying) "Generating link..." else stringResource(R.string.group_copy_invite),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isCopying) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = inviteSearchQuery,
-                    onValueChange = { inviteSearchQuery = it },
-                    placeholder = { Text(stringResource(R.string.contact_list_search_placeholder)) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (inviteSearchQuery.isNotEmpty()) {
-                            IconButton(onClick = { inviteSearchQuery = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                    )
-                )
-
-                Text(
-                    text = stringResource(R.string.group_invite_select_friend),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                val filteredContacts = remember(contacts, inviteSearchQuery) {
-                    if (inviteSearchQuery.isEmpty()) {
-                        contacts
-                    } else {
-                        contacts.filter { contact ->
-                            contact.name.contains(inviteSearchQuery, ignoreCase = true) ||
-                            contact.publicKey.contains(inviteSearchQuery, ignoreCase = true)
-                        }
-                    }
-                }
-
-                if (filteredContacts.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (inviteSearchQuery.isEmpty()) "No friends to invite" else "No matching friends",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)
-                    ) {
-                        items(filteredContacts) { contact ->
-                            val alreadyInGroup = peers.any { it.publicKey == contact.publicKey }
-                            val isThisContactInviting = invitingContactId == contact.publicKey
-                            val anyActionPending = isCopying || invitingContactId != null
-
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                            ) {
-                                ListItem(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable(
-                                            enabled = !alreadyInGroup && !anyActionPending,
-                                            onClick = {
-                                                performHaptic()
-                                                invitingContactId = contact.publicKey
-
-                                                scope.launch(Dispatchers.IO) {
-                                                    try {
-                                                        onInviteFriend(contact.publicKey)
-                                                        withContext(Dispatchers.Main) {
-                                                            showInviteDialog = false
-                                                            inviteResultText = inviteSentText
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        withContext(Dispatchers.Main) {
-                                                            inviteResultText = inviteFailedText
-                                                        }
-                                                    } finally {
-                                                        withContext(Dispatchers.Main) {
-                                                            invitingContactId = null
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        ),
-                                    leadingContent = {
-                                        if (isThisContactInviting) {
-                                            Box(
-                                                modifier = Modifier.size(40.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    strokeWidth = 2.dp,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
-                                            }
-                                        } else {
-                                            ContactAvatar(
-                                                name = contact.name,
-                                                publicKey = contact.publicKey,
-                                                avatarUri = contact.avatarUri,
-                                                size = 40.dp,
-                                                fontSize = 15.sp
-                                            )
-                                        }
-                                    },
-                                    headlineContent = {
-                                        Text(
-                                            text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = if (anyActionPending && !isThisContactInviting) {
-                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface
-                                            }
-                                        )
-                                    },
-                                    supportingContent = {
-                                        if (alreadyInGroup) {
-                                            Text(
-                                                text = "Already in group",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                            )
-                                        } else if (isThisContactInviting) {
-                                            Text(
-                                                text = "Sending invitation...",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        } else if (contact.connectionStatus != ltd.evilcorp.core.model.ConnectionStatus.None) {
-                                            Text(
-                                                text = stringResource(R.string.chat_status_online),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    },
-                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-        }
+            onCopyInvite = onCopyInvite,
+            onInviteFriend = onInviteFriend,
+            peers = peers,
+            contacts = contacts,
+            settings = settings,
+            onInviteResult = { inviteResultText = it }
+        )
     }
 
     if (inviteResultText != null) {
