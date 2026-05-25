@@ -1,26 +1,22 @@
-// SPDX-FileCopyrightText: 2019-2025 Robin Lindén <dev@robinlinden.eu>
-//
-// SPDX-License-Identifier: GPL-3.0-only
-
 package ltd.evilcorp.domain.feature
 
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import ltd.evilcorp.core.repository.UserRepository
+import ltd.evilcorp.domain.repository.IUserRepository
+import ltd.evilcorp.domain.model.DomainUser
 import ltd.evilcorp.core.model.PublicKey
-import ltd.evilcorp.core.model.User
 import ltd.evilcorp.core.model.UserStatus
 import ltd.evilcorp.domain.tox.Tox
 
 class UserManager @Inject constructor(
     private val scope: CoroutineScope,
-    private val userRepository: UserRepository,
+    private val userRepository: IUserRepository,
     private val tox: Tox,
 ) {
     fun get(publicKey: PublicKey) = userRepository.get(publicKey.string())
 
-    fun create(user: User) = scope.launch {
+    fun create(user: DomainUser) = scope.launch {
         userRepository.add(user)
         tox.setName(user.name)
         tox.setStatusMessage(user.statusMessage)
@@ -30,7 +26,7 @@ class UserManager @Inject constructor(
         if (!userRepository.exists(publicKey.string())) {
             val name = tox.getName()
             val statusMessage = tox.getStatusMessage()
-            val user = User(publicKey.string(), name, statusMessage)
+            val user = DomainUser(publicKey.string(), name, statusMessage)
             userRepository.add(user)
         }
     }
@@ -50,3 +46,4 @@ class UserManager @Inject constructor(
         userRepository.updateStatus(tox.publicKey.string(), status)
     }
 }
+

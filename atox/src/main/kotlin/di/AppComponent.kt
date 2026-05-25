@@ -20,6 +20,7 @@ import ltd.evilcorp.atox.service.ToxService
         AppModule::class,
         DatabaseModule::class,
         DaoModule::class,
+        RepositoryModule::class,
         ViewModelModule::class,
     ],
 )

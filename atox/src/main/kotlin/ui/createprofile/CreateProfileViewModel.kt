@@ -15,6 +15,7 @@ import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.tox.Tox
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 import ltd.evilcorp.domain.backup.BackupUseCase
+import ltd.evilcorp.domain.model.toDomain
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,7 +42,7 @@ class CreateProfileViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     fun startTox(save: ByteArray? = null, password: String? = null): ToxSaveStatus = toxStarter.startTox(save, password)
-    fun create(user: User) = userManager.create(user)
+    fun create(user: User) = userManager.create(user.toDomain())
 
     fun restoreBackup(uriString: String, password: String?) {
         viewModelScope.launch {

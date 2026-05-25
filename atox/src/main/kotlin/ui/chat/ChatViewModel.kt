@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
@@ -40,6 +41,7 @@ import ltd.evilcorp.core.model.FileTransfer
 import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.domain.model.toDb
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.ChatManager
@@ -89,6 +91,7 @@ class ChatViewModel @Inject constructor(
     val contact: StateFlow<Contact?> = activePublicKey
         .filterNotNull()
         .flatMapLatest { pk -> contactManager.get(pk) }
+        .map { it?.toDb() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -151,7 +154,7 @@ class ChatViewModel @Inject constructor(
     fun startCall() = viewModelScope.launch {
         if (callManager.startOutgoingCall(publicKey)) {
             callManager.startSendingAudio()
-            notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).take(1).first() ?: Contact(publicKey.string()))
+            notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).take(1).first()?.toDb() ?: Contact(publicKey.string()))
         }
     }
 

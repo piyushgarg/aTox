@@ -28,6 +28,7 @@ import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.toDb
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.ChatManager
@@ -120,7 +121,7 @@ class ActionReceiver : BroadcastReceiver() {
     private suspend fun acceptCall(context: Context, pk: PublicKey) {
         val contact = contactManager.get(pk).firstOrNull().let {
             if (it != null) {
-                it
+                it.toDb()
             } else {
                 Log.e(TAG, "Unable to get contact ${pk.fingerprint()} for call notification")
                 Contact(publicKey = pk.string(), name = pk.fingerprint())

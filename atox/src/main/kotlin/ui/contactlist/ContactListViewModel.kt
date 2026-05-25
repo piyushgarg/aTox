@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
+import ltd.evilcorp.domain.model.toDb
 
 class ContactListViewModel @Inject constructor(
     private val callManager: CallManager,
@@ -64,6 +65,7 @@ class ContactListViewModel @Inject constructor(
 
     val user: StateFlow<User?> by lazy {
         userManager.get(publicKey)
+            .map { it?.toDb() }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -137,6 +139,7 @@ class ContactListViewModel @Inject constructor(
     }
 
     val contacts: StateFlow<List<Contact>> = contactManager.getAll()
+        .map { list -> list.map { it.toDb() } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -144,6 +147,7 @@ class ContactListViewModel @Inject constructor(
         )
 
     val visibleContacts: StateFlow<List<Contact>> = contactManager.getAll()
+        .map { list -> list.map { it.toDb() } }
         .combine(_searchQuery) { contactsList, query ->
             ltd.evilcorp.atox.ui.contactlist.components.visibleChatContacts(contactsList, query)
         }

@@ -324,210 +324,263 @@ fun AToxNavGraph(
 
                 val coroutineScope = rememberCoroutineScope()
 
-                val sharedTopBar: @Composable () -> Unit = {
-                    val isSupportedRoute = mainRoute == AppRoutes.Chats || 
-                                           mainRoute == AppRoutes.Groups || 
-                                           mainRoute == AppRoutes.AddContactTab || 
-                                           mainRoute == AppRoutes.Profile || 
-                                           mainRoute == AppRoutes.Settings ||
-                                           mainRoute == AppRoutes.CreateGroup ||
-                                           mainRoute == AppRoutes.JoinGroup ||
-                                           isChatRoute ||
-                                           isGroupChatRoute
-                    if (isSupportedRoute) {
+                val reactiveTopBar: @Composable () -> Unit = {
+                    val currentConfig by ltd.evilcorp.atox.ui.navigation.AppBarStateHolder.config.collectAsStateWithLifecycle()
+                    currentConfig?.let { cfg ->
                         TopAppBar(
+                            title = cfg.title,
+                            navigationIcon = cfg.navigationIcon ?: {},
+                            actions = cfg.actions ?: {},
                             colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                containerColor = cfg.containerColor ?: MaterialTheme.colorScheme.surfaceContainer,
                                 titleContentColor = MaterialTheme.colorScheme.onSurface,
-                            ),
-                            navigationIcon = {
-                                val density = androidx.compose.ui.platform.LocalDensity.current
-                                val targetKey = if (isChatRoute) {
-                                    currentContact?.publicKey ?: "chat_loading"
-                                } else if (isGroupChatRoute) {
-                                    "group_chat"
-                                } else if (mainRoute == AppRoutes.Settings) {
-                                    if (settingsOnBackAction == null) "tab-4" else "sub-4-$settingsTitle"
-                                } else if (mainRoute == AppRoutes.CreateGroup) {
-                                    "create_group"
-                                } else if (mainRoute == AppRoutes.JoinGroup) {
-                                    "join_group"
-                                } else {
-                                    when (mainRoute) {
-                                        AppRoutes.Chats -> "tab-0"
-                                        AppRoutes.Groups -> "tab-1"
-                                        AppRoutes.AddContactTab -> "tab-2"
-                                        AppRoutes.Profile -> "tab-3"
-                                        else -> mainRoute
-                                    }
-                                }
+                            )
+                        )
+                    }
+                }
 
-                                AnimatedContent(
-                                    targetState = targetKey,
-                                    transitionSpec = {
-                                        val initialOrder = getRouteOrder(initialState)
-                                        val targetOrder = getRouteOrder(targetState)
-                                        val forward = targetOrder > initialOrder
-
-                                        val isChatTransition = initialOrder == 6 || targetOrder == 6
-                                        
-                                        val slideOffsetPx = with(density) { 20.dp.roundToPx() }
-
-                                        val slideDistance = if (isChatTransition) {
-                                            { fullWidth: Int -> if (forward) fullWidth else -fullWidth }
-                                        } else {
-                                            { _: Int -> if (forward) slideOffsetPx else -slideOffsetPx }
-                                        }
-
-                                        val slideOutDistance = if (isChatTransition) {
-                                            { fullWidth: Int -> if (forward) -fullWidth else fullWidth }
-                                        } else {
-                                            { _: Int -> if (forward) -slideOffsetPx else slideOffsetPx }
-                                        }
-
-                                        (slideInHorizontally(initialOffsetX = slideDistance, animationSpec = tween(300, easing = AToxMotion.EmphasizedDecelerate)) + fadeIn(animationSpec = tween(220))) togetherWith
-                                        (slideOutHorizontally(targetOffsetX = slideOutDistance, animationSpec = tween(250, easing = AToxMotion.EmphasizedAccelerate)) + fadeOut(animationSpec = tween(150))) using
-                                        SizeTransform(clip = false)
+                MainTabsScreen(
+                    currentRoute = mainRoute,
+                    attentionCount = chatListAttentionCount(contactsState.value, friendRequestsState.value),
+                    hapticEnabled = settings.hapticEnabled,
+                    topBar = reactiveTopBar,
+                    onTabSelected = { route ->
+                        mainNavController.navigate(route) {
+                            launchSingleTop = true
+                            restoreState = true
+                            popUpTo(AppRoutes.Chats) {
+                                saveState = true
+                            }
+                        }
+                    },
+                ) {
+                    NavHost(
+                        navController = mainNavController,
+                        startDestination = AppRoutes.Chats,
+                        enterTransition = {
+                            val initialRoute = initialState.destination.route.orEmpty()
+                            val targetRoute = targetState.destination.route.orEmpty()
+                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
+                            AToxMotion.sharedAxisXEnter(forward = forward)
+                        },
+                        exitTransition = {
+                            val initialRoute = initialState.destination.route.orEmpty()
+                            val targetRoute = targetState.destination.route.orEmpty()
+                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
+                            AToxMotion.sharedAxisXExit(forward = forward)
+                        },
+                        popEnterTransition = {
+                            val initialRoute = initialState.destination.route.orEmpty()
+                            val targetRoute = targetState.destination.route.orEmpty()
+                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
+                            AToxMotion.sharedAxisXEnter(forward = forward)
+                        },
+                        popExitTransition = {
+                            val initialRoute = initialState.destination.route.orEmpty()
+                            val targetRoute = targetState.destination.route.orEmpty()
+                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
+                            AToxMotion.sharedAxisXExit(forward = forward)
+                        },
+                    ) {
+                        composable(
+                            route = AppRoutes.Chats
+                        ) {
+                            val isSearchingLocal = isSearching
+                            LaunchedEffect(isSearchingLocal) {
+                                AppBarStateHolder.config.value = AppBarConfig(
+                                    title = {
+                                        Text(
+                                            text = context.getString(R.string.app_name),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     },
-                                    contentAlignment = Alignment.Center,
-                                    label = "TopAppBarNavigationIcon"
-                                ) { key ->
-                                    when {
-                                        key.startsWith("tab-0") || key.startsWith("tab-4") -> {
-                                            Box(modifier = Modifier.padding(start = 4.dp)) {
-                                                MorphingNavigationIcon(
-                                                    isBack = false,
-                                                    onClick = {
-                                                        if (key.startsWith("tab-0")) {
-                                                            isSearching = true
-                                                        } else {
-                                                            settingsOnSearchAction?.invoke()
-                                                        }
-                                                    }
-                                                )
-                                            }
-                                        }
-                                        key.startsWith("tab-1") || key.startsWith("tab-2") || key.startsWith("tab-3") -> {
-                                            Spacer(modifier = Modifier.size(0.dp))
-                                        }
-                                        key.startsWith("sub-4") -> {
-                                            IconButton(onClick = { settingsOnBackAction?.invoke() }) {
-                                                Icon(
-                                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                                    contentDescription = "Back"
-                                                )
-                                            }
-                                        }
-                                        else -> {
-                                            Box(modifier = Modifier.padding(start = 4.dp)) {
-                                                MorphingNavigationIcon(
-                                                    isBack = true,
-                                                    onClick = { mainNavController.popBackStack() }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            title = {
-                                val density = androidx.compose.ui.platform.LocalDensity.current
-                                val targetKey = if (isChatRoute) {
-                                    currentContact?.publicKey ?: "chat_loading"
-                                } else if (isGroupChatRoute) {
-                                    "group_chat"
-                                } else if (mainRoute == AppRoutes.Settings) {
-                                    if (settingsOnBackAction == null) "tab-4" else "sub-4-$settingsTitle"
-                                } else if (mainRoute == AppRoutes.CreateGroup) {
-                                    "create_group"
-                                } else if (mainRoute == AppRoutes.JoinGroup) {
-                                    "join_group"
-                                } else {
-                                    when (mainRoute) {
-                                        AppRoutes.Chats -> "tab-0"
-                                        AppRoutes.Groups -> "tab-1"
-                                        AppRoutes.AddContactTab -> "tab-2"
-                                        AppRoutes.Profile -> "tab-3"
-                                        else -> mainRoute
-                                    }
-                                }
-
-                                AnimatedContent(
-                                    targetState = targetKey,
-                                    transitionSpec = {
-                                        val initialOrder = getRouteOrder(initialState)
-                                        val targetOrder = getRouteOrder(targetState)
-                                        val forward = targetOrder > initialOrder
-
-                                        val isChatTransition = initialOrder == 6 || targetOrder == 6
-                                        
-                                        val slideOffsetPx = with(density) { 20.dp.roundToPx() }
-
-                                        val slideDistance = if (isChatTransition) {
-                                            { fullWidth: Int -> if (forward) fullWidth else -fullWidth }
-                                        } else {
-                                            { _: Int -> if (forward) slideOffsetPx else -slideOffsetPx }
-                                        }
-
-                                        val slideOutDistance = if (isChatTransition) {
-                                            { fullWidth: Int -> if (forward) -fullWidth else fullWidth }
-                                        } else {
-                                            { _: Int -> if (forward) -slideOffsetPx else slideOffsetPx }
-                                        }
-
-                                        (slideInHorizontally(initialOffsetX = slideDistance, animationSpec = tween(300, easing = AToxMotion.EmphasizedDecelerate)) + fadeIn(animationSpec = tween(220))) togetherWith
-                                        (slideOutHorizontally(targetOffsetX = slideOutDistance, animationSpec = tween(250, easing = AToxMotion.EmphasizedAccelerate)) + fadeOut(animationSpec = tween(150))) using
-                                        SizeTransform(clip = false)
-                                    },
-                                    contentAlignment = Alignment.CenterStart,
-                                    label = "TopAppBarTitle"
-                                ) { key ->
-                                    val contact = currentContact
-                                    if (isChatRoute && contact != null) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            ContactAvatar(
-                                                name = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                                publicKey = contact.publicKey,
-                                                avatarUri = contact.avatarUri,
-                                                size = 36.dp,
-                                                fontSize = 14.sp
-                                            )
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column {
-                                                Text(
-                                                    text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                val presenceText = formatPresenceText(
-                                                    context = LocalContext.current,
-                                                    contact = contact,
-                                                    dateFormatPreference = settings.dateFormatPreference,
-                                                    timeFormatPreference = settings.timeFormatPreference
-                                                )
-                                                val presenceColor = when (presenceText.color) {
-                                                    PresenceTone.Online -> StatusAvailable
-                                                    PresenceTone.Away -> StatusAway
-                                                    PresenceTone.Busy -> StatusBusy
-                                                    PresenceTone.Accent -> MaterialTheme.colorScheme.primary
-                                                    PresenceTone.Muted -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    navigationIcon = {
+                                        Box(modifier = Modifier.padding(start = 4.dp)) {
+                                            MorphingNavigationIcon(
+                                                isBack = false,
+                                                onClick = {
+                                                    isSearching = true
                                                 }
-                                                Text(
-                                                    text = presenceText.text,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = presenceColor,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
+                                            )
                                         }
-                                    } else if (isGroupChatRoute) {
+                                    }
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
+                            ) {
+                                ChatsRouteScreen(
+                                    contacts = contactsState.value,
+                                    friendRequests = friendRequestsState.value,
+                                    groupInvite = groupInviteState.value,
+                                    groupInviteFriendName = groupInviteFriendNameState.value,
+                                    searchQuery = searchQuery,
+                                    onSearchQueryChanged = contactListViewModel::setSearchQuery,
+                                    dateFormatPreference = settings.dateFormatPreference,
+                                    timeFormatPreference = settings.timeFormatPreference,
+                                    onContactClick = { contact ->
+                                        contactListViewModel.prepareOpenChat(contact)
+                                        mainNavController.navigate(AppRoutes.chat(contact.publicKey))
+                                    },
+                                    onDeleteContact = { contact -> contactListViewModel.deleteContact(PublicKey(contact.publicKey)) },
+                                    onAcceptFriendRequest = { req -> friendRequestsViewModel.acceptFriendRequest(req) },
+                                    onRejectFriendRequest = { req -> friendRequestsViewModel.rejectFriendRequest(req) },
+                                    onAcceptGroupInvite = contactListViewModel::acceptGroupInvite,
+                                    onRejectGroupInvite = contactListViewModel::declineGroupInvite,
+                                    onAddContactClick = {
+                                        mainNavController.navigate(AppRoutes.AddContactTab) {
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                    onContactInteraction = {},
+                                    isSearching = isSearching,
+                                    onSearchingChanged = { isSearching = it }
+                                )
+                            }
+                        }
+
+                        composable(AppRoutes.Groups) {
+                            LaunchedEffect(Unit) {
+                                AppBarStateHolder.config.value = AppBarConfig(
+                                    title = {
+                                        Text(
+                                            text = context.getString(R.string.groups),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                )
+                            }
+
+                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+                            val groupsState = groupListViewModel.groups.collectAsStateWithLifecycle()
+                            val connectionStatusesState = groupListViewModel.connectionStatuses.collectAsStateWithLifecycle()
+                            val scope = rememberCoroutineScope()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
+                            ) {
+                                GroupListScreen(
+                                    groupsState = groupsState,
+                                    connectionStatusesState = connectionStatusesState,
+                                    onGroupClick = { group ->
+                                        mainNavController.navigate(AppRoutes.groupChat(group.chatId))
+                                    },
+                                    onCreateGroupClick = {
+                                        mainNavController.navigate(AppRoutes.CreateGroup)
+                                    },
+                                    onJoinGroupClick = {
+                                        mainNavController.navigate(AppRoutes.JoinGroup)
+                                    },
+                                    onLeaveGroup = { group ->
+                                        scope.launch {
+                                            groupListViewModel.leaveGroup(group)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        composable(AppRoutes.CreateGroup) {
+                            LaunchedEffect(Unit) {
+                                AppBarStateHolder.config.value = AppBarConfig(
+                                    title = {
+                                        Text(
+                                            text = context.getString(R.string.create_group),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
+                                    navigationIcon = {
+                                        Box(modifier = Modifier.padding(start = 4.dp)) {
+                                            MorphingNavigationIcon(
+                                                isBack = true,
+                                                onClick = { mainNavController.popBackStack() }
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+
+                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+                            CreateGroupScreen(
+                                onBack = { mainNavController.popBackStack() },
+                                onCreateGroup = { name, privacyState, password ->
+                                    val num = groupListViewModel.createGroup(name, privacyState, password)
+                                    if (num >= 0) {
+                                        mainNavController.popBackStack()
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+                            )
+                        }
+
+                        composable(AppRoutes.JoinGroup) {
+                            LaunchedEffect(Unit) {
+                                AppBarStateHolder.config.value = AppBarConfig(
+                                    title = {
+                                        Text(
+                                            text = context.getString(R.string.join_group),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
+                                    navigationIcon = {
+                                        Box(modifier = Modifier.padding(start = 4.dp)) {
+                                            MorphingNavigationIcon(
+                                                isBack = true,
+                                                onClick = { mainNavController.popBackStack() }
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+
+                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+                            JoinGroupScreen(
+                                onBack = { mainNavController.popBackStack() },
+                                onJoinGroup = { chatIdHex, password ->
+                                    val num = groupListViewModel.joinByChatId(chatIdHex, password)
+                                    if (num >= 0) {
+                                        mainNavController.popBackStack()
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+                            )
+                        }
+
+                        composable(
+                            route = AppRoutes.GroupChat,
+                            arguments = listOf(navArgument(AppRoutes.ChatIdArg) { type = NavType.StringType }),
+                        ) { backStackEntry ->
+                            val chatIdStr = backStackEntry.arguments?.getString(AppRoutes.ChatIdArg).orEmpty()
+                            val viewModel: GroupChatViewModel = viewModel(factory = vmFactory)
+                            val contactsState = contactListViewModel.contacts.collectAsStateWithLifecycle()
+                            
+                            remember(chatIdStr) {
+                                viewModel.setActiveGroup(chatIdStr)
+                            }
+                            
+                            val groupState = viewModel.group.collectAsStateWithLifecycle()
+                            val messagesState = viewModel.messages.collectAsStateWithLifecycle()
+                            val peersState = viewModel.peers.collectAsStateWithLifecycle()
+                            val connectionStatusState = viewModel.connectionStatus.collectAsStateWithLifecycle()
+                            val fileTransfersState = viewModel.fileTransfers.collectAsStateWithLifecycle()
+
+                            LaunchedEffect(activeGroupName, activeGroupConnectionStatus, activeGroupPeerCount, groupOnInviteClick, groupOnPeersClick, groupOnLeaveClick) {
+                                AppBarStateHolder.config.value = AppBarConfig(
+                                    title = {
                                         val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-                                        val context = androidx.compose.ui.platform.LocalContext.current
+                                        val ctx = context
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier
@@ -538,14 +591,13 @@ fun AToxNavGraph(
                                                         if (settings.hapticEnabled) {
                                                             haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                                                         }
-                                                        val activeGroupChatId = mainBackStackEntry?.arguments?.getString(AppRoutes.ChatIdArg).orEmpty()
-                                                        if (activeGroupChatId.isNotEmpty()) {
-                                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                                            val clip = android.content.ClipData.newPlainText("group ID", activeGroupChatId)
+                                                        if (chatIdStr.isNotEmpty()) {
+                                                            val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                            val clip = android.content.ClipData.newPlainText("group ID", chatIdStr)
                                                             clipboard.setPrimaryClip(clip)
                                                             android.widget.Toast.makeText(
-                                                                context,
-                                                                context.getString(R.string.group_invite_copied),
+                                                                ctx,
+                                                                ctx.getString(R.string.group_invite_copied),
                                                                 android.widget.Toast.LENGTH_SHORT
                                                             ).show()
                                                         }
@@ -569,7 +621,7 @@ fun AToxNavGraph(
                                             Spacer(modifier = Modifier.width(12.dp))
                                             Column {
                                                 Text(
-                                                    text = activeGroupName.ifEmpty { stringResource(R.string.contact_default_name) },
+                                                    text = activeGroupName.ifEmpty { context.getString(R.string.contact_default_name) },
                                                     style = MaterialTheme.typography.titleMedium,
                                                     fontWeight = FontWeight.SemiBold,
                                                     maxLines = 1,
@@ -591,13 +643,13 @@ fun AToxNavGraph(
                                                     )
                                                     Spacer(modifier = Modifier.width(6.dp))
                                                     val statusText = when (activeGroupConnectionStatus) {
-                                                        GroupConnectionStatus.Connected -> stringResource(R.string.group_connected)
+                                                        GroupConnectionStatus.Connected -> context.getString(R.string.group_connected)
                                                         GroupConnectionStatus.Connecting,
-                                                        GroupConnectionStatus.Reconnecting -> stringResource(R.string.group_connecting)
-                                                        GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
+                                                        GroupConnectionStatus.Reconnecting -> context.getString(R.string.group_connecting)
+                                                        GroupConnectionStatus.Disconnected -> context.getString(R.string.group_offline)
                                                     }
                                                     Text(
-                                                        text = "$statusText • ${stringResource(R.string.group_peer_count, activeGroupPeerCount)}",
+                                                        text = "$statusText • ${context.getString(R.string.group_peer_count, activeGroupPeerCount)}",
                                                         style = MaterialTheme.typography.bodySmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         maxLines = 1,
@@ -606,38 +658,16 @@ fun AToxNavGraph(
                                                 }
                                             }
                                         }
-                                    } else {
-                                        val displayTitle = when {
-                                            key.startsWith("tab-0") -> stringResource(R.string.app_name)
-                                            key.startsWith("tab-1") -> stringResource(R.string.groups)
-                                            key.startsWith("tab-2") -> stringResource(R.string.add_contact)
-                                            key.startsWith("tab-3") -> stringResource(R.string.profile)
-                                            key.startsWith("tab-4") -> stringResource(R.string.settings)
-                                            key.startsWith("sub-4") -> settingsTitle
-                                            key == "create_group" -> stringResource(R.string.create_group)
-                                            key == "join_group" -> stringResource(R.string.join_group)
-                                            else -> stringResource(R.string.app_name)
-                                        }
-                                        Text(
-                                            text = displayTitle,
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            },
-                            actions = {
-                                AnimatedContent(
-                                    targetState = if (isGroupChatRoute) "group_actions" else currentContact?.publicKey,
-                                    transitionSpec = {
-                                        (slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(220, easing = AToxMotion.EmphasizedDecelerate)) + fadeIn(animationSpec = tween(220))) togetherWith
-                                        (slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(150, easing = AToxMotion.EmphasizedAccelerate)) + fadeOut(animationSpec = tween(150))) using
-                                        SizeTransform(clip = false)
                                     },
-                                    contentAlignment = Alignment.Center,
-                                    label = "TopAppBarActions"
-                                ) { target ->
-                                    if (target == "group_actions") {
+                                    navigationIcon = {
+                                        Box(modifier = Modifier.padding(start = 4.dp)) {
+                                            MorphingNavigationIcon(
+                                                isBack = true,
+                                                onClick = { mainNavController.popBackStack() }
+                                            )
+                                        }
+                                    },
+                                    actions = {
                                         var groupMenuExpanded by remember { mutableStateOf(false) }
                                         Box {
                                             IconButton(onClick = { groupMenuExpanded = true }) {
@@ -683,204 +713,9 @@ fun AToxNavGraph(
                                                 )
                                             }
                                         }
-                                    } else if (target != null && currentContact != null) {
-                                        val contact = currentContact
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            IconButton(
-                                                onClick = {
-                                                    coroutineScope.launch {
-                                                        val contactPk = PublicKey(contact.publicKey)
-                                                        if (callManager.startOutgoingCall(contactPk)) {
-                                                            callManager.startSendingAudio()
-                                                            notificationHelper.showOngoingCallNotification(contact)
-                                                        }
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Call,
-                                                    contentDescription = "Call",
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                            }
-                                            IconButton(
-                                                onClick = { /* Placeholder action menu */ }
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.MoreVert,
-                                                    contentDescription = "More options",
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        )
-                    }
-                }
-
-                MainTabsScreen(
-                    currentRoute = mainRoute,
-                    attentionCount = chatListAttentionCount(contactsState.value, friendRequestsState.value),
-                    hapticEnabled = settings.hapticEnabled,
-                    topBar = sharedTopBar,
-                    onTabSelected = { route ->
-                        mainNavController.navigate(route) {
-                            launchSingleTop = true
-                            restoreState = true
-                            popUpTo(AppRoutes.Chats) {
-                                saveState = true
-                            }
-                        }
-                    },
-                ) {
-                    NavHost(
-                        navController = mainNavController,
-                        startDestination = AppRoutes.Chats,
-                        enterTransition = {
-                            val initialRoute = initialState.destination.route.orEmpty()
-                            val targetRoute = targetState.destination.route.orEmpty()
-                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
-                            AToxMotion.sharedAxisXEnter(forward = forward)
-                        },
-                        exitTransition = {
-                            val initialRoute = initialState.destination.route.orEmpty()
-                            val targetRoute = targetState.destination.route.orEmpty()
-                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
-                            AToxMotion.sharedAxisXExit(forward = forward)
-                        },
-                        popEnterTransition = {
-                            val initialRoute = initialState.destination.route.orEmpty()
-                            val targetRoute = targetState.destination.route.orEmpty()
-                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
-                            AToxMotion.sharedAxisXEnter(forward = forward)
-                        },
-                        popExitTransition = {
-                            val initialRoute = initialState.destination.route.orEmpty()
-                            val targetRoute = targetState.destination.route.orEmpty()
-                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
-                            AToxMotion.sharedAxisXExit(forward = forward)
-                        },
-                    ) {
-                        composable(
-                            route = AppRoutes.Chats
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
-                            ) {
-                                ChatsRouteScreen(
-                                    contacts = contactsState.value,
-                                    friendRequests = friendRequestsState.value,
-                                    groupInvite = groupInviteState.value,
-                                    groupInviteFriendName = groupInviteFriendNameState.value,
-                                    searchQuery = searchQuery,
-                                    onSearchQueryChanged = contactListViewModel::setSearchQuery,
-                                    dateFormatPreference = settings.dateFormatPreference,
-                                    timeFormatPreference = settings.timeFormatPreference,
-                                    onContactClick = { contact ->
-                                        contactListViewModel.prepareOpenChat(contact)
-                                        mainNavController.navigate(AppRoutes.chat(contact.publicKey))
-                                    },
-                                    onDeleteContact = { contact -> contactListViewModel.deleteContact(PublicKey(contact.publicKey)) },
-                                    onAcceptFriendRequest = { req -> friendRequestsViewModel.acceptFriendRequest(req) },
-                                    onRejectFriendRequest = { req -> friendRequestsViewModel.rejectFriendRequest(req) },
-                                    onAcceptGroupInvite = contactListViewModel::acceptGroupInvite,
-                                    onRejectGroupInvite = contactListViewModel::declineGroupInvite,
-                                    onAddContactClick = {
-                                        mainNavController.navigate(AppRoutes.AddContactTab) {
-                                            launchSingleTop = true
-                                        }
-                                    },
-                                    onContactInteraction = {},
-                                    isSearching = isSearching,
-                                    onSearchingChanged = { isSearching = it }
-                                )
-                            }
-                        }
-
-                        composable(AppRoutes.Groups) {
-                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            val groupsState = groupListViewModel.groups.collectAsStateWithLifecycle()
-                            val connectionStatusesState = groupListViewModel.connectionStatuses.collectAsStateWithLifecycle()
-                            val scope = rememberCoroutineScope()
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
-                            ) {
-                                GroupListScreen(
-                                    groupsState = groupsState,
-                                    connectionStatusesState = connectionStatusesState,
-                                    onGroupClick = { group ->
-                                        mainNavController.navigate(AppRoutes.groupChat(group.chatId))
-                                    },
-                                    onCreateGroupClick = {
-                                        mainNavController.navigate(AppRoutes.CreateGroup)
-                                    },
-                                    onJoinGroupClick = {
-                                        mainNavController.navigate(AppRoutes.JoinGroup)
-                                    },
-                                    onLeaveGroup = { group ->
-                                        scope.launch {
-                                            groupListViewModel.leaveGroup(group)
-                                        }
                                     }
                                 )
                             }
-                        }
-
-                        composable(AppRoutes.CreateGroup) {
-                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            CreateGroupScreen(
-                                onBack = { mainNavController.popBackStack() },
-                                onCreateGroup = { name, privacyState, password ->
-                                    val num = groupListViewModel.createGroup(name, privacyState, password)
-                                    if (num >= 0) {
-                                        mainNavController.popBackStack()
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-                            )
-                        }
-
-                        composable(AppRoutes.JoinGroup) {
-                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            JoinGroupScreen(
-                                onBack = { mainNavController.popBackStack() },
-                                onJoinGroup = { chatIdHex, password ->
-                                    val num = groupListViewModel.joinByChatId(chatIdHex, password)
-                                    if (num >= 0) {
-                                        mainNavController.popBackStack()
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-                            )
-                        }
-
-                        composable(
-                            route = AppRoutes.GroupChat,
-                            arguments = listOf(navArgument(AppRoutes.ChatIdArg) { type = NavType.StringType }),
-                        ) { backStackEntry ->
-                            val chatIdStr = backStackEntry.arguments?.getString(AppRoutes.ChatIdArg).orEmpty()
-                            val viewModel: GroupChatViewModel = viewModel(factory = vmFactory)
-                            val contactsState = contactListViewModel.contacts.collectAsStateWithLifecycle()
-                            
-                            remember(chatIdStr) {
-                                viewModel.setActiveGroup(chatIdStr)
-                            }
-                            
-                            val groupState = viewModel.group.collectAsStateWithLifecycle()
-                            val messagesState = viewModel.messages.collectAsStateWithLifecycle()
-                            val peersState = viewModel.peers.collectAsStateWithLifecycle()
-                            val connectionStatusState = viewModel.connectionStatus.collectAsStateWithLifecycle()
-                            val fileTransfersState = viewModel.fileTransfers.collectAsStateWithLifecycle()
                             
                             GroupChatScreen(
                                 groupState = groupState,
@@ -923,6 +758,18 @@ fun AToxNavGraph(
                         }
 
                         composable(AppRoutes.AddContactTab) {
+                            LaunchedEffect(Unit) {
+                                AppBarStateHolder.config.value = AppBarConfig(
+                                    title = {
+                                        Text(
+                                            text = context.getString(R.string.add_contact),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                )
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -942,6 +789,18 @@ fun AToxNavGraph(
                         }
 
                         composable(AppRoutes.Profile) {
+                            LaunchedEffect(Unit) {
+                                AppBarStateHolder.config.value = AppBarConfig(
+                                    title = {
+                                        Text(
+                                            text = context.getString(R.string.profile),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                )
+                            }
+
                             val user by userState
                             val avatar by profileViewModel.avatar.collectAsStateWithLifecycle()
                             val cropState by profileViewModel.cropState.collectAsStateWithLifecycle()
@@ -976,6 +835,35 @@ fun AToxNavGraph(
                         }
 
                         composable(AppRoutes.Settings) {
+                            LaunchedEffect(settingsTitle, settingsOnBackAction, settingsOnSearchAction) {
+                                AppBarStateHolder.config.value = AppBarConfig(
+                                    title = {
+                                        Text(
+                                            text = if (settingsOnBackAction == null) context.getString(R.string.settings) else settingsTitle,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
+                                    navigationIcon = {
+                                        if (settingsOnBackAction != null) {
+                                            IconButton(onClick = { settingsOnBackAction?.invoke() }) {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                    contentDescription = "Back"
+                                                )
+                                            }
+                                        } else {
+                                            Box(modifier = Modifier.padding(start = 4.dp)) {
+                                                MorphingNavigationIcon(
+                                                    isBack = false,
+                                                    onClick = { settingsOnSearchAction?.invoke() }
+                                                )
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()

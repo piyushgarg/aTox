@@ -15,7 +15,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import ltd.evilcorp.domain.model.toDb
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import ltd.evilcorp.core.model.User
@@ -41,6 +43,7 @@ class UserProfileViewModel @Inject constructor(
     val publicKey by lazy { tox.publicKey }
     val toxId by lazy { tox.toxId }
     val user: StateFlow<User?> = userManager.get(publicKey)
+        .map { it?.toDb() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

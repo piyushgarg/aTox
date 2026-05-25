@@ -64,3 +64,16 @@ class DaoModule {
     @Provides
     internal fun provideGroupPeerDao(db: Database): GroupPeerDao = db.groupPeerDao()
 }
+
+@Module
+interface RepositoryModule {
+    @dagger.Binds
+    fun bindContactRepository(impl: ltd.evilcorp.atox.repository.ContactRepositoryAdapter): ltd.evilcorp.domain.repository.IContactRepository
+
+    @dagger.Binds
+    fun bindUserRepository(impl: ltd.evilcorp.atox.repository.UserRepositoryAdapter): ltd.evilcorp.domain.repository.IUserRepository
+
+    @dagger.Binds
+    fun bindChatRepository(impl: ltd.evilcorp.atox.repository.ChatRepositoryAdapter): ltd.evilcorp.domain.repository.IChatRepository
+}
+

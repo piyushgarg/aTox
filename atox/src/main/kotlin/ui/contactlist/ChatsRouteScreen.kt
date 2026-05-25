@@ -96,117 +96,69 @@ fun ChatsRouteScreen(
     }
 
     if (isSearching) {
-        Popup(
-            onDismissRequest = { onSearchingChanged(false) },
-            properties = PopupProperties(
-                focusable = true,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = false,
-                usePlatformDefaultWidth = false
-            )
+        ltd.evilcorp.atox.ui.common.AtoxSearchBar(
+            query = searchQuery,
+            onQueryChange = onSearchQueryChanged,
+            onSearch = {},
+            active = isSearching,
+            onActiveChange = onSearchingChanged,
+            placeholder = stringResource(R.string.contact_list_search_placeholder)
         ) {
-            Surface(
+            val filteredContacts = remember(searchQuery, contacts) {
+                if (searchQuery.isBlank()) emptyList()
+                else contacts.filter {
+                    it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.publicKey.contains(searchQuery, ignoreCase = true)
+                }
+            }
+            
+            LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-                    Row(
+                items(
+                    items = filteredContacts,
+                    key = { contact -> contact.publicKey }
+                ) { contact ->
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                text = contact.publicKey,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        leadingContent = {
+                            ContactAvatar(
+                                name = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                                publicKey = contact.publicKey,
+                                avatarUri = contact.avatarUri,
+                                size = 40.dp,
+                                fontSize = 16.sp
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = {
-                                onSearchQueryChanged("")
+                            .clickable {
                                 onSearchingChanged(false)
+                                onSearchQueryChanged("")
+                                onContactClick(contact)
                             }
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = onSearchQueryChanged,
-                            placeholder = { Text(stringResource(R.string.contact_list_search_placeholder)) },
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                        
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { onSearchQueryChanged("") }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    }
-                    
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                    
-                    val filteredContacts = remember(searchQuery, contacts) {
-                        if (searchQuery.isBlank()) emptyList()
-                        else contacts.filter {
-                            it.name.contains(searchQuery, ignoreCase = true) ||
-                            it.publicKey.contains(searchQuery, ignoreCase = true)
-                        }
-                    }
-                    
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(
-                            items = filteredContacts,
-                            key = { contact -> contact.publicKey }
-                        ) { contact ->
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        text = contact.publicKey,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                leadingContent = {
-                                    ContactAvatar(
-                                        name = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        publicKey = contact.publicKey,
-                                        avatarUri = contact.avatarUri,
-                                        size = 40.dp,
-                                        fontSize = 16.sp
-                                    )
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onSearchingChanged(false)
-                                        onSearchQueryChanged("")
-                                        onContactClick(contact)
-                                    }
-                            )
-                        }
-                    }
+                    )
                 }
             }
         }
     }
+
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),

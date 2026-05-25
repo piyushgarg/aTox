@@ -63,7 +63,10 @@ class AudioCapture private constructor(
     private val audioRecord: AudioRecord,
     private val effects: List<android.media.audiofx.AudioEffect>,
 ) {
-    fun start() = audioRecord.startRecording()
+    fun start() {
+        runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO) }
+        audioRecord.startRecording()
+    }
     fun stop() = audioRecord.stop()
     fun release() {
         effects.forEach { effect ->
