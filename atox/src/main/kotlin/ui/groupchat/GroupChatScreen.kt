@@ -250,9 +250,173 @@ fun GroupChatScreen(
         )
     }
 
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0),
-        topBar = {},
+        topBar = {
+            TopAppBar(
+                title = {
+                    val ctx = LocalContext.current
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = {
+                                    if (settings.hapticEnabled) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    val id = group?.chatId ?: ""
+                                    if (id.isNotEmpty()) {
+                                        val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                        val clip = android.content.ClipData.newPlainText("group ID", id)
+                                        clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(
+                                            ctx,
+                                            ctx.getString(R.string.group_invite_copied),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Group,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = group?.name?.ifEmpty { stringResource(R.string.contact_default_name) } ?: stringResource(R.string.contact_default_name),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val dotColor = when (connStatus) {
+                                    GroupConnectionStatus.Connected -> ltd.evilcorp.atox.ui.theme.StatusAvailable
+                                    GroupConnectionStatus.Connecting,
+                                    GroupConnectionStatus.Reconnecting -> ltd.evilcorp.atox.ui.theme.StatusAway
+                                    GroupConnectionStatus.Disconnected -> ltd.evilcorp.atox.ui.theme.StatusOffline
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(dotColor)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                val statusText = when (connStatus) {
+                                    GroupConnectionStatus.Connected -> stringResource(R.string.group_connected)
+                                    GroupConnectionStatus.Connecting,
+                                    GroupConnectionStatus.Reconnecting -> stringResource(R.string.group_connecting)
+                                    GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
+                                }
+                                Text(
+                                    text = "$statusText • ${stringResource(R.string.group_peer_count, peers.size)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                },
+                navigationIcon = {
+                    Box(modifier = Modifier.padding(start = 4.dp)) {
+                        ltd.evilcorp.atox.ui.common.MorphingNavigationIcon(
+                            isBack = true,
+                            onClick = {
+                                if (settings.hapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
+                                onBack()
+                            }
+                        )
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = {
+                            if (settings.hapticEnabled) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                            menuExpanded = true
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Пригласить друга") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.PersonAdd, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    if (settings.hapticEnabled) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    showInviteDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Список участников") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Person, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    if (settings.hapticEnabled) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    showPeersDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Выйти из группы", color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    if (settings.hapticEnabled) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    showLeaveDialog = true
+                                }
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                ),
+                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+            )
+        },
         bottomBar = {}
     ) { paddingValues ->
         val showScrollToBottomFab by remember {

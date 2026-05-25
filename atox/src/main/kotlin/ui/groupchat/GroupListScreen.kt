@@ -63,13 +63,6 @@ fun GroupListScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.GroupAdd,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(72.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = stringResource(R.string.no_groups),
                     style = MaterialTheme.typography.titleLarge,

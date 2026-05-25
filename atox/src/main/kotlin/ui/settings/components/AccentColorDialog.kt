@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
@@ -138,7 +139,8 @@ private fun ColorSwatch(
             fontSize = 11.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
             lineHeight = 12.sp
         )
     }

@@ -209,6 +209,9 @@
     <string name="contact_list_group_invite">Приглашение в группу</string>
     <string name="group_invite_from">От: %1$s</string>
     <string name="profile_edit_data">Редактировать данные</string>
+    <string name="avatar_source_title">Выберите источник фото</string>
+    <string name="avatar_source_camera">Камера</string>
+    <string name="avatar_source_gallery">Галерея</string>
     <string name="profile_select_status">Выберите статус сети</string>
     <string name="profile_your_tox_id">Ваш Tox ID</string>
     <string name="profile_share_tox_id_desc">Поделитесь этим ID с друзьями, чтобы они могли добавить вас.</string>

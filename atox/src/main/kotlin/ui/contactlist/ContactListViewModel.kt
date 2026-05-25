@@ -36,9 +36,8 @@ import ltd.evilcorp.core.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.domain.tox.Tox
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
-import ltd.evilcorp.atox.domain.usecase.DeleteProfileUseCase
-
-import ltd.evilcorp.atox.domain.usecase.DeleteContactUseCase
+import ltd.evilcorp.domain.usecase.DeleteProfileUseCase
+import ltd.evilcorp.domain.usecase.DeleteContactUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine

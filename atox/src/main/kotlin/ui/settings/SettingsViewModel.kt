@@ -39,9 +39,9 @@ import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.backup.BackupDataProvider
 import ltd.evilcorp.domain.backup.BackupUseCase
 import ltd.evilcorp.core.db.Database
-import ltd.evilcorp.atox.domain.usecase.CheckProxyUseCase
-import ltd.evilcorp.atox.domain.usecase.ProxyStatus
-import ltd.evilcorp.atox.domain.usecase.ImportBootstrapNodesUseCase
+import ltd.evilcorp.domain.usecase.CheckProxyUseCase
+import ltd.evilcorp.domain.usecase.ProxyStatus
+import ltd.evilcorp.domain.usecase.ImportBootstrapNodesUseCase
 
 private const val TOX_SHUTDOWN_POLL_DELAY_MS = 200L
 

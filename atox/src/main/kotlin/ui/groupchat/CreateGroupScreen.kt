@@ -80,7 +80,9 @@ fun CreateGroupScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .animateContentSize(),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(

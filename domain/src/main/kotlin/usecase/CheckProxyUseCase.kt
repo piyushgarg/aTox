@@ -1,4 +1,4 @@
-package ltd.evilcorp.atox.domain.usecase
+package ltd.evilcorp.domain.usecase
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

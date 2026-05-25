@@ -338,6 +338,9 @@
     <string name="chat_date_today">Today</string>
     <string name="chat_date_yesterday">Yesterday</string>
     <string name="profile_avatar_change">Change Profile Picture</string>
+    <string name="avatar_source_title">Choose Photo Source</string>
+    <string name="avatar_source_camera">Camera</string>
+    <string name="avatar_source_gallery">Gallery</string>
     <string name="avatar_too_large">Error: Avatar is too large (max 64 KB)</string>
     <string name="avatar_editor_title">Edit Profile Picture</string>
     <string name="avatar_editor_rotate">Rotate</string>

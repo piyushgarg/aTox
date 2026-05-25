@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -206,6 +207,17 @@ fun SettingsScreen(
     var showRestoreConfirmDialog by remember { mutableStateOf(false) }
     var showGoogleAccountDialog by remember { mutableStateOf(false) }
     var googleAccountInput by remember { mutableStateOf("") }
+
+    val accountPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val accountName = result.data?.getStringExtra(android.accounts.AccountManager.KEY_ACCOUNT_NAME)
+            if (!accountName.isNullOrBlank()) {
+                googleAccountInput = accountName
+            }
+        }
+    }
 
     LaunchedEffect(storedSettings.backupGoogleAccount) {
         googleAccountInput = storedSettings.backupGoogleAccount
@@ -1191,6 +1203,23 @@ fun SettingsScreen(
                     onValueChange = { googleAccountInput = it },
                     label = { Text("Email") },
                     singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            try {
+                                val intent = android.accounts.AccountManager.newChooseAccountIntent(
+                                    null, null, arrayOf("com.google"), null, null, null, null
+                                )
+                                accountPickerLauncher.launch(intent)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Choose account"
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             },

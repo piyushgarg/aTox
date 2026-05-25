@@ -3,6 +3,8 @@ package ltd.evilcorp.atox.ui.navigation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -122,7 +124,7 @@ fun MainTabsScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                     ) {
                         NavigationBar(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer,

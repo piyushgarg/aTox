@@ -54,7 +54,7 @@ class AppModule {
     fun provideFileExporter(exporter: ltd.evilcorp.atox.ui.chat.AndroidFileExporter): ltd.evilcorp.atox.ui.chat.FileExporter = exporter
 
     @Provides
-    fun provideSettingsFileProcessor(processor: ltd.evilcorp.atox.ui.settings.AndroidSettingsFileProcessor): ltd.evilcorp.atox.ui.settings.SettingsFileProcessor = processor
+    fun provideSettingsFileProcessor(processor: ltd.evilcorp.atox.ui.settings.AndroidSettingsFileProcessor): ltd.evilcorp.domain.feature.ISettingsFileProcessor = processor
 
     @Provides
     fun provideProximityManager(manager: ltd.evilcorp.atox.service.AndroidProximityManager): ltd.evilcorp.domain.feature.ProximityManager = manager
@@ -64,4 +64,10 @@ class AppModule {
 
     @Provides
     fun provideProfileBackupProcessor(processor: ltd.evilcorp.atox.ui.createprofile.AndroidProfileBackupProcessor): ltd.evilcorp.atox.ui.createprofile.ProfileBackupProcessor = processor
+
+    @Provides
+    fun provideNotificationHelper(helper: ltd.evilcorp.atox.ui.NotificationHelper): ltd.evilcorp.domain.feature.INotificationHelper = helper
+
+    @Provides
+    fun provideToxStarter(starter: ltd.evilcorp.atox.tox.ToxStarter): ltd.evilcorp.domain.tox.IToxStarter = starter
 }

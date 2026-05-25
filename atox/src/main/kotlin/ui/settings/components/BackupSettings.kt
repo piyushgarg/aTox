@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -91,7 +92,8 @@ fun BackupSettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(
@@ -102,7 +104,7 @@ fun BackupSettingsScreen(
                     Icon(
                         imageVector = Icons.Default.Warning,
                         contentDescription = "Warning",
-                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(28.dp)
                     )
                     Column {
@@ -110,13 +112,13 @@ fun BackupSettingsScreen(
                             text = "Внимание!",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Обязательно сохраните пароль резервной копии. При его потере восстановить профиль Tox будет невозможно.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

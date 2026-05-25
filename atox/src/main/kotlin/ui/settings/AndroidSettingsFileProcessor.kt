@@ -12,10 +12,12 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
+import ltd.evilcorp.domain.feature.ISettingsFileProcessor
+
 class AndroidSettingsFileProcessor @Inject constructor(
     private val context: Context,
     private val resolver: ContentResolver
-) : SettingsFileProcessor {
+) : ISettingsFileProcessor {
     override suspend fun readBytes(uriString: String): ByteArray? = withContext(Dispatchers.IO) {
         runCatching {
             resolver.openInputStream(Uri.parse(uriString))?.use { it.readBytes() }

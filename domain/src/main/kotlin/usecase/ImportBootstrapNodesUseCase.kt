@@ -1,13 +1,13 @@
-package ltd.evilcorp.atox.domain.usecase
+package ltd.evilcorp.domain.usecase
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-import ltd.evilcorp.atox.ui.settings.SettingsFileProcessor
+import ltd.evilcorp.domain.feature.ISettingsFileProcessor
 import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeJsonParser
 
 class ImportBootstrapNodesUseCase @Inject constructor(
-    private val fileProcessor: SettingsFileProcessor,
+    private val fileProcessor: ISettingsFileProcessor,
     private val nodeParser: BootstrapNodeJsonParser,
 ) {
     suspend fun validate(uriString: String): Boolean = withContext(Dispatchers.IO) {

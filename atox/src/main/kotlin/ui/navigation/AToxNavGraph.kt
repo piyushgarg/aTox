@@ -2,43 +2,34 @@ package ltd.evilcorp.atox.ui.navigation
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
-import ltd.evilcorp.atox.ui.theme.StatusAvailable
-import ltd.evilcorp.atox.ui.theme.StatusAway
-import ltd.evilcorp.atox.ui.theme.StatusOffline
-import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.stringResource
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -46,118 +37,34 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.compose.runtime.livedata.observeAsState
-import kotlinx.coroutines.Dispatchers
+import androidx.appcompat.app.AppCompatActivity
+import android.widget.Toast
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.delay
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.MainActivity
+import ltd.evilcorp.atox.SharedContent
 import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.media.SystemSoundPlayer
 import ltd.evilcorp.atox.settings.Settings
-import ltd.evilcorp.atox.ui.addcontact.AddContactScreen
-import ltd.evilcorp.atox.ui.addcontact.AddContactViewModel
-import ltd.evilcorp.atox.ui.call.CallScreen
-import ltd.evilcorp.atox.ui.call.CallViewModel
-import ltd.evilcorp.atox.ui.chat.ChatScreen
-import ltd.evilcorp.atox.ui.chat.ChatViewModel
 import ltd.evilcorp.atox.ui.chat.ForwardSelectionScreen
-import ltd.evilcorp.atox.ui.contactlist.ChatsRouteScreen
 import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
 import ltd.evilcorp.atox.ui.contactlist.components.chatListAttentionCount
-import ltd.evilcorp.atox.MainActivity
-import ltd.evilcorp.atox.SharedContent
-import ltd.evilcorp.atox.ui.navigation.AuthViewModel
+import ltd.evilcorp.atox.ui.navigation.components.ReturnToCallBanner
+import ltd.evilcorp.atox.ui.navigation.graphs.authGraph
+import ltd.evilcorp.atox.ui.navigation.graphs.callGraph
+import ltd.evilcorp.atox.ui.navigation.graphs.mainTabGraph
+import ltd.evilcorp.atox.ui.navigation.graphs.groupGraph
+import ltd.evilcorp.atox.ui.navigation.graphs.chatGraph
 import ltd.evilcorp.atox.ui.friendrequest.FriendRequestsViewModel
-import ltd.evilcorp.atox.ui.createprofile.CreateProfileScreen
-import ltd.evilcorp.atox.ui.createprofile.CreateProfileViewModel
-import ltd.evilcorp.atox.ui.settings.SettingsScreen
-import ltd.evilcorp.atox.ui.theme.AToxMotion
-import ltd.evilcorp.atox.ui.userprofile.UserProfileScreen
-import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
-import ltd.evilcorp.atox.ui.userprofile.AvatarCropUiState
 import ltd.evilcorp.atox.util.PermissionManager
-import ltd.evilcorp.domain.feature.GroupInvite
 import ltd.evilcorp.core.model.FileTransfer
-import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
-import ltd.evilcorp.core.tox.ToxID
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.core.model.FINGERPRINT_LEN
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
-import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
-import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
-import ltd.evilcorp.atox.ui.groupchat.GroupListScreen
-import ltd.evilcorp.atox.ui.groupchat.GroupChatScreen
-import ltd.evilcorp.atox.ui.groupchat.CreateGroupScreen
-import ltd.evilcorp.atox.ui.groupchat.JoinGroupScreen
-import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.SizeTransform
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import ltd.evilcorp.atox.ui.common.MorphingNavigationIcon
-import ltd.evilcorp.atox.ui.common.ContactAvatar
-import ltd.evilcorp.atox.ui.common.PresenceTone
-import ltd.evilcorp.atox.ui.common.formatPresenceText
-import ltd.evilcorp.atox.ui.theme.StatusAvailable
-import ltd.evilcorp.atox.ui.theme.StatusAway
-import ltd.evilcorp.atox.ui.theme.StatusBusy
-import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
+import ltd.evilcorp.atox.ui.theme.AToxMotion
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.core.model.FINGERPRINT_LEN
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Color
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.sp
-import ltd.evilcorp.atox.ui.navigation.components.ReturnToCallBanner
 
 @Composable
 @kotlin.OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -195,7 +102,7 @@ fun AToxNavGraph(
     } else {
         viewModel(factory = vmFactory)
     }
-    val selectedChatSnapshot by contactListViewModel.selectedChatSnapshot.collectAsStateWithLifecycle()
+    val selectedChatSnapshot = contactListViewModel.selectedChatSnapshot.collectAsStateWithLifecycle()
 
     val backgroundColor = MaterialTheme.colorScheme.background
     LaunchedEffect(backgroundColor) {
@@ -248,33 +155,12 @@ fun AToxNavGraph(
             popEnterTransition = { AToxMotion.sharedAxisZEnter(forward = false) },
             popExitTransition = { AToxMotion.sharedAxisZExit(forward = false) },
         ) {
-            composable(AppRoutes.Launch) {
-                LaunchScreen(
-                    viewModel = authViewModel,
-                    onLaunchResolved = { status ->
-                        val target = when (status) {
-                            ToxSaveStatus.Ok -> AppRoutes.ContactList
-                            ToxSaveStatus.Encrypted -> AppRoutes.Unlock
-                            else -> AppRoutes.CreateProfile
-                        }
-                        navController.navigate(target) {
-                            popUpTo(AppRoutes.Launch) { inclusive = true }
-                        }
-                    }
-                )
-            }
-
-            composable(AppRoutes.Unlock) {
-                UnlockScreen(
-                    viewModel = authViewModel,
-                    onUnlockSuccess = {
-                        navController.navigate(AppRoutes.ContactList) {
-                            popUpTo(AppRoutes.Unlock) { inclusive = true }
-                        }
-                    },
-                    onQuit = onQuitApp
-                )
-            }
+            authGraph(
+                navController = navController,
+                authViewModel = authViewModel,
+                vmFactory = vmFactory,
+                onQuitApp = onQuitApp
+            )
 
             composable(
                 route = AppRoutes.ContactList,
@@ -283,50 +169,25 @@ fun AToxNavGraph(
                 popEnterTransition = { AToxMotion.sharedAxisXEnter(forward = false) },
                 popExitTransition = { AToxMotion.sharedAxisXExit(forward = false) },
             ) {
-                val profileViewModel: UserProfileViewModel = viewModel(factory = vmFactory)
-                val addContactViewModel: AddContactViewModel = viewModel(factory = vmFactory)
-                val friendRequestsViewModel: FriendRequestsViewModel = viewModel(factory = vmFactory)
                 val mainBackStackEntry by mainNavController.currentBackStackEntryAsState()
 
-                val userState = contactListViewModel.user.collectAsStateWithLifecycle()
                 val contactsState = contactListViewModel.visibleContacts.collectAsStateWithLifecycle(emptyList())
+                val friendRequestsViewModel: FriendRequestsViewModel = viewModel(factory = vmFactory)
                 val friendRequestsState = friendRequestsViewModel.friendRequests.collectAsStateWithLifecycle(emptyList())
-                val searchQuery by contactListViewModel.searchQuery.collectAsStateWithLifecycle()
                 val groupInviteState = contactListViewModel.groupInvite.collectAsStateWithLifecycle(null)
                 val groupInviteFriendNameState = contactListViewModel.groupInviteFriendName.collectAsStateWithLifecycle("")
 
-                // Lifted isSearching state
-                var isSearching by rememberSaveable { mutableStateOf(false) }
-                var settingsTitle by remember { mutableStateOf("") }
-                var settingsOnBackAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-                var settingsOnSearchAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-
-                // Group-related TopAppBar state
-                var groupOnInviteClick by remember { mutableStateOf<(() -> Unit)?>(null) }
-                var groupOnPeersClick by remember { mutableStateOf<(() -> Unit)?>(null) }
-                var groupOnLeaveClick by remember { mutableStateOf<(() -> Unit)?>(null) }
-                var activeGroupName by remember { mutableStateOf("") }
-                var activeGroupTopic by remember { mutableStateOf("") }
-                var activeGroupPeerCount by remember { mutableStateOf(0) }
-                var activeGroupConnectionStatus by remember { mutableStateOf(GroupConnectionStatus.Disconnected) }
+                // Lifted TopAppBar & Search states
+                val isSearchingState = rememberSaveable { mutableStateOf(false) }
+                val settingsTitleState = remember { mutableStateOf("") }
+                val settingsOnBackActionState = remember { mutableStateOf<(() -> Unit)?>(null) }
+                val settingsOnSearchActionState = remember { mutableStateOf<(() -> Unit)?>(null) }
 
                 val mainRoute = mainBackStackEntry?.destination?.route ?: AppRoutes.Chats
-                val isChatRoute = mainRoute.startsWith("chat/")
-                val isGroupChatRoute = mainRoute.startsWith("group_chat/")
-
-                val currentContact = remember(contactsState.value, mainRoute, selectedChatSnapshot) {
-                    if (isChatRoute) {
-                        val pk = mainBackStackEntry?.arguments?.getString(AppRoutes.PublicKeyArg)
-                        contactsState.value.find { it.publicKey == pk } ?: selectedChatSnapshot?.takeIf { it.publicKey == pk }
-                    } else {
-                        null
-                    }
-                }
-
                 val coroutineScope = rememberCoroutineScope()
 
                 val reactiveTopBar: @Composable () -> Unit = {
-                    val currentConfig by ltd.evilcorp.atox.ui.navigation.AppBarStateHolder.config.collectAsStateWithLifecycle()
+                    val currentConfig by AppBarStateHolder.config.collectAsStateWithLifecycle()
                     currentConfig?.let { cfg ->
                         if (cfg.isLarge) {
                             LargeTopAppBar(
@@ -397,718 +258,60 @@ fun AToxNavGraph(
                             AToxMotion.sharedAxisXExit(forward = forward)
                         },
                     ) {
-                        composable(
-                            route = AppRoutes.Chats
-                        ) {
-                            val isSearchingLocal = isSearching
-                            LaunchedEffect(isSearchingLocal) {
-                                AppBarStateHolder.config.value = AppBarConfig(
-                                    title = {
-                                        Text(
-                                            text = context.getString(R.string.app_name),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    },
-                                    navigationIcon = {
-                                        Box(modifier = Modifier.padding(start = 4.dp)) {
-                                            MorphingNavigationIcon(
-                                                isBack = false,
-                                                onClick = {
-                                                    isSearching = true
-                                                }
-                                            )
-                                        }
-                                    }
-                                )
-                            }
+                        mainTabGraph(
+                            mainNavController = mainNavController,
+                            navController = navController,
+                            vmFactory = vmFactory,
+                            contactListViewModel = contactListViewModel,
+                            settings = settings,
+                            appearance = appearance,
+                            isSearchingState = isSearchingState,
+                            settingsTitleState = settingsTitleState,
+                            settingsOnBackActionState = settingsOnBackActionState,
+                            settingsOnSearchActionState = settingsOnSearchActionState,
+                            contactsState = contactsState,
+                            friendRequestsState = friendRequestsState,
+                            groupInviteState = groupInviteState,
+                            groupInviteFriendNameState = groupInviteFriendNameState,
+                            coroutineScope = coroutineScope,
+                            onThemeChanged = onThemeChanged,
+                            onDynamicColorChanged = onDynamicColorChanged,
+                            onAccentColorSeedChanged = onAccentColorSeedChanged,
+                            onLocaleTagChanged = onLocaleTagChanged,
+                            onDisableScreenshotsChanged = onDisableScreenshotsChanged,
+                        )
 
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
-                            ) {
-                                ChatsRouteScreen(
-                                    contacts = contactsState.value,
-                                    friendRequests = friendRequestsState.value,
-                                    groupInvite = groupInviteState.value,
-                                    groupInviteFriendName = groupInviteFriendNameState.value,
-                                    searchQuery = searchQuery,
-                                    onSearchQueryChanged = contactListViewModel::setSearchQuery,
-                                    dateFormatPreference = settings.dateFormatPreference,
-                                    timeFormatPreference = settings.timeFormatPreference,
-                                    onContactClick = { contact ->
-                                        contactListViewModel.prepareOpenChat(contact)
-                                        mainNavController.navigate(AppRoutes.chat(contact.publicKey))
-                                    },
-                                    onDeleteContact = { contact -> contactListViewModel.deleteContact(PublicKey(contact.publicKey)) },
-                                    onAcceptFriendRequest = { req -> friendRequestsViewModel.acceptFriendRequest(req) },
-                                    onRejectFriendRequest = { req -> friendRequestsViewModel.rejectFriendRequest(req) },
-                                    onAcceptGroupInvite = contactListViewModel::acceptGroupInvite,
-                                    onRejectGroupInvite = contactListViewModel::declineGroupInvite,
-                                    onAddContactClick = {
-                                        mainNavController.navigate(AppRoutes.AddContactTab) {
-                                            launchSingleTop = true
-                                        }
-                                    },
-                                    onContactInteraction = {},
-                                    isSearching = isSearching,
-                                    onSearchingChanged = { isSearching = it }
-                                )
-                            }
-                        }
+                        groupGraph(
+                            mainNavController = mainNavController,
+                            vmFactory = vmFactory,
+                            contactListViewModel = contactListViewModel,
+                            settings = settings,
+                            onOpenFile = onOpenFile,
+                            systemSoundPlayer = systemSoundPlayer,
+                        )
 
-                        composable(AppRoutes.Groups) {
-                            LaunchedEffect(Unit) {
-                                AppBarStateHolder.config.value = AppBarConfig(
-                                    title = {
-                                        Text(
-                                            text = context.getString(R.string.groups),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                )
-                            }
-
-                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            val groupsState = groupListViewModel.groups.collectAsStateWithLifecycle()
-                            val connectionStatusesState = groupListViewModel.connectionStatuses.collectAsStateWithLifecycle()
-                            val scope = rememberCoroutineScope()
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
-                            ) {
-                                GroupListScreen(
-                                    groupsState = groupsState,
-                                    connectionStatusesState = connectionStatusesState,
-                                    onGroupClick = { group ->
-                                        mainNavController.navigate(AppRoutes.groupChat(group.chatId))
-                                    },
-                                    onCreateGroupClick = {
-                                        mainNavController.navigate(AppRoutes.CreateGroup)
-                                    },
-                                    onJoinGroupClick = {
-                                        mainNavController.navigate(AppRoutes.JoinGroup)
-                                    },
-                                    onLeaveGroup = { group ->
-                                        scope.launch {
-                                            groupListViewModel.leaveGroup(group)
-                                        }
-                                    }
-                                )
-                            }
-                        }
-
-                        composable(AppRoutes.CreateGroup) {
-                            LaunchedEffect(Unit) {
-                                AppBarStateHolder.config.value = AppBarConfig(
-                                    title = {
-                                        Text(
-                                            text = context.getString(R.string.create_group),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    },
-                                    navigationIcon = {
-                                        Box(modifier = Modifier.padding(start = 4.dp)) {
-                                            MorphingNavigationIcon(
-                                                isBack = true,
-                                                onClick = { mainNavController.popBackStack() }
-                                            )
-                                        }
-                                    }
-                                )
-                            }
-
-                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            CreateGroupScreen(
-                                onBack = { mainNavController.popBackStack() },
-                                isCreatingState = groupListViewModel.isCreating,
-                                onCreateGroup = { name, privacyState, password ->
-                                    val num = groupListViewModel.createGroup(name, privacyState, password)
-                                    if (num >= 0) {
-                                        mainNavController.popBackStack()
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-                            )
-                        }
-
-                        composable(AppRoutes.JoinGroup) {
-                            LaunchedEffect(Unit) {
-                                AppBarStateHolder.config.value = AppBarConfig(
-                                    title = {
-                                        Text(
-                                            text = context.getString(R.string.join_group),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    },
-                                    navigationIcon = {
-                                        Box(modifier = Modifier.padding(start = 4.dp)) {
-                                            MorphingNavigationIcon(
-                                                isBack = true,
-                                                onClick = { mainNavController.popBackStack() }
-                                            )
-                                        }
-                                    }
-                                )
-                            }
-
-                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            JoinGroupScreen(
-                                onBack = { mainNavController.popBackStack() },
-                                isJoiningState = groupListViewModel.isJoining,
-                                onValidateChatId = { groupListViewModel.validateChatId(it) },
-                                onJoinGroup = { chatIdHex, password ->
-                                    val num = groupListViewModel.joinByChatId(chatIdHex, password)
-                                    if (num >= 0) {
-                                        mainNavController.popBackStack()
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-                            )
-                        }
-
-                        composable(
-                            route = AppRoutes.GroupChat,
-                            arguments = listOf(navArgument(AppRoutes.ChatIdArg) { type = NavType.StringType }),
-                        ) { backStackEntry ->
-                            val chatIdStr = backStackEntry.arguments?.getString(AppRoutes.ChatIdArg).orEmpty()
-                            val viewModel: GroupChatViewModel = viewModel(factory = vmFactory)
-                            val contactsState = contactListViewModel.contacts.collectAsStateWithLifecycle()
-                            
-                            remember(chatIdStr) {
-                                viewModel.setActiveGroup(chatIdStr)
-                            }
-                            
-                            val groupState = viewModel.group.collectAsStateWithLifecycle()
-                            val messagesState = viewModel.messages.collectAsStateWithLifecycle()
-                            val peersState = viewModel.peers.collectAsStateWithLifecycle()
-                            val connectionStatusState = viewModel.connectionStatus.collectAsStateWithLifecycle()
-                            val fileTransfersState = viewModel.fileTransfers.collectAsStateWithLifecycle()
-
-                            LaunchedEffect(activeGroupName, activeGroupConnectionStatus, activeGroupPeerCount, groupOnInviteClick, groupOnPeersClick, groupOnLeaveClick) {
-                                AppBarStateHolder.config.value = AppBarConfig(
-                                    title = {
-                                        val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-                                        val ctx = context
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .combinedClickable(
-                                                    onClick = {},
-                                                    onLongClick = {
-                                                        if (settings.hapticEnabled) {
-                                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                                                        }
-                                                        if (chatIdStr.isNotEmpty()) {
-                                                            val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                                            val clip = android.content.ClipData.newPlainText("group ID", chatIdStr)
-                                                            clipboard.setPrimaryClip(clip)
-                                                            android.widget.Toast.makeText(
-                                                                ctx,
-                                                                ctx.getString(R.string.group_invite_copied),
-                                                                android.widget.Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        }
-                                                    }
-                                                )
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.primary),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Group,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column {
-                                                Text(
-                                                    text = activeGroupName.ifEmpty { context.getString(R.string.contact_default_name) },
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    val dotColor = when (activeGroupConnectionStatus) {
-                                                        GroupConnectionStatus.Connected -> StatusAvailable
-                                                        GroupConnectionStatus.Connecting,
-                                                        GroupConnectionStatus.Reconnecting -> StatusAway
-                                                        GroupConnectionStatus.Disconnected -> StatusOffline
-                                                    }
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(8.dp)
-                                                            .clip(CircleShape)
-                                                            .background(dotColor)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    val statusText = when (activeGroupConnectionStatus) {
-                                                        GroupConnectionStatus.Connected -> context.getString(R.string.group_connected)
-                                                        GroupConnectionStatus.Connecting,
-                                                        GroupConnectionStatus.Reconnecting -> context.getString(R.string.group_connecting)
-                                                        GroupConnectionStatus.Disconnected -> context.getString(R.string.group_offline)
-                                                    }
-                                                    Text(
-                                                        text = "$statusText • ${context.getString(R.string.group_peer_count, activeGroupPeerCount)}",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    },
-                                    navigationIcon = {
-                                        Box(modifier = Modifier.padding(start = 4.dp)) {
-                                            MorphingNavigationIcon(
-                                                isBack = true,
-                                                onClick = { mainNavController.popBackStack() }
-                                            )
-                                        }
-                                    },
-                                    actions = {
-                                        var groupMenuExpanded by remember { mutableStateOf(false) }
-                                        Box {
-                                            IconButton(onClick = { groupMenuExpanded = true }) {
-                                                Icon(
-                                                    imageVector = Icons.Default.MoreVert,
-                                                    contentDescription = "More options",
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                            }
-                                            DropdownMenu(
-                                                expanded = groupMenuExpanded,
-                                                onDismissRequest = { groupMenuExpanded = false }
-                                            ) {
-                                                DropdownMenuItem(
-                                                    text = { Text("Пригласить друга") },
-                                                    leadingIcon = {
-                                                        Icon(Icons.Default.PersonAdd, contentDescription = null)
-                                                    },
-                                                    onClick = {
-                                                        groupMenuExpanded = false
-                                                        groupOnInviteClick?.invoke()
-                                                    }
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text("Список участников") },
-                                                    leadingIcon = {
-                                                        Icon(Icons.Default.Person, contentDescription = null)
-                                                    },
-                                                    onClick = {
-                                                        groupMenuExpanded = false
-                                                        groupOnPeersClick?.invoke()
-                                                    }
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text("Выйти из группы", color = MaterialTheme.colorScheme.error) },
-                                                    leadingIcon = {
-                                                        Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                                                    },
-                                                    onClick = {
-                                                        groupMenuExpanded = false
-                                                        groupOnLeaveClick?.invoke()
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                            
-                            GroupChatScreen(
-                                groupState = groupState,
-                                messagesState = messagesState,
-                                peersState = peersState,
-                                contactsState = contactsState,
-                                connectionStatusState = connectionStatusState,
-                                fileTransfersState = fileTransfersState,
-                                settings = settings,
-                                onBack = { mainNavController.popBackStack() },
-                                onSendMessage = { msg -> viewModel.sendMessage(msg) },
-                                onSendFile = { uri -> viewModel.sendFile(uri) },
-                                onSendVoice = { uri -> viewModel.sendVoice(uri) },
-                                onAcceptFt = { ftId -> viewModel.acceptFt(ftId) },
-                                onRejectFt = { ftId -> viewModel.rejectFt(ftId) },
-                                onCancelFt = { msg -> viewModel.cancelFt(msg) },
-                                onSaveAsClick = { ftId, dest -> viewModel.saveFt(ftId, android.net.Uri.parse(dest)) },
-                                onOpenFile = onOpenFile,
-                                onLeaveGroup = { viewModel.leaveGroup() },
-                                onCopyInvite = {
-                                    val id = viewModel.getChatId() ?: ""
-                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    val clip = android.content.ClipData.newPlainText("group invite", id)
-                                    clipboard.setPrimaryClip(clip)
-                                },
-                                onInviteFriend = { friendPk ->
-                                    viewModel.inviteFriend(friendPk)
-                                },
-                                systemSoundPlayer = systemSoundPlayer,
-                                onInviteClick = { groupOnInviteClick = it },
-                                onPeersClick = { groupOnPeersClick = it },
-                                onLeaveClick = { groupOnLeaveClick = it },
-                                onGroupInfoChanged = { name, topic, peerCount, status ->
-                                    activeGroupName = name
-                                    activeGroupTopic = topic
-                                    activeGroupPeerCount = peerCount
-                                    activeGroupConnectionStatus = status
-                                }
-                            )
-                        }
-
-                        composable(AppRoutes.AddContactTab) {
-                            LaunchedEffect(Unit) {
-                                AppBarStateHolder.config.value = AppBarConfig(
-                                    title = {
-                                        Text(
-                                            text = context.getString(R.string.add_contact),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
-                            ) {
-                                AddContactScreen(
-                                    viewModel = addContactViewModel,
-                                    showBackButton = false,
-                                    onSuccess = {
-                                        mainNavController.navigate(AppRoutes.Chats) {
-                                            launchSingleTop = true
-                                            popUpTo(AppRoutes.Chats)
-                                        }
-                                    }
-                                )
-                            }
-                        }
-
-                        composable(AppRoutes.Profile) {
-                            LaunchedEffect(Unit) {
-                                AppBarStateHolder.config.value = AppBarConfig(
-                                    title = {
-                                        Text(
-                                            text = context.getString(R.string.profile),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                )
-                            }
-
-                            val user by userState
-                            val avatar by profileViewModel.avatar.collectAsStateWithLifecycle()
-                            val cropState by profileViewModel.cropState.collectAsStateWithLifecycle()
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
-                            ) {
-                                UserProfileScreen(
-                                    user = user,
-                                    toxId = profileViewModel.toxId.string(),
-                                    avatar = avatar,
-                                    cropState = cropState,
-                                    showBackButton = false,
-                                    onSetName = profileViewModel::setName,
-                                    onSetStatusMessage = profileViewModel::setStatusMessage,
-                                    onSetStatus = profileViewModel::setStatus,
-                                    onLogout = {
-                                        contactListViewModel.deleteProfileAndData()
-                                        navController.navigate(AppRoutes.Launch) {
-                                            popUpTo(0) { inclusive = true }
-                                        }
-                                    },
-                                    onAvatarChanged = profileViewModel::broadcastAvatar,
-                                    onResetCropState = profileViewModel::resetCropState,
-                                    onCropAndSaveAvatar = { originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth ->
-                                        profileViewModel.cropAndSaveAvatar(originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth)
-                                    }
-                                )
-                            }
-                        }
-
-                        composable(AppRoutes.Settings) {
-                            LaunchedEffect(settingsTitle, settingsOnBackAction, settingsOnSearchAction) {
-                                AppBarStateHolder.config.value = AppBarConfig(
-                                    title = {
-                                        Text(
-                                            text = if (settingsOnBackAction == null) context.getString(R.string.settings) else settingsTitle,
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    },
-                                    navigationIcon = {
-                                        if (settingsOnBackAction != null) {
-                                            IconButton(onClick = { settingsOnBackAction?.invoke() }) {
-                                                Icon(
-                                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                                    contentDescription = "Back"
-                                                )
-                                            }
-                                        } else {
-                                            Box(modifier = Modifier.padding(start = 4.dp)) {
-                                                MorphingNavigationIcon(
-                                                    isBack = false,
-                                                    onClick = { settingsOnSearchAction?.invoke() }
-                                                )
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
-                            ) {
-                                SettingsScreen(
-                                    settings = settings,
-                                    appearance = appearance,
-                                    onThemeChanged = onThemeChanged,
-                                    onDynamicColorChanged = onDynamicColorChanged,
-                                    onAccentColorSeedChanged = onAccentColorSeedChanged,
-                                    onLocaleTagChanged = onLocaleTagChanged,
-                                    onDisableScreenshotsChanged = onDisableScreenshotsChanged,
-                                    showBackButton = false,
-                                    vmFactory = vmFactory,
-                                    onTitleChanged = { settingsTitle = it },
-                                    onBackActionChanged = { settingsOnBackAction = it },
-                                    onSearchActionChanged = { settingsOnSearchAction = it }
-                                )
-                            }
-                        }
-
-                        composable(
-                            route = AppRoutes.Chat,
-                            arguments = listOf(navArgument(AppRoutes.PublicKeyArg) { type = NavType.StringType }),
-                        ) { backStackEntry ->
-                            val publicKeyStr = backStackEntry.arguments?.getString(AppRoutes.PublicKeyArg).orEmpty()
-                            val viewModel: ChatViewModel = viewModel(factory = vmFactory)
-
-                            val context = LocalContext.current
-
-                            remember(publicKeyStr) {
-                                viewModel.setActiveChat(PublicKey(publicKeyStr))
-                            }
-
-                            LaunchedEffect(Unit) {
-                                viewModel.uiEvents.collect { event ->
-                                    when (event) {
-                                        is ChatViewModel.ChatUiEvent.ShowToast -> {
-                                            val text = if (event.formatArg != null) {
-                                                context.getString(event.messageResId, event.formatArg)
-                                            } else {
-                                                context.getString(event.messageResId)
-                                            }
-                                            Toast.makeText(context, text, Toast.LENGTH_LONG).show()
-                                        }
-                                    }
-                                }
-                            }
-
-                            DisposableEffect(publicKeyStr) {
-                                onDispose {
-                                    viewModel.clearActiveChat(PublicKey(publicKeyStr))
-                                }
-                            }
-
-                            val contact by viewModel.contact.collectAsStateWithLifecycle()
-                            val contactSnapshot = remember(selectedChatSnapshot, publicKeyStr) {
-                                selectedChatSnapshot?.takeIf { it.publicKey == publicKeyStr }
-                            }
-                            val messages by viewModel.messages.collectAsStateWithLifecycle()
-                            val fileTransfers by viewModel.fileTransfers.collectAsStateWithLifecycle(emptyList())
-                            val replyingToMessage by viewModel.replyingToMessage.collectAsStateWithLifecycle()
-                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            val groupsState by groupListViewModel.groups.collectAsStateWithLifecycle()
-
-                            ChatScreen(
-                                contact = contact ?: contactSnapshot,
-                                messages = messages,
-                                fileTransfers = fileTransfers,
-                                settings = settings,
-                                onBack = mainNavController::popBackStack,
-                                onSendMessage = { content -> viewModel.send(content, MessageType.Normal) },
-                                onTypingChanged = viewModel::setTyping,
-                                onSendFile = viewModel::createFt,
-                                onCallClick = viewModel::startCall,
-                                onCallHistoryClick = viewModel::startCall,
-                                onAcceptFt = viewModel::acceptFt,
-                                onRejectFt = viewModel::rejectFt,
-                                onCancelFt = viewModel::delete,
-                                onSaveFt = viewModel::exportFt,
-                                onOpenFile = onOpenFile,
-                                systemSoundPlayer = systemSoundPlayer,
-                                replyingToMessage = replyingToMessage,
-                                onCancelReply = { viewModel.setReplyingTo(null) },
-                                onReplyClick = { msg -> viewModel.setReplyingTo(msg) },
-                                onCopyClick = { msg ->
-                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    val clip = android.content.ClipData.newPlainText("aTox message", msg.message)
-                                    clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, context.getString(R.string.message_copied), Toast.LENGTH_SHORT).show()
-                                },
-                                onForwardClick = { msg ->
-                                    navController.navigate(AppRoutes.forwardSelection(msg.message))
-                                },
-                                onSendVoice = viewModel::createFt,
-                                isJoinedGroup = { chatId ->
-                                    groupsState.any { it.chatId.equals(chatId, ignoreCase = true) }
-                                },
-                                onJoinGroupClick = { chatIdOrBytes, groupName ->
-                                    coroutineScope.launch {
-                                        val alreadyJoined = groupsState.any { it.chatId.equals(chatIdOrBytes, ignoreCase = true) }
-                                        if (alreadyJoined) {
-                                            mainNavController.navigate(AppRoutes.groupChat(chatIdOrBytes)) {
-                                                popUpTo(AppRoutes.chat(publicKeyStr)) { inclusive = true }
-                                            }
-                                            return@launch
-                                        }
-
-                                        val groupNumber = if (chatIdOrBytes.length == 64) {
-                                            val pending = groupListViewModel.getPendingInvite()
-                                            if (pending != null && pending.groupName.equals(groupName, ignoreCase = true)) {
-                                                groupListViewModel.joinWithPendingInvite(publicKeyStr, pending)
-                                            } else {
-                                                groupListViewModel.joinByChatId(chatIdOrBytes, null)
-                                            }
-                                        } else {
-                                            groupListViewModel.joinGroupWithBytes(publicKeyStr, chatIdOrBytes, null)
-                                        }
-                                        
-                                        if (groupNumber >= 0) {
-                                            val chatId = if (chatIdOrBytes.length == 64) {
-                                                chatIdOrBytes
-                                            } else {
-                                                groupListViewModel.getChatIdByGroupNumber(groupNumber) ?: ""
-                                            }
-                                            if (chatId.isNotEmpty()) {
-                                                mainNavController.navigate(AppRoutes.groupChat(chatId)) {
-                                                    popUpTo(AppRoutes.chat(publicKeyStr)) { inclusive = true }
-                                                }
-                                            }
-                                        } else {
-                                            Toast.makeText(context, "Не удалось вступить в группу", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                }
-                            )
-                        }
+                        chatGraph(
+                            mainNavController = mainNavController,
+                            navController = navController,
+                            vmFactory = vmFactory,
+                            contactListViewModel = contactListViewModel,
+                            settings = settings,
+                            selectedChatSnapshotState = selectedChatSnapshot,
+                            systemSoundPlayer = systemSoundPlayer,
+                            onOpenFile = onOpenFile,
+                            coroutineScope = coroutineScope,
+                        )
                     }
                 }
             }
 
-            composable(AppRoutes.CreateProfile) {
-                val viewModel: CreateProfileViewModel = viewModel(factory = vmFactory)
-                CreateProfileScreen(
-                    viewModel = viewModel,
-                    onSuccess = {
-                        navController.navigate(AppRoutes.ContactList) {
-                            popUpTo(AppRoutes.CreateProfile) { inclusive = true }
-                        }
-                    }
-                )
-            }
-
-
-
-            composable(
-                route = AppRoutes.Call,
-                arguments = listOf(navArgument(AppRoutes.PublicKeyArg) { type = NavType.StringType }),
-                enterTransition = { AToxMotion.slideUpEnter() },
-                exitTransition = { AToxMotion.slideDownExit() },
-                popEnterTransition = { AToxMotion.slideUpEnter() },
-                popExitTransition = { AToxMotion.slideDownExit() },
-            ) { backStackEntry ->
-                val publicKeyStr = backStackEntry.arguments?.getString(AppRoutes.PublicKeyArg).orEmpty()
-                val viewModel: CallViewModel = viewModel(factory = vmFactory)
-
-                LaunchedEffect(publicKeyStr) {
-                    viewModel.setActiveContact(PublicKey(publicKeyStr))
-                    callScreenMinimized.value = false
-                }
-
-                val contact by viewModel.contact.collectAsStateWithLifecycle()
-                val callState by viewModel.inCall.collectAsStateWithLifecycle()
-                val sendingAudio by viewModel.sendingAudio.collectAsStateWithLifecycle()
-                val speakerphoneOn by viewModel.speakerphoneState.collectAsStateWithLifecycle()
-                val callDuration by viewModel.callDuration.collectAsStateWithLifecycle()
-
-                CallScreen(
-                    publicKey = publicKeyStr,
-                    contact = contact,
-                    callState = callState,
-                    sendingAudio = sendingAudio,
-                    speakerphoneOn = speakerphoneOn,
-                    callDuration = callDuration,
-                    hasMicPermission = permissionManager.canRecordAudio(),
-                    onRequestMicPermission = {},
-                    onMinimize = {
-                        callScreenMinimized.value = true
-                        navController.popBackStack()
-                    },
-                    onToggleMic = {
-                        if (sendingAudio) {
-                            viewModel.stopSendingAudio()
-                        } else {
-                            viewModel.startSendingAudio()
-                        }
-                    },
-                    onToggleSpeaker = viewModel::toggleSpeakerphone,
-                    onEndCall = {
-                        callScreenMinimized.value = false
-                        viewModel.endCall()
-                        navController.popBackStack()
-                    },
-                    hapticEnabled = settings.hapticEnabled,
-                )
-            }
-
-            composable(
-                route = AppRoutes.AddContact,
-                arguments = listOf(navArgument(AppRoutes.ToxIdArg) {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }),
-            ) { backStackEntry ->
-                val toxIdArg = backStackEntry.arguments?.getString(AppRoutes.ToxIdArg).orEmpty()
-                val viewModel: AddContactViewModel = viewModel(factory = vmFactory)
-                AddContactScreen(
-                    viewModel = viewModel,
-                    initialToxId = toxIdArg,
-                    onBack = navController::popBackStack,
-                    onSuccess = {
-                        navController.popBackStack()
-                    }
-                )
-            }
+            callGraph(
+                navController = navController,
+                vmFactory = vmFactory,
+                permissionManager = permissionManager,
+                callScreenMinimized = callScreenMinimized,
+                settings = settings,
+            )
 
             composable(
                 route = AppRoutes.ForwardSelection,
@@ -1120,7 +323,7 @@ fun AToxNavGraph(
             ) { backStackEntry ->
                 val messageText = backStackEntry.arguments?.getString("message").orEmpty()
                 val contactsState by contactListViewModel.contacts.collectAsStateWithLifecycle()
-                val context = LocalContext.current
+                val ctx = LocalContext.current
 
                 ForwardSelectionScreen(
                     contacts = contactsState,
@@ -1130,7 +333,7 @@ fun AToxNavGraph(
                         selectedList.forEach { contact ->
                             contactListViewModel.onShareText(messageText, contact)
                         }
-                        Toast.makeText(context, context.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(ctx, ctx.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
                         navController.popBackStack()
                     }
                 )
@@ -1144,7 +347,7 @@ fun AToxNavGraph(
                 popExitTransition = { AToxMotion.sharedAxisZExit(forward = false) },
             ) {
                 val contactsState by contactListViewModel.contacts.collectAsStateWithLifecycle()
-                val context = LocalContext.current
+                val ctx = LocalContext.current
 
                 ForwardSelectionScreen(
                     contacts = contactsState,
@@ -1172,9 +375,9 @@ fun AToxNavGraph(
                                 }
                             }
                             if (content is SharedContent.Text) {
-                                Toast.makeText(context, context.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(ctx, ctx.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
                             } else {
-                                Toast.makeText(context, context.getString(R.string.file_sharing_started), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(ctx, ctx.getString(R.string.file_sharing_started), Toast.LENGTH_SHORT).show()
                             }
                             MainActivity.sharedContentState.value = null
                         }
@@ -1206,13 +409,13 @@ fun AToxNavGraph(
         val incomingCall = callState as? CallState.IncomingRinging
         if (incomingCall != null) {
             val contact = incomingCall.contact
-            val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+            val coroutineScope = rememberCoroutineScope()
             AlertDialog(
                 onDismissRequest = {},
-                title = { Text(androidx.compose.ui.res.stringResource(R.string.incoming_call)) },
+                title = { Text(stringResource(R.string.incoming_call)) },
                 text = {
                     Text(
-                        androidx.compose.ui.res.stringResource(
+                        stringResource(
                             R.string.incoming_call_from,
                             contact.name.ifEmpty { contact.publicKey.take(FINGERPRINT_LEN) }
                         )
@@ -1231,7 +434,7 @@ fun AToxNavGraph(
                             }
                         }
                     ) {
-                        Text(androidx.compose.ui.res.stringResource(R.string.accept))
+                        Text(stringResource(R.string.accept))
                     }
                 },
                 dismissButton = {
@@ -1244,14 +447,13 @@ fun AToxNavGraph(
                             }
                         }
                     ) {
-                        Text(androidx.compose.ui.res.stringResource(R.string.reject))
+                        Text(stringResource(R.string.reject))
                     }
                 }
             )
         }
     }
 }
-
 
 private fun getRouteOrder(key: String): Int {
     return when {
@@ -1266,7 +468,6 @@ private fun getRouteOrder(key: String): Int {
     }
 }
 
-
 private fun CallState.publicKeyForCallScreen(): String? {
     return when (this) {
         is CallState.OutgoingRequesting -> publicKey.string()
@@ -1276,4 +477,9 @@ private fun CallState.publicKeyForCallScreen(): String? {
         is CallState.Active -> publicKey.string()
         else -> null
     }
+}
+
+// Extension to convert Color to Int for window background color
+private fun androidx.compose.ui.graphics.Color.toArgb(): Int {
+    return (this.value shr 32).toInt()
 }

@@ -30,7 +30,7 @@ import ltd.evilcorp.domain.tox.Tox
 import ltd.evilcorp.core.tox.ToxID
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 
-import ltd.evilcorp.atox.domain.usecase.AddContactUseCase
+import ltd.evilcorp.domain.usecase.AddContactUseCase
 
 class AddContactViewModel @Inject constructor(
     private val addContactUseCase: AddContactUseCase,

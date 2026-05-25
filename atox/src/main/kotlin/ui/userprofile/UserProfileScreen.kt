@@ -72,7 +72,8 @@ fun UserProfileScreen(
     onLogout: () -> Unit = {},
     onAvatarChanged: () -> Unit = {},
     onResetCropState: () -> Unit = {},
-    onCropAndSaveAvatar: (android.graphics.Bitmap, Float, Float, Float, Float, Float) -> Unit
+    onCropAndSaveAvatar: (android.graphics.Bitmap, Float, Float, Float, Float, Float) -> Unit,
+    performHaptic: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -101,11 +102,28 @@ fun UserProfileScreen(
         }
     }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
         if (uri != null) {
             selectedImageUri = uri
         }
     }
+
+    val tempFile = remember { java.io.File(context.cacheDir, "avatar_capture.jpg") }
+    val tempFileUri = remember(tempFile) {
+        androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            tempFile
+        )
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
+        if (success) {
+            selectedImageUri = tempFileUri
+        }
+    }
+
+    var showSourceDialog by remember { mutableStateOf(false) }
 
     var tempName by remember(user?.name) { mutableStateOf(user?.name ?: "") }
     var tempStatus by remember(user?.statusMessage) { mutableStateOf(user?.statusMessage ?: "") }
@@ -122,7 +140,7 @@ fun UserProfileScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Beautiful Material 3 Profile Picture with Edit Button
             Box(
@@ -136,7 +154,7 @@ fun UserProfileScreen(
                         .fillMaxSize()
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer)
-                        .clickable { launcher.launch("image/*") },
+                        .clickable { showSourceDialog = true },
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.animation.Crossfade(
@@ -179,7 +197,7 @@ fun UserProfileScreen(
                     modifier = Modifier
                         .size(32.dp)
                         .minimumInteractiveComponentSize()
-                        .clickable { launcher.launch("image/*") }
+                        .clickable { showSourceDialog = true }
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -270,21 +288,30 @@ fun UserProfileScreen(
                         title = stringResource(R.string.status_available),
                         color = StatusAvailable,
                         isSelected = activeStatus == UserStatus.None,
-                        onClick = { onSetStatus(UserStatus.None) }
+                        onClick = {
+                            performHaptic()
+                            onSetStatus(UserStatus.None)
+                        }
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.05f))
                     StatusRow(
                         title = stringResource(R.string.status_away),
                         color = StatusAway,
                         isSelected = activeStatus == UserStatus.Away,
-                        onClick = { onSetStatus(UserStatus.Away) }
+                        onClick = {
+                            performHaptic()
+                            onSetStatus(UserStatus.Away)
+                        }
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.05f))
                     StatusRow(
                         title = stringResource(R.string.status_busy),
                         color = StatusBusy,
                         isSelected = activeStatus == UserStatus.Busy,
-                        onClick = { onSetStatus(UserStatus.Busy) }
+                        onClick = {
+                            performHaptic()
+                            onSetStatus(UserStatus.Busy)
+                        }
                     )
                 }
             }
@@ -494,6 +521,80 @@ fun UserProfileScreen(
             onDismiss = { selectedImageUri = null },
             onConfirm = { originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth ->
                 onCropAndSaveAvatar(originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth)
+            }
+        )
+    }
+
+    if (showSourceDialog) {
+        AlertDialog(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            onDismissRequest = { showSourceDialog = false },
+            title = { Text(stringResource(R.string.avatar_source_title), fontWeight = FontWeight.Bold) },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    TextButton(
+                        onClick = {
+                            showSourceDialog = false
+                            try {
+                                cameraLauncher.launch(tempFileUri)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = stringResource(R.string.avatar_source_camera),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            showSourceDialog = false
+                            galleryLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = stringResource(R.string.avatar_source_gallery),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSourceDialog = false }) {
+                    Text(stringResource(R.string.avatar_editor_cancel))
+                }
             }
         )
     }

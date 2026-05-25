@@ -175,7 +175,7 @@ fun SettingsErrorClickableRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
@@ -192,14 +192,14 @@ fun SettingsErrorClickableRow(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onErrorContainer
+                    color = MaterialTheme.colorScheme.error
                 )
                 if (subtitle.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -208,7 +208,7 @@ fun SettingsErrorClickableRow(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = "Open",
-                tint = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f),
+                tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(20.dp)
             )
         }

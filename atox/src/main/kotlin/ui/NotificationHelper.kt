@@ -48,6 +48,8 @@ import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.UserStatus
 import ltd.evilcorp.core.model.FINGERPRINT_LEN
 
+import ltd.evilcorp.domain.feature.INotificationHelper
+
 private const val TAG = "NotificationHelper"
 
 private const val MESSAGE = "aTox messages"
@@ -60,7 +62,7 @@ private const val GROUP_MESSAGE = "aTox group messages"
 class NotificationHelper @Inject constructor(
     private val context: Context,
     private val permissionManager: PermissionManager
-) {
+) : INotificationHelper {
     private val notifier = NotificationManagerCompat.from(context)
     private val notifierOld = context.getSystemService<NotificationManager>()!!
 
@@ -94,7 +96,7 @@ class NotificationHelper @Inject constructor(
         notifier.createNotificationChannelsCompat(listOf(messageChannel, friendChannel, callChannel, groupChannel))
     }
 
-    fun dismissNotifications(publicKey: PublicKey) = notifier.cancel(publicKey.string().hashCode())
+    override fun dismissNotifications(publicKey: PublicKey) = notifier.cancel(publicKey.string().hashCode())
 
     private val circleTransform = object : Transformation {
         override fun transform(bitmap: Bitmap): Bitmap {
@@ -316,7 +318,7 @@ class NotificationHelper @Inject constructor(
         notifier.notify(friendPk.hashCode(), notificationBuilder.build())
     }
 
-    fun dismissCallNotification(pk: PublicKey) = notifier.cancel(pk.string().hashCode() + CALL.hashCode())
+    override fun dismissCallNotification(publicKey: PublicKey) = notifier.cancel(publicKey.string().hashCode() + CALL.hashCode())
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun showOngoingCallNotification(contact: Contact) {

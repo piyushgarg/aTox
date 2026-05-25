@@ -1,4 +1,4 @@
-package ltd.evilcorp.atox.domain.usecase
+package ltd.evilcorp.domain.usecase
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -8,11 +8,11 @@ import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.ChatManager
 import ltd.evilcorp.domain.feature.ContactManager
 import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.atox.ui.NotificationHelper
+import ltd.evilcorp.domain.feature.INotificationHelper
 
 class DeleteContactUseCase @Inject constructor(
     private val callManager: CallManager,
-    private val notificationHelper: NotificationHelper,
+    private val notificationHelper: INotificationHelper,
     private val contactManager: ContactManager,
     private val chatManager: ChatManager,
     private val fileTransferManager: FileTransferManager,

@@ -23,6 +23,8 @@ import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 
+import ltd.evilcorp.domain.tox.IToxStarter
+
 private const val TAG = "ToxStarter"
 
 class ToxStarter @Inject constructor(
@@ -36,7 +38,7 @@ class ToxStarter @Inject constructor(
     private val avEventListener: ToxAvEventListener,
     private val context: Context,
     private val settings: Settings,
-) {
+) : IToxStarter {
     fun startTox(save: ByteArray? = null, password: String? = null): ToxSaveStatus {
         listenerCallbacks.setUp(eventListener)
         listenerCallbacks.setUp(avEventListener)
@@ -58,8 +60,8 @@ class ToxStarter @Inject constructor(
         return ToxSaveStatus.Ok
     }
 
-    fun stopTox() = context.run {
-        stopService(Intent(this, ToxService::class.java))
+    override fun stopTox() {
+        context.stopService(Intent(context, ToxService::class.java))
     }
 
     fun tryLoadTox(password: String?): ToxSaveStatus {

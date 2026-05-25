@@ -23,12 +23,14 @@ import ltd.evilcorp.domain.backup.BackupUseCase
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.tox.Tox
 
+import ltd.evilcorp.domain.feature.ISettingsFileProcessor
+
 sealed interface BackupUiEvent {
     data class ShowToast(val messageResId: Int) : BackupUiEvent
 }
 
 class BackupSettingsViewModel @Inject constructor(
-    private val fileProcessor: SettingsFileProcessor,
+    private val fileProcessor: ISettingsFileProcessor,
     private val toxStarter: ToxStarter,
     private val tox: Tox,
     private val backupUseCase: BackupUseCase,

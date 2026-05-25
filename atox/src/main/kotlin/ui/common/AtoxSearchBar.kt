@@ -26,6 +26,7 @@ fun AtoxSearchBar(
     onActiveChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = stringResource(R.string.contact_list_search_placeholder),
+    trailingIcon: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     SearchBar(
@@ -58,6 +59,8 @@ fun AtoxSearchBar(
                         contentDescription = "Clear"
                     )
                 }
+            } else {
+                trailingIcon?.invoke()
             }
         },
         modifier = modifier.fillMaxWidth(),

@@ -222,7 +222,93 @@ fun ChatScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
-        topBar = {}
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ContactAvatar(
+                            name = contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) } ?: stringResource(R.string.contact_default_name),
+                            publicKey = contact?.publicKey ?: "",
+                            avatarUri = contact?.avatarUri ?: "",
+                            size = 36.dp,
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) } ?: stringResource(R.string.contact_default_name),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            val presenceInfo = contact?.let {
+                                formatPresenceText(
+                                    context = LocalContext.current,
+                                    contact = it,
+                                    dateFormatPreference = settings.dateFormatPreference,
+                                    timeFormatPreference = settings.timeFormatPreference
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(
+                                            color = when (contact?.connectionStatus) {
+                                                ltd.evilcorp.core.model.ConnectionStatus.None -> ltd.evilcorp.atox.ui.theme.StatusOffline
+                                                else -> when (contact?.status) {
+                                                    ltd.evilcorp.core.model.UserStatus.Away -> ltd.evilcorp.atox.ui.theme.StatusAway
+                                                    ltd.evilcorp.core.model.UserStatus.Busy -> ltd.evilcorp.atox.ui.theme.StatusBusy
+                                                    else -> ltd.evilcorp.atox.ui.theme.StatusAvailable
+                                                }
+                                            },
+                                            shape = CircleShape
+                                        )
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = presenceInfo?.text ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                },
+                navigationIcon = {
+                    Box(modifier = Modifier.padding(start = 4.dp)) {
+                        MorphingNavigationIcon(
+                            isBack = true,
+                            onClick = {
+                                performHaptic()
+                                onBack()
+                            }
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        performHaptic()
+                        onCallClick()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Call",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                ),
+                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+            )
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
