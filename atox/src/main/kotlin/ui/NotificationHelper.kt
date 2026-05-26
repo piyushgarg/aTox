@@ -1,93 +1,66 @@
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
 package ltd.evilcorp.atox.ui
 
 import android.Manifest
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import android.graphics.Rect
-import android.media.AudioAttributes
-import android.media.RingtoneManager
-import android.os.Build
-import android.os.Bundle
 import android.util.Log
 import androidx.annotation.RequiresPermission
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationChannelCompat
-import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.Person
-import androidx.core.app.RemoteInput
-import androidx.core.content.getSystemService
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.drawable.IconCompat
-import com.squareup.picasso.Picasso
-import com.squareup.picasso.Transformation
 import javax.inject.Inject
 import javax.inject.Singleton
-import ltd.evilcorp.atox.receiver.Action
-import ltd.evilcorp.atox.receiver.ActionReceiver
-import ltd.evilcorp.atox.receiver.KEY_ACTION
-import ltd.evilcorp.atox.receiver.KEY_CONTACT_PK
-import ltd.evilcorp.atox.receiver.KEY_TEXT_REPLY
-import ltd.evilcorp.atox.util.PendingIntentCompat
-import ltd.evilcorp.atox.util.PermissionManager
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.MainActivity
-import ltd.evilcorp.atox.CONTACT_PUBLIC_KEY
-import ltd.evilcorp.atox.FOCUS_ON_MESSAGE_BOX
+import ltd.evilcorp.atox.ui.avatar.NotificationAvatarLoader
+import ltd.evilcorp.atox.ui.notification.MessageNotificationFactory
+import ltd.evilcorp.atox.ui.notification.CallNotificationFactory
+import ltd.evilcorp.atox.ui.notification.CHANNEL_MESSAGE
+import ltd.evilcorp.atox.ui.notification.CHANNEL_FRIEND_REQUEST
+import ltd.evilcorp.atox.ui.notification.CHANNEL_CALL
+import ltd.evilcorp.atox.ui.notification.CHANNEL_GROUP_MESSAGE
+import ltd.evilcorp.atox.util.PermissionManager
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.FriendRequest
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.UserStatus
-import ltd.evilcorp.core.model.FINGERPRINT_LEN
-
 import ltd.evilcorp.domain.feature.INotificationHelper
 
 private const val TAG = "NotificationHelper"
 
-private const val MESSAGE = "aTox messages"
-private const val FRIEND_REQUEST = "aTox friend requests"
-private const val CALL = "aTox calls"
-private const val EXTRA_REQUEST_PROMOTED_ONGOING = "android.requestPromotedOngoing"
-private const val GROUP_MESSAGE = "aTox group messages"
-
 @Singleton
 class NotificationHelper @Inject constructor(
     private val context: Context,
-    private val permissionManager: PermissionManager
+    private val permissionManager: PermissionManager,
+    private val avatarLoader: NotificationAvatarLoader,
+    private val messageNotificationFactory: MessageNotificationFactory,
+    private val callNotificationFactory: CallNotificationFactory
 ) : INotificationHelper {
     private val notifier = NotificationManagerCompat.from(context)
-    private val notifierOld = context.getSystemService<NotificationManager>()!!
 
     init {
-        createNotificationChannel()
+        createNotificationChannels()
     }
 
-    private fun createNotificationChannel() {
-        val messageChannel = NotificationChannelCompat.Builder(MESSAGE, NotificationManagerCompat.IMPORTANCE_HIGH)
+    private fun createNotificationChannels() {
+        val messageChannel = NotificationChannelCompat.Builder(CHANNEL_MESSAGE, NotificationManagerCompat.IMPORTANCE_HIGH)
             .setName(context.getString(R.string.messages))
             .setDescription(context.getString(R.string.messages_incoming))
             .setSound(null, null)
             .build()
 
-        val friendChannel = NotificationChannelCompat.Builder(FRIEND_REQUEST, NotificationManagerCompat.IMPORTANCE_HIGH)
+        val friendChannel = NotificationChannelCompat.Builder(CHANNEL_FRIEND_REQUEST, NotificationManagerCompat.IMPORTANCE_HIGH)
             .setName(context.getString(R.string.friend_requests))
             .build()
 
-        val callChannel = NotificationChannelCompat.Builder(CALL, NotificationManagerCompat.IMPORTANCE_HIGH)
+        val callChannel = NotificationChannelCompat.Builder(CHANNEL_CALL, NotificationManagerCompat.IMPORTANCE_HIGH)
             .setName(context.getString(R.string.calls))
             .setVibrationEnabled(true)
             .setSound(null, null)
             .build()
 
-        val groupChannel = NotificationChannelCompat.Builder(GROUP_MESSAGE, NotificationManagerCompat.IMPORTANCE_HIGH)
+        val groupChannel = NotificationChannelCompat.Builder(CHANNEL_GROUP_MESSAGE, NotificationManagerCompat.IMPORTANCE_HIGH)
             .setName(context.getString(R.string.groups))
             .setDescription(context.getString(R.string.messages_incoming))
             .setSound(null, null)
@@ -98,26 +71,7 @@ class NotificationHelper @Inject constructor(
 
     override fun dismissNotifications(publicKey: PublicKey) = notifier.cancel(publicKey.string().hashCode())
 
-    private val circleTransform = object : Transformation {
-        override fun transform(bitmap: Bitmap): Bitmap {
-            val output = createBitmap(bitmap.width, bitmap.height)
-            val canvas = Canvas(output)
-            val paint = Paint()
-            val rect = Rect(0, 0, bitmap.width, bitmap.height)
-
-            paint.isAntiAlias = true
-            canvas.drawARGB(0, 0, 0, 0)
-            canvas.drawCircle(bitmap.width / 2.0f, bitmap.height / 2.0f, bitmap.width / 2.0f, paint)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-            canvas.drawBitmap(bitmap, rect, rect, paint)
-            if (bitmap != output) {
-                bitmap.recycle()
-            }
-            return output
-        }
-
-        override fun key() = "circleTransform"
-    }
+    override fun dismissCallNotification(publicKey: PublicKey) = notifier.cancel(publicKey.string().hashCode() + CHANNEL_CALL.hashCode())
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun showMessageNotification(
@@ -130,96 +84,8 @@ class NotificationHelper @Inject constructor(
             Log.w(TAG, "Received message, notifications disallowed")
             return
         }
-
-        val notificationBuilder = NotificationCompat.Builder(context, MESSAGE)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setSmallIcon(android.R.drawable.sym_action_chat)
-            .setContentTitle(contact.name.ifEmpty { context.getText(R.string.contact_default_name) })
-            .setContentText(message)
-            .setContentIntent(deepLinkToChat(PublicKey(contact.publicKey)))
-            .setAutoCancel(true)
-            .setSilent(silent)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val icon = if (contact.avatarUri.isNotEmpty()) {
-                IconCompat.createWithBitmap(Picasso.get().load(contact.avatarUri).transform(circleTransform).get())
-            } else {
-                null
-            }
-
-            val chatPartner = Person.Builder()
-                .setName(contact.name.ifEmpty { context.getText(R.string.contact_default_name) })
-                .setKey(if (outgoing) "myself" else contact.publicKey)
-                .setIcon(icon)
-                .setImportant(true)
-                .build()
-
-            val style =
-                notifierOld.activeNotifications.find { it.notification.group == contact.publicKey }?.notification?.let {
-                    NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it)
-                } ?: NotificationCompat.MessagingStyle(chatPartner)
-
-            style.messages.add(
-                NotificationCompat.MessagingStyle.Message(message, System.currentTimeMillis(), chatPartner),
-            )
-
-            notificationBuilder
-                .setStyle(style)
-                .setGroup(contact.publicKey)
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            notificationBuilder.addAction(
-                NotificationCompat.Action
-                    .Builder(
-                        IconCompat.createWithResource(context, R.drawable.ic_send),
-                        context.getString(R.string.reply),
-                        PendingIntentCompat.getBroadcast(
-                            context,
-                            contact.publicKey.hashCode(),
-                            Intent(context, ActionReceiver::class.java).putExtra(KEY_CONTACT_PK, contact.publicKey),
-                            PendingIntent.FLAG_UPDATE_CURRENT,
-                            mutable = true,
-                        ),
-                    )
-                    .addRemoteInput(
-                        RemoteInput.Builder(KEY_TEXT_REPLY)
-                            .setLabel(context.getString(R.string.message))
-                            .build(),
-                    )
-                    .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
-                    .setAllowGeneratedReplies(true)
-                    .build(),
-            )
-        } else {
-            notificationBuilder.addAction(
-                NotificationCompat.Action
-                    .Builder(
-                        IconCompat.createWithResource(context, R.drawable.ic_send),
-                        context.getString(R.string.reply),
-                        deepLinkToChat(PublicKey(contact.publicKey), focusMessageBox = true),
-                    )
-                    .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
-                    .build(),
-            )
-        }
-
-        notificationBuilder.addAction(
-            NotificationCompat.Action.Builder(
-                null,
-                context.getString(R.string.mark_as_read),
-                PendingIntentCompat.getBroadcast(
-                    context,
-                    "${contact.publicKey}_mark_as_read".hashCode(),
-                    Intent(context, ActionReceiver::class.java)
-                        .putExtra(KEY_CONTACT_PK, contact.publicKey)
-                        .putExtra(KEY_ACTION, Action.MarkAsRead),
-                    PendingIntent.FLAG_UPDATE_CURRENT,
-                ),
-            ).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ).build(),
-        )
-
-        notifier.notify(contact.publicKey.hashCode(), notificationBuilder.build())
+        val builder = messageNotificationFactory.buildMessageNotification(contact, message, outgoing, silent)
+        notifier.notify(contact.publicKey.hashCode(), builder.build())
     }
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
@@ -228,27 +94,8 @@ class NotificationHelper @Inject constructor(
             Log.w(TAG, "Received friend request, notifications disallowed")
             return
         }
-
-        val mainIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            friendRequest.publicKey.hashCode(),
-            mainIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notificationBuilder = NotificationCompat.Builder(context, FRIEND_REQUEST)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setSmallIcon(android.R.drawable.btn_star_big_on)
-            .setContentTitle(context.getString(R.string.friend_request_from, friendRequest.publicKey))
-            .setContentText(friendRequest.message)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setSilent(silent)
-
-        notifier.notify(friendRequest.publicKey.hashCode(), notificationBuilder.build())
+        val builder = messageNotificationFactory.buildFriendRequestNotification(friendRequest, silent)
+        notifier.notify(friendRequest.publicKey.hashCode(), builder.build())
     }
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
@@ -262,27 +109,8 @@ class NotificationHelper @Inject constructor(
             Log.w(TAG, "Received group message, notifications disallowed")
             return
         }
-
-        val mainIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            "$groupName$senderName".hashCode(),
-            mainIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notificationBuilder = NotificationCompat.Builder(context, GROUP_MESSAGE)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setSmallIcon(android.R.drawable.sym_action_chat)
-            .setContentTitle("$senderName @ $groupName")
-            .setContentText(message)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setSilent(silent)
-
-        notifier.notify("$groupName$senderName".hashCode(), notificationBuilder.build())
+        val builder = messageNotificationFactory.buildGroupMessageNotification(groupName, senderName, message, silent)
+        notifier.notify("$groupName$senderName".hashCode(), builder.build())
     }
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
@@ -295,30 +123,9 @@ class NotificationHelper @Inject constructor(
             Log.w(TAG, "Received group invite, notifications disallowed")
             return
         }
-
-        val mainIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            friendPk.hashCode(),
-            mainIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notificationBuilder = NotificationCompat.Builder(context, GROUP_MESSAGE)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setSmallIcon(android.R.drawable.sym_action_chat)
-            .setContentTitle(context.getString(R.string.group_invite))
-            .setContentText(context.getString(R.string.group_invite_confirm, groupName))
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setSilent(silent)
-
-        notifier.notify(friendPk.hashCode(), notificationBuilder.build())
+        val builder = messageNotificationFactory.buildGroupInviteNotification(friendPk, groupName, silent)
+        notifier.notify(friendPk.hashCode(), builder.build())
     }
-
-    override fun dismissCallNotification(publicKey: PublicKey) = notifier.cancel(publicKey.string().hashCode() + CALL.hashCode())
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun showOngoingCallNotification(contact: Contact) {
@@ -329,72 +136,17 @@ class NotificationHelper @Inject constructor(
 
         dismissCallNotification(PublicKey(contact.publicKey))
 
-        val mainIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(CONTACT_PUBLIC_KEY, contact.publicKey)
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            contact.publicKey.hashCode() + CALL.hashCode(),
-            mainIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val hangupIntent = PendingIntentCompat.getBroadcast(
-            context,
-            "${contact.publicKey}_end_call".hashCode(),
-            Intent(context, ActionReceiver::class.java)
-                .putExtra(KEY_CONTACT_PK, contact.publicKey)
-                .putExtra(KEY_ACTION, Action.CallEnd),
-            PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        val callPerson = Person.Builder()
-            .setName(contact.name.ifEmpty { context.getString(R.string.contact_default_name) })
-            .setKey(contact.publicKey)
-            .setImportant(true)
-            .build()
-
-        val notificationBuilder = NotificationCompat.Builder(context, CALL)
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setSmallIcon(android.R.drawable.ic_menu_call)
-            .setContentTitle(context.getString(R.string.ongoing_call))
-            .setContentText(
-                context.getString(
-                    R.string.in_call_with,
-                    contact.name.ifEmpty { context.getString(R.string.contact_default_name) },
-                ),
-            )
-            .setUsesChronometer(true)
-            .setWhen(System.currentTimeMillis())
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addExtras(Bundle().apply { putBoolean(EXTRA_REQUEST_PROMOTED_ONGOING, true) })
-            .addAction(
-                NotificationCompat.Action
-                    .Builder(
-                        IconCompat.createWithResource(context, R.drawable.ic_call_end),
-                        context.getString(R.string.end_call),
-                        hangupIntent,
-                    )
-                    .build(),
-            )
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setSilent(true)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            notificationBuilder.setStyle(NotificationCompat.CallStyle.forOngoingCall(callPerson, hangupIntent))
-        }
+        val builder = callNotificationFactory.buildOngoingCallNotification(contact)
 
         try {
-            notifier.notify(contact.publicKey.hashCode() + CALL.hashCode(), notificationBuilder.build())
+            notifier.notify(contact.publicKey.hashCode() + CHANNEL_CALL.hashCode(), builder.build())
         } catch (e: IllegalArgumentException) {
             Log.w(TAG, "Failed to post CallStyle notification, falling back to standard style", e)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                notificationBuilder.setStyle(null)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                builder.setStyle(null)
             }
             try {
-                notifier.notify(contact.publicKey.hashCode() + CALL.hashCode(), notificationBuilder.build())
+                notifier.notify(contact.publicKey.hashCode() + CHANNEL_CALL.hashCode(), builder.build())
             } catch (ex: Exception) {
                 Log.e(TAG, "Failed to post fallback call notification", ex)
             }
@@ -408,90 +160,15 @@ class NotificationHelper @Inject constructor(
             return
         }
 
-        val notificationBuilder = NotificationCompat.Builder(context, CALL)
-
-        val pendingIntent = deepLinkToChat(PublicKey(c.publicKey))
-        if (permissionManager.canUseFullScreenIntent()) {
-            notificationBuilder
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setFullScreenIntent(pendingIntent, true)
-        } else {
-            notificationBuilder.setContentIntent(pendingIntent)
+        val builder = callNotificationFactory.buildPendingCallNotification(status, c)
+        val notification = builder.build().apply {
+            flags = flags.or(androidx.core.app.NotificationCompat.FLAG_INSISTENT)
         }
 
-        val notification = notificationBuilder
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setSmallIcon(android.R.drawable.ic_menu_call)
-            .setContentTitle(context.getString(R.string.incoming_call))
-            .setContentText(context.getString(R.string.incoming_call_from, c.name.ifEmpty { c.publicKey.take(FINGERPRINT_LEN) }))
-            .addAction(
-                NotificationCompat.Action
-                    .Builder(
-                        IconCompat.createWithResource(context, R.drawable.ic_call),
-                        context.getString(R.string.accept),
-                        PendingIntentCompat.getBroadcast(
-                            context,
-                            "${c.publicKey}_accept_call".hashCode(),
-                            Intent(context, ActionReceiver::class.java)
-                                .putExtra(KEY_CONTACT_PK, c.publicKey)
-                                .putExtra(KEY_ACTION, Action.CallAccept),
-                            PendingIntent.FLAG_UPDATE_CURRENT,
-                        ),
-                    )
-                    .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_CALL)
-                    .build(),
-            )
-            .addAction(
-                NotificationCompat.Action
-                    .Builder(
-                        IconCompat.createWithResource(context, R.drawable.ic_not_interested),
-                        context.getString(R.string.reject),
-                        PendingIntentCompat.getBroadcast(
-                            context,
-                            "${c.publicKey}_reject_call".hashCode(),
-                            Intent(context, ActionReceiver::class.java)
-                                .putExtra(KEY_CONTACT_PK, c.publicKey)
-                                .putExtra(KEY_ACTION, Action.CallReject),
-                            PendingIntent.FLAG_UPDATE_CURRENT,
-                        ),
-                    )
-                    .build(),
-            )
-            .setDeleteIntent(
-                PendingIntentCompat.getBroadcast(
-                    context,
-                    "${c.publicKey}_ignore_call".hashCode(),
-                    Intent(context, ActionReceiver::class.java)
-                        .putExtra(KEY_CONTACT_PK, c.publicKey)
-                        .putExtra(KEY_ACTION, Action.CallIgnore),
-                    PendingIntent.FLAG_UPDATE_CURRENT,
-                ),
-            )
-            .setSound(RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE))
-            .setSilent(status == UserStatus.Busy)
-            .build()
-            .apply {
-                flags = flags.or(NotificationCompat.FLAG_INSISTENT)
-            }
-
-        notifier.notify(c.publicKey.hashCode() + CALL.hashCode(), notification)
-    }
-
-    private fun deepLinkToChat(publicKey: PublicKey, focusMessageBox: Boolean = false): PendingIntent {
-        val mainIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(CONTACT_PUBLIC_KEY, publicKey.string())
-            putExtra(FOCUS_ON_MESSAGE_BOX, focusMessageBox)
-        }
-        return PendingIntent.getActivity(
-            context,
-            publicKey.string().hashCode(),
-            mainIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        notifier.notify(c.publicKey.hashCode() + CHANNEL_CALL.hashCode(), notification)
     }
 
     fun invalidateAvatar(uri: android.net.Uri) {
-        Picasso.get().invalidate(uri)
+        avatarLoader.invalidateAvatar(uri)
     }
 }

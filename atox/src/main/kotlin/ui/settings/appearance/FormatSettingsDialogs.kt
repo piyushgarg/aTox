@@ -1,4 +1,4 @@
-package ltd.evilcorp.atox.ui.settings.components
+package ltd.evilcorp.atox.ui.settings.appearance
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*

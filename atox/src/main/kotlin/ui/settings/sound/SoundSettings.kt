@@ -2,7 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package ltd.evilcorp.atox.ui.settings.components
+package ltd.evilcorp.atox.ui.settings.sound
+
+import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
+import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
+import ltd.evilcorp.atox.ui.settings.common.SettingsSliderRow
 
 import android.content.Context
 import android.media.RingtoneManager

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package ltd.evilcorp.atox.ui.settings.components
+package ltd.evilcorp.atox.ui.settings.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

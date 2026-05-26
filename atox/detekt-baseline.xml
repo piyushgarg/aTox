@@ -2,125 +2,232 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>CyclomaticComplexMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( settings: Settings, appearance: AppAppearance, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, vmFactory: ViewModelProvider.Factory? = null, viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory) )</ID>
-    <ID>FunctionNaming:AToxNavGraph.kt$@Composable fun AToxNavGraph( appearance: AppAppearance, settings: Settings, vmFactory: ViewModelProvider.Factory, callManager: CallManager, notificationHelper: NotificationHelper, permissionManager: PermissionManager, systemSoundPlayer: SystemSoundPlayer, initialToxIdToLink: MutableState&lt;String?&gt;, callScreenMinimized: MutableState&lt;Boolean&gt;, onOpenFile: (FileTransfer) -&gt; Unit, onQuitApp: () -&gt; Unit, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, )</ID>
-    <ID>FunctionNaming:AToxNavGraph.kt$@Composable private fun ReturnToCallBanner( modifier: Modifier = Modifier, onClick: () -&gt; Unit, )</ID>
+    <ID>ComplexCondition:AToxNavGraph.kt$currentRoute != null &amp;&amp; currentRoute != AppRoutes.Launch &amp;&amp; currentRoute != AppRoutes.Unlock &amp;&amp; currentRoute != AppRoutes.CreateProfile</ID>
+    <ID>CyclomaticComplexMethod:FileTransferCard.kt$@Composable fun FileTransferCard( ft: FileTransfer, msg: Message, onHaptic: () -&gt; Unit, contentColor: Color, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:GroupChatScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun GroupChatScreen( groupState: State&lt;Group?&gt;, messagesState: State&lt;List&lt;GroupMessage&gt;?&gt;, peersState: State&lt;List&lt;GroupPeer&gt;?&gt;, contactsState: State&lt;List&lt;Contact&gt;&gt;, connectionStatusState: State&lt;GroupConnectionStatus&gt;, fileTransfersState: State&lt;List&lt;FileTransfer&gt;&gt;, settings: Settings, onBack: () -&gt; Unit, onSendMessage: (String) -&gt; Unit, onSendFile: (android.net.Uri) -&gt; Unit, onSendVoice: (android.net.Uri) -&gt; Unit, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (GroupMessage) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, onLeaveGroup: () -&gt; Unit, onCopyInvite: () -&gt; Unit, onInviteFriend: (friendPublicKey: String) -&gt; Unit, systemSoundPlayer: SystemSoundPlayer, onInviteClick: (() -&gt; Unit) -&gt; Unit = {}, onPeersClick: (() -&gt; Unit) -&gt; Unit = {}, onLeaveClick: (() -&gt; Unit) -&gt; Unit = {}, onGroupInfoChanged: (name: String, topic: String, peersCount: Int, status: GroupConnectionStatus) -&gt; Unit = { _, _, _, _ -&gt; }, )</ID>
+    <ID>CyclomaticComplexMethod:MessageBubble.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun MessageBubble( msg: Message, messages: List&lt;Message&gt;, settings: Settings, contactName: String, onHaptic: () -&gt; Unit, onCallHistoryClick: () -&gt; Unit = {}, fileTransfers: List&lt;FileTransfer&gt;, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, onCopyMessage: ((Message) -&gt; Unit)? = null, onReplyMessage: ((Message) -&gt; Unit)? = null, onForwardMessage: ((Message) -&gt; Unit)? = null, onParentMessageClick: ((Message) -&gt; Unit)? = null, onJoinGroupClick: ((chatId: String, groupName: String) -&gt; Unit)? = null, isJoinedGroup: ((chatId: String) -&gt; Boolean)? = null, // Group chat specific parameters showAvatar: Boolean = false, senderName: String? = null, senderColor: Color? = null, avatarUri: String = "" )</ID>
+    <ID>CyclomaticComplexMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( settings: Settings, appearance: AppAppearance, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, vmFactory: ViewModelProvider.Factory? = null, onTitleChanged: (String) -&gt; Unit = {}, onBackActionChanged: ((() -&gt; Unit)?) -&gt; Unit = {}, onSearchActionChanged: ((() -&gt; Unit)?) -&gt; Unit = {}, viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory) )</ID>
+    <ID>CyclomaticComplexMethod:VoiceMessageCard.kt$@Composable fun VoiceMessageCard( ft: FileTransfer, contentColor: Color, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, msg: Message, isOutgoing: Boolean, settings: Settings )</ID>
+    <ID>FunctionNaming:AToxNavGraph.kt$@Composable @kotlin.OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class) fun AToxNavGraph( appearance: AppAppearance, settings: Settings, vmFactory: ViewModelProvider.Factory, callManager: CallManager, notificationHelper: NotificationHelper, permissionManager: PermissionManager, systemSoundPlayer: SystemSoundPlayer, initialToxIdToLink: MutableState&lt;String?&gt;, callScreenMinimized: MutableState&lt;Boolean&gt;, onOpenFile: (FileTransfer) -&gt; Unit, onQuitApp: () -&gt; Unit, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:AccentColorDialog.kt$@Composable fun AccentColorDialog( currentAccentSeed: Int, onAccentColorSeedChanged: (Int) -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:AccentColorDialog.kt$@Composable private fun ColorSwatch( name: String, previewColor: Color, isSelected: Boolean, onClick: () -&gt; Unit )</ID>
     <ID>FunctionNaming:AddContactScreen.kt$@Composable fun AddContactScreen( viewModel: AddContactViewModel, initialToxId: String = "", showBackButton: Boolean = true, onBack: () -&gt; Unit = {}, onSuccess: () -&gt; Unit )</ID>
-    <ID>FunctionNaming:AddContactScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddContactContent( initialToxId: String = "", showBackButton: Boolean = true, isLoading: Boolean = false, onBack: () -&gt; Unit = {}, onAddContact: (String, String) -&gt; Unit = { _, _ -&gt; } )</ID>
+    <ID>FunctionNaming:AddContactScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddContactContent( initialToxId: String = "", showBackButton: Boolean = true, isLoading: Boolean = false, errorText: String = "", onErrorTextChanged: (String) -&gt; Unit = {}, onBack: () -&gt; Unit = {}, onAddContact: (String, String) -&gt; Unit = { _, _ -&gt; } )</ID>
     <ID>FunctionNaming:AddContactScreen.kt$@Preview(showBackground = true) @Composable fun AddContactLoadingPreview()</ID>
     <ID>FunctionNaming:AddContactScreen.kt$@Preview(showBackground = true) @Composable fun AddContactPreview()</ID>
+    <ID>FunctionNaming:AtoxLoadingButton.kt$@Composable fun AtoxLoadingButton( onClick: () -&gt; Unit, text: String, isLoading: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true, shape: Shape = MaterialTheme.shapes.medium )</ID>
+    <ID>FunctionNaming:AtoxSearchBar.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AtoxSearchBar( query: String, onQueryChange: (String) -&gt; Unit, onSearch: (String) -&gt; Unit, active: Boolean, onActiveChange: (Boolean) -&gt; Unit, modifier: Modifier = Modifier, placeholder: String = stringResource(R.string.contact_list_search_placeholder), trailingIcon: @Composable (() -&gt; Unit)? = null, content: @Composable () -&gt; Unit )</ID>
     <ID>FunctionNaming:AvatarEditDialog.kt$@Composable fun AvatarEditDialog( imageUri: Uri, onDismiss: () -&gt; Unit, onConfirm: (originalBitmap: Bitmap, scale: Float, offsetX: Float, offsetY: Float, rotation: Float, viewportWidth: Float) -&gt; Unit )</ID>
+    <ID>FunctionNaming:AvatarProcessingDialog.kt$@Composable fun AvatarProcessingDialog()</ID>
+    <ID>FunctionNaming:AvatarSourceDialog.kt$@Composable fun AvatarSourceDialog( onDismissRequest: () -&gt; Unit, onCameraClick: () -&gt; Unit, onGalleryClick: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:BackupFrequencyDialog.kt$@Composable fun BackupFrequencyDialog( backupFrequency: BackupFrequency, onDismissRequest: () -&gt; Unit, onBackupFrequencyChanged: (BackupFrequency) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:BackupModuleCard.kt$@Composable fun BackupModuleCard( title: String, description: String, checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -&gt; Unit, )</ID>
     <ID>FunctionNaming:BackupSettings.kt$@Composable fun BackupSettingsScreen( paddingValues: PaddingValues, backupProviders: List&lt;BackupDataProvider&gt;, backupExporting: Boolean, backupImporting: Boolean, backupPasswordEnabled: Boolean, backupPassword: String, backupPasswordVisible: Boolean, automaticBackupEnabled: Boolean, backupFrequency: BackupFrequency, backupUseCellular: Boolean, backupDestinations: Set&lt;BackupDestination&gt;, backupEndToEndEncryptionEnabled: Boolean, backupGoogleAccount: String, selectedBackupIds: Set&lt;String&gt;, mandatoryBackupId: String, onBackupPasswordEnabledChanged: (Boolean) -&gt; Unit, onBackupPasswordChanged: (String) -&gt; Unit, onBackupPasswordVisibleChanged: (Boolean) -&gt; Unit, onAutomaticBackupEnabledChanged: (Boolean) -&gt; Unit, onBackupFrequencyChanged: (BackupFrequency) -&gt; Unit, onBackupUseCellularChanged: (Boolean) -&gt; Unit, onBackupDestinationsChanged: (Set&lt;BackupDestination&gt;) -&gt; Unit, onBackupEndToEndEncryptionEnabledChanged: (Boolean) -&gt; Unit, onGoogleAccountClick: () -&gt; Unit, onSelectedBackupIdsChanged: (Set&lt;String&gt;) -&gt; Unit, onCreateBackupClick: () -&gt; Unit, onRestoreBackupClick: () -&gt; Unit, performHaptic: () -&gt; Unit )</ID>
-    <ID>FunctionNaming:BackupSettings.kt$@Composable private fun BackupModuleCard( title: String, description: String, checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:BootstrapSettingsDialog.kt$@Composable fun BootstrapSettingsDialog( currentSource: BootstrapNodeSource, onSelectSource: (BootstrapNodeSource) -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
     <ID>FunctionNaming:CallHistoryCard.kt$@Composable fun CallHistoryCard( title: String, timeString: String, isOutgoing: Boolean, onClick: () -&gt; Unit, )</ID>
-    <ID>FunctionNaming:CallScreen.kt$@Composable fun CallScreen( contact: Contact?, callState: CallState, sendingAudio: Boolean, speakerphoneOn: Boolean, callDuration: String, hasMicPermission: Boolean, onRequestMicPermission: () -&gt; Unit, onMinimize: () -&gt; Unit, onToggleMic: () -&gt; Unit, onToggleSpeaker: () -&gt; Unit, onEndCall: () -&gt; Unit )</ID>
-    <ID>FunctionNaming:CallScreen.kt$@Composable fun CallScreenContent( contact: Contact?, name: String, currentCallState: CallState, sendingAudio: Boolean, speakerphoneOn: Boolean, statusText: String, hasMicPermission: Boolean, onRequestMicPermission: () -&gt; Unit, onMinimize: () -&gt; Unit, onToggleMic: () -&gt; Unit, onToggleSpeaker: () -&gt; Unit, onEndCall: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:CallScreen.kt$@Composable fun CallScreen( publicKey: String, contact: Contact?, callState: CallState, sendingAudio: Boolean, speakerphoneOn: Boolean, callDuration: String, hasMicPermission: Boolean, onRequestMicPermission: () -&gt; Unit, onMinimize: () -&gt; Unit, onToggleMic: () -&gt; Unit, onToggleSpeaker: () -&gt; Unit, onEndCall: () -&gt; Unit, hapticEnabled: Boolean, )</ID>
+    <ID>FunctionNaming:CallScreen.kt$@Composable fun CallScreenContent( publicKey: String, contact: Contact?, name: String, currentCallState: CallState, sendingAudio: Boolean, speakerphoneOn: Boolean, statusText: String, hasMicPermission: Boolean, onRequestMicPermission: () -&gt; Unit, onMinimize: () -&gt; Unit, onToggleMic: () -&gt; Unit, onToggleSpeaker: () -&gt; Unit, onEndCall: () -&gt; Unit, hapticEnabled: Boolean = true, )</ID>
     <ID>FunctionNaming:CallScreen.kt$@Preview(showBackground = true) @Composable fun CallScreenActivePreview()</ID>
     <ID>FunctionNaming:CallScreen.kt$@Preview(showBackground = true) @Composable fun CallScreenOutgoingPreview()</ID>
-    <ID>FunctionNaming:ChatInputBar.kt$@Composable fun ChatInputBar( contact: Contact?, settings: Settings, systemSoundPlayer: SystemSoundPlayer, onSendMessage: (String) -&gt; Unit, onTypingChanged: (Boolean) -&gt; Unit, onAttachClick: () -&gt; Unit, onHaptic: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:ChatInputBar.kt$@OptIn(ExperimentalAnimationApi::class) @Composable fun ChatInputBar( contact: Contact?, settings: Settings, systemSoundPlayer: SystemSoundPlayer, onSendMessage: (String) -&gt; Unit, onTypingChanged: (Boolean) -&gt; Unit, onAttachClick: () -&gt; Unit, onHaptic: () -&gt; Unit, replyingToMessage: Message?, onCancelReply: () -&gt; Unit, onSendVoice: (android.net.Uri) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>FunctionNaming:ChatListPreviews.kt$@Preview(name = "Chat list empty", showBackground = true) @Composable private fun EmptyChatListPreview()</ID>
     <ID>FunctionNaming:ChatListPreviews.kt$@Preview(name = "Chat list mixed", showBackground = true) @Composable private fun ChatListTabPreview()</ID>
     <ID>FunctionNaming:ChatListPreviews.kt$@Preview(name = "Chat rows", showBackground = true) @Composable private fun ContactRowsPreview()</ID>
     <ID>FunctionNaming:ChatListPreviews.kt$@Preview(name = "Friend request", showBackground = true) @Composable private fun FriendRequestPreview()</ID>
-    <ID>FunctionNaming:ChatListTab.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun ChatListTab( contacts: List&lt;Contact&gt;, friendRequests: List&lt;FriendRequest&gt;, listState: LazyListState, searchQuery: String, dateFormatPreference: DateFormatPreference, timeFormatPreference: TimeFormatPreference, onContactClick: (Contact) -&gt; Unit, onDeleteContact: (Contact) -&gt; Unit, onAcceptFriendRequest: (FriendRequest) -&gt; Unit, onRejectFriendRequest: (FriendRequest) -&gt; Unit, onAddContactClick: () -&gt; Unit, onContactInteraction: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:ChatListTab.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun ChatListTab( contacts: List&lt;Contact&gt;, friendRequests: List&lt;FriendRequest&gt;, groupInvite: GroupInvite?, groupInviteFriendName: String, listState: LazyListState, searchQuery: String, dateFormatPreference: DateFormatPreference, timeFormatPreference: TimeFormatPreference, onContactClick: (Contact) -&gt; Unit, onDeleteContact: (Contact) -&gt; Unit, onAcceptFriendRequest: (FriendRequest) -&gt; Unit, onRejectFriendRequest: (FriendRequest) -&gt; Unit, onAcceptGroupInvite: () -&gt; Unit, onRejectGroupInvite: () -&gt; Unit, onAddContactClick: () -&gt; Unit, onContactInteraction: () -&gt; Unit, )</ID>
     <ID>FunctionNaming:ChatPreviews.kt$@Preview(name = "Call History Cards", showBackground = true) @Composable private fun CallHistoryCardsPreview()</ID>
     <ID>FunctionNaming:ChatPreviews.kt$@Preview(name = "File Transfer Cards", showBackground = true) @Composable private fun FileTransferCardsPreview()</ID>
     <ID>FunctionNaming:ChatPreviews.kt$@Preview(name = "Typing Bubble", showBackground = true) @Composable private fun TypingBubblePreview()</ID>
-    <ID>FunctionNaming:ChatScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ChatScreen( contact: Contact?, messages: List&lt;Message&gt;?, fileTransfers: List&lt;FileTransfer&gt;, settings: Settings, onBack: () -&gt; Unit, onSendMessage: (String) -&gt; Unit, onTypingChanged: (Boolean) -&gt; Unit, onSendFile: (Uri) -&gt; Unit, onCallClick: () -&gt; Unit, onCallHistoryClick: () -&gt; Unit, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveFt: (Int, Uri) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, systemSoundPlayer: SystemSoundPlayer, )</ID>
+    <ID>FunctionNaming:ChatScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ChatScreen( contact: Contact?, messages: List&lt;Message&gt;?, fileTransfers: List&lt;FileTransfer&gt;, settings: Settings, onBack: () -&gt; Unit, onSendMessage: (String) -&gt; Unit, onTypingChanged: (Boolean) -&gt; Unit, onSendFile: (Uri) -&gt; Unit, onCallClick: () -&gt; Unit, onCallHistoryClick: () -&gt; Unit, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveFt: (Int, Uri) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, systemSoundPlayer: SystemSoundPlayer, replyingToMessage: Message? = null, onCancelReply: () -&gt; Unit = {}, onReplyClick: (Message) -&gt; Unit = {}, onCopyClick: (Message) -&gt; Unit = {}, onForwardClick: (Message) -&gt; Unit = {}, onSendVoice: (Uri) -&gt; Unit = {}, onJoinGroupClick: (String, String) -&gt; Unit = { _, _ -&gt; }, isJoinedGroup: (String) -&gt; Boolean = { false }, )</ID>
     <ID>FunctionNaming:ChatsRouteScreen.kt$@Composable private fun DeleteContactDialog( contactName: String, onDismiss: () -&gt; Unit, onConfirm: () -&gt; Unit, )</ID>
-    <ID>FunctionNaming:ChatsRouteScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ChatsRouteScreen( contacts: List&lt;Contact&gt;, friendRequests: List&lt;FriendRequest&gt;, dateFormatPreference: DateFormatPreference, timeFormatPreference: TimeFormatPreference, onContactClick: (Contact) -&gt; Unit, onDeleteContact: (Contact) -&gt; Unit, onAcceptFriendRequest: (FriendRequest) -&gt; Unit, onRejectFriendRequest: (FriendRequest) -&gt; Unit, onAddContactClick: () -&gt; Unit, onContactInteraction: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:ChatsRouteScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ChatsRouteScreen( contacts: List&lt;Contact&gt;, friendRequests: List&lt;FriendRequest&gt;, groupInvite: GroupInvite?, groupInviteFriendName: String, searchQuery: String, onSearchQueryChanged: (String) -&gt; Unit, dateFormatPreference: DateFormatPreference, timeFormatPreference: TimeFormatPreference, onContactClick: (Contact) -&gt; Unit, onDeleteContact: (Contact) -&gt; Unit, onAcceptFriendRequest: (FriendRequest) -&gt; Unit, onRejectFriendRequest: (FriendRequest) -&gt; Unit, onAcceptGroupInvite: () -&gt; Unit, onRejectGroupInvite: () -&gt; Unit, onAddContactClick: () -&gt; Unit, onContactInteraction: () -&gt; Unit, isSearching: Boolean = false, onSearchingChanged: (Boolean) -&gt; Unit = {}, )</ID>
     <ID>FunctionNaming:ContactAvatar.kt$@Composable fun ContactAvatar( name: String, publicKey: String, avatarUri: String, size: Dp, fontSize: TextUnit, modifier: Modifier = Modifier, )</ID>
     <ID>FunctionNaming:ContactItemCard.kt$@Composable private fun ContactAvatarWithStatus(contact: Contact)</ID>
     <ID>FunctionNaming:ContactItemCard.kt$@Composable private fun ContactMetaBlock( contact: Contact, timeFormatPreference: TimeFormatPreference, )</ID>
     <ID>FunctionNaming:ContactItemCard.kt$@Composable private fun ContactTextBlock( contact: Contact, presence: PresenceText, modifier: Modifier = Modifier, )</ID>
     <ID>FunctionNaming:ContactItemCard.kt$@Composable private fun TypingPreviewText()</ID>
     <ID>FunctionNaming:ContactItemCard.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun ContactItemCard( contact: Contact, dateFormatPreference: DateFormatPreference, timeFormatPreference: TimeFormatPreference, onClick: () -&gt; Unit, onDelete: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:CreateGroupScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CreateGroupScreen( onBack: () -&gt; Unit, isCreatingState: StateFlow&lt;Boolean&gt;, onCreateGroup: suspend (String, GroupPrivacyState, String?) -&gt; Boolean, )</ID>
     <ID>FunctionNaming:CreateProfilePreviews.kt$@Preview(name = "Create Profile Screen Preview", showSystemUi = true) @Composable private fun CreateProfileScreenPreview()</ID>
     <ID>FunctionNaming:CreateProfileScreen.kt$@Composable fun CreateProfileContent( isLoading: Boolean, errorText: String, onErrorChanged: (String) -&gt; Unit = {}, onCreateProfile: (String) -&gt; Unit = {}, onRestoreBackup: (String, String?) -&gt; Unit = { _, _ -&gt; } )</ID>
-    <ID>FunctionNaming:CreateProfileScreen.kt$@Composable fun CreateProfileScreen( onCreateProfile: suspend (String) -&gt; ToxSaveStatus, onRestoreBackup: suspend (String, String?) -&gt; ToxSaveStatus, )</ID>
+    <ID>FunctionNaming:CreateProfileScreen.kt$@Composable fun CreateProfileScreen( viewModel: CreateProfileViewModel, onSuccess: () -&gt; Unit, )</ID>
     <ID>FunctionNaming:CreateProfileScreen.kt$@Preview(showBackground = true) @Composable fun CreateProfileLoadingPreview()</ID>
     <ID>FunctionNaming:CreateProfileScreen.kt$@Preview(showBackground = true) @Composable fun CreateProfilePreview()</ID>
+    <ID>FunctionNaming:DateSeparator.kt$@Composable fun DateSeparator(label: String)</ID>
     <ID>FunctionNaming:EmptyChatList.kt$@Composable fun EmptyChatList(onAddContactClick: () -&gt; Unit)</ID>
     <ID>FunctionNaming:FileTransferCard.kt$@Composable fun FileTransferCard( ft: FileTransfer, msg: Message, onHaptic: () -&gt; Unit, contentColor: Color, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit )</ID>
+    <ID>FunctionNaming:FormComponents.kt$@Composable fun FormErrorText( errorText: String, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:FormatSettingsDialogs.kt$@Composable fun DateFormatSettingsDialog( currentFormat: DateFormatPreference, onSelectFormat: (DateFormatPreference) -&gt; Unit, onDismiss: () -&gt; Unit, performHaptic: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:FormatSettingsDialogs.kt$@Composable fun TimeFormatSettingsDialog( currentFormat: TimeFormatPreference, onSelectFormat: (TimeFormatPreference) -&gt; Unit, onDismiss: () -&gt; Unit, performHaptic: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:ForwardSelectionScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ForwardSelectionScreen( contacts: List&lt;Contact&gt;, settings: Settings, onBack: () -&gt; Unit, onContactsSelect: (List&lt;Contact&gt;) -&gt; Unit, )</ID>
     <ID>FunctionNaming:FriendRequestItemCard.kt$@Composable fun FriendRequestItemCard( request: FriendRequest, onAccept: () -&gt; Unit, onReject: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:FriendRequestItemCard.kt$@Composable fun GroupInviteItemCard( invite: GroupInvite, friendName: String, onAccept: () -&gt; Unit, onReject: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:FtAutoAcceptSettingsDialog.kt$@Composable fun FtAutoAcceptSettingsDialog( currentFtAutoAccept: FtAutoAccept, onSelectFtAutoAccept: (FtAutoAccept) -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:GoogleAccountDialog.kt$@Composable fun GoogleAccountDialog( googleAccountInput: String, onGoogleAccountInputChange: (String) -&gt; Unit, onChooseAccountClick: () -&gt; Unit, onConfirm: () -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:GroupChatScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun GroupChatScreen( groupState: State&lt;Group?&gt;, messagesState: State&lt;List&lt;GroupMessage&gt;?&gt;, peersState: State&lt;List&lt;GroupPeer&gt;?&gt;, contactsState: State&lt;List&lt;Contact&gt;&gt;, connectionStatusState: State&lt;GroupConnectionStatus&gt;, fileTransfersState: State&lt;List&lt;FileTransfer&gt;&gt;, settings: Settings, onBack: () -&gt; Unit, onSendMessage: (String) -&gt; Unit, onSendFile: (android.net.Uri) -&gt; Unit, onSendVoice: (android.net.Uri) -&gt; Unit, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (GroupMessage) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, onLeaveGroup: () -&gt; Unit, onCopyInvite: () -&gt; Unit, onInviteFriend: (friendPublicKey: String) -&gt; Unit, systemSoundPlayer: SystemSoundPlayer, onInviteClick: (() -&gt; Unit) -&gt; Unit = {}, onPeersClick: (() -&gt; Unit) -&gt; Unit = {}, onLeaveClick: (() -&gt; Unit) -&gt; Unit = {}, onGroupInfoChanged: (name: String, topic: String, peersCount: Int, status: GroupConnectionStatus) -&gt; Unit = { _, _, _, _ -&gt; }, )</ID>
+    <ID>FunctionNaming:GroupInviteCard.kt$@Composable fun GroupInviteCard( msg: Message, contentColor: Color, isOutgoing: Boolean, onHaptic: () -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onJoinGroupClick: ((chatId: String, groupName: String) -&gt; Unit)?, isJoinedGroup: ((chatId: String) -&gt; Boolean)? )</ID>
+    <ID>FunctionNaming:GroupInviteSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun GroupInviteSheet( onDismissRequest: () -&gt; Unit, onCopyInvite: () -&gt; Unit, onInviteFriend: (friendPublicKey: String) -&gt; Unit, peers: List&lt;GroupPeer&gt;, contacts: List&lt;Contact&gt;, settings: Settings, onInviteResult: (String) -&gt; Unit )</ID>
+    <ID>FunctionNaming:GroupItemCard.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun GroupItemCard( group: Group, connectionStatus: GroupConnectionStatus, onClick: () -&gt; Unit, onLongClick: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:GroupListScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun GroupListScreen( groupsState: State&lt;List&lt;Group&gt;&gt;, connectionStatusesState: State&lt;Map&lt;String, GroupConnectionStatus&gt;&gt;, onGroupClick: (Group) -&gt; Unit, onCreateGroupClick: () -&gt; Unit, onJoinGroupClick: () -&gt; Unit, onLeaveGroup: (Group) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:GroupPeersSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun GroupPeersSheet( onDismissRequest: () -&gt; Unit, peers: List&lt;GroupPeer&gt;, contacts: List&lt;Contact&gt;, selfAvatarUri: String )</ID>
+    <ID>FunctionNaming:JoinGroupScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun JoinGroupScreen( onBack: () -&gt; Unit, isJoiningState: StateFlow&lt;Boolean&gt;, onValidateChatId: (String) -&gt; String?, onJoinGroup: suspend (chatIdHex: String, password: String?) -&gt; Boolean, )</ID>
     <ID>FunctionNaming:LanguageSettings.kt$@Composable fun LanguageSelectionScreen( paddingValues: PaddingValues, currentLanguageCode: String, onLanguageSelect: (String) -&gt; Unit )</ID>
-    <ID>FunctionNaming:LaunchScreen.kt$@Composable fun LaunchScreen( viewModel: ContactListViewModel, onLaunchResolved: (ToxSaveStatus) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:LaunchScreen.kt$@Composable fun LaunchScreen( viewModel: AuthViewModel, onLaunchResolved: (ToxSaveStatus) -&gt; Unit, )</ID>
     <ID>FunctionNaming:LaunchScreen.kt$@Composable fun LaunchScreenContent()</ID>
-    <ID>FunctionNaming:LaunchScreen.kt$@Composable fun UnlockScreen( viewModel: ContactListViewModel, onUnlockSuccess: () -&gt; Unit, onQuit: () -&gt; Unit, )</ID>
-    <ID>FunctionNaming:LaunchScreen.kt$@Composable fun UnlockScreenContent( isError: Boolean, isLoading: Boolean, onSubmitUnlock: (String) -&gt; Unit, onQuit: () -&gt; Unit, onClearError: () -&gt; Unit, )</ID>
-    <ID>FunctionNaming:MainTabsScreen.kt$@Composable fun MainTabsScreen( currentRoute: String, attentionCount: Int, hapticEnabled: Boolean, onTabSelected: (String) -&gt; Unit, content: @Composable () -&gt; Unit, )</ID>
-    <ID>FunctionNaming:MessageBubble.kt$@Composable fun DateSeparator(label: String)</ID>
-    <ID>FunctionNaming:MessageBubble.kt$@Composable fun MessageBubble( msg: Message, settings: Settings, onHaptic: () -&gt; Unit, onCallHistoryClick: () -&gt; Unit, fileTransfers: List&lt;FileTransfer&gt;, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit )</ID>
+    <ID>FunctionNaming:LaunchScreen.kt$@Composable fun LaunchTimeoutScreen(onRetry: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:LaunchScreen.kt$@Composable fun UnlockScreen( viewModel: AuthViewModel, onUnlockSuccess: () -&gt; Unit, onQuit: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:LogoutConfirmDialog.kt$@Composable fun LogoutConfirmDialog( onDismiss: () -&gt; Unit, onConfirm: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:MainTabsScreen.kt$@Composable fun MainTabsScreen( currentRoute: String, attentionCount: Int, hapticEnabled: Boolean, onTabSelected: (String) -&gt; Unit, topBar: @Composable () -&gt; Unit = {}, content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:MessageBubble.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun MessageBubble( msg: Message, messages: List&lt;Message&gt;, settings: Settings, contactName: String, onHaptic: () -&gt; Unit, onCallHistoryClick: () -&gt; Unit = {}, fileTransfers: List&lt;FileTransfer&gt;, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, onCopyMessage: ((Message) -&gt; Unit)? = null, onReplyMessage: ((Message) -&gt; Unit)? = null, onForwardMessage: ((Message) -&gt; Unit)? = null, onParentMessageClick: ((Message) -&gt; Unit)? = null, onJoinGroupClick: ((chatId: String, groupName: String) -&gt; Unit)? = null, isJoinedGroup: ((chatId: String) -&gt; Boolean)? = null, // Group chat specific parameters showAvatar: Boolean = false, senderName: String? = null, senderColor: Color? = null, avatarUri: String = "" )</ID>
+    <ID>FunctionNaming:MorphingNavigationIcon.kt$@OptIn(ExperimentalAnimationApi::class) @Composable fun MorphingNavigationIcon( isBack: Boolean, onClick: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>FunctionNaming:NavigationPreviews.kt$@Preview(name = "Launch Screen Loading", showBackground = true) @Composable private fun LaunchScreenPreview()</ID>
     <ID>FunctionNaming:NavigationPreviews.kt$@Preview(name = "Main Tabs Screen - Chats Tab", showBackground = true) @Composable private fun MainTabsChatsPreview()</ID>
     <ID>FunctionNaming:NavigationPreviews.kt$@Preview(name = "Main Tabs Screen - Settings Tab", showBackground = true) @Composable private fun MainTabsSettingsPreview()</ID>
     <ID>FunctionNaming:NavigationPreviews.kt$@Preview(name = "Unlock Screen Error", showBackground = true) @Composable private fun UnlockScreenErrorPreview()</ID>
     <ID>FunctionNaming:NavigationPreviews.kt$@Preview(name = "Unlock Screen Loading State", showBackground = true) @Composable private fun UnlockScreenLoadingPreview()</ID>
     <ID>FunctionNaming:NavigationPreviews.kt$@Preview(name = "Unlock Screen Normal", showBackground = true) @Composable private fun UnlockScreenPreview()</ID>
+    <ID>FunctionNaming:ProxySettingsDialog.kt$@Composable fun ProxySettingsDialog( currentProxyType: ProxyType, onSelectProxyType: (ProxyType) -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:QrCodeDialog.kt$@Composable fun QrCodeDialog( toxId: String, onDismiss: () -&gt; Unit )</ID>
     <ID>FunctionNaming:QrCodeView.kt$@Composable fun QrCodeView( text: String, modifier: Modifier = Modifier, contentColor: Color = Color.Black )</ID>
-    <ID>FunctionNaming:SettingsCommonComponents.kt$@Composable fun SettingsClickableRow( title: String, subtitle: String, onClick: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:RestoreBackupConfirmDialog.kt$@Composable fun RestoreBackupConfirmDialog( isToxStarted: Boolean, onConfirm: (String) -&gt; Unit, onDismiss: () -&gt; Unit, focusManager: FocusManager )</ID>
+    <ID>FunctionNaming:ReturnToCallBanner.kt$@Composable fun ReturnToCallBanner( modifier: Modifier = Modifier, onClick: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:ReturnToCallBanner.kt$@Preview(name = "Light Theme", showBackground = true) @Preview(name = "Dark Theme", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES) @Composable fun ReturnToCallBannerPreview()</ID>
+    <ID>FunctionNaming:SettingsAppearanceScreen.kt$@Composable fun SettingsAppearanceScreen( paddingValues: PaddingValues, currentLanguageCode: String, languages: List&lt;Pair&lt;String, String&gt;&gt;, appThemeMode: Int, timeFormatPreference: TimeFormatPreference, dateFormatPreference: DateFormatPreference, dynamicColor: Boolean, currentAccentSeed: Int, hapticEnabled: Boolean, performHaptic: () -&gt; Unit, onLanguageClick: () -&gt; Unit, onThemeClick: () -&gt; Unit, onDateFormatClick: () -&gt; Unit, onTimeFormatClick: () -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorClick: () -&gt; Unit, onHapticEnabledChanged: (Boolean) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:SettingsChatScreen.kt$@Composable fun SettingsChatScreen( paddingValues: PaddingValues, ftAutoAccept: FtAutoAccept, autoSaveToDownloads: Boolean, autoSaveDirectoryLabel: String, cacheSizeText: String, enableReplies: Boolean, performHaptic: () -&gt; Unit, onFtAutoAcceptClick: () -&gt; Unit, onAutoSaveToDownloadsChanged: (Boolean) -&gt; Unit, onAutoSaveDirectoryClick: () -&gt; Unit, onClearCacheClick: () -&gt; Unit, onEnableRepliesChanged: (Boolean) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:SettingsCommonComponents.kt$@Composable fun SettingsClickableRow( title: String, subtitle: String, marqueeSubtitle: Boolean = false, onClick: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:SettingsCommonComponents.kt$@Composable fun SettingsErrorClickableRow( title: String, subtitle: String, onClick: () -&gt; Unit )</ID>
     <ID>FunctionNaming:SettingsCommonComponents.kt$@Composable fun SettingsGroup( title: String, content: @Composable ColumnScope.() -&gt; Unit )</ID>
     <ID>FunctionNaming:SettingsCommonComponents.kt$@Composable fun SettingsSliderRow( title: String, subtitle: String, value: Float, valueRange: ClosedFloatingPointRange&lt;Float&gt;, steps: Int, onValueChangeFinished: () -&gt; Unit = {}, onValueChange: (Float) -&gt; Unit, )</ID>
     <ID>FunctionNaming:SettingsCommonComponents.kt$@Composable fun SettingsSwitchRow( title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -&gt; Unit )</ID>
-    <ID>FunctionNaming:SettingsDialogs.kt$@Composable fun BootstrapSettingsDialog( currentSource: BootstrapNodeSource, onSelectSource: (BootstrapNodeSource) -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
-    <ID>FunctionNaming:SettingsDialogs.kt$@Composable fun DateFormatSettingsDialog( currentFormat: DateFormatPreference, onSelectFormat: (DateFormatPreference) -&gt; Unit, onDismiss: () -&gt; Unit, performHaptic: () -&gt; Unit )</ID>
-    <ID>FunctionNaming:SettingsDialogs.kt$@Composable fun FtAutoAcceptSettingsDialog( currentFtAutoAccept: FtAutoAccept, onSelectFtAutoAccept: (FtAutoAccept) -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
-    <ID>FunctionNaming:SettingsDialogs.kt$@Composable fun ProxySettingsDialog( currentProxyType: ProxyType, onSelectProxyType: (ProxyType) -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
-    <ID>FunctionNaming:SettingsDialogs.kt$@Composable fun RestoreBackupConfirmDialog( isToxStarted: Boolean, onConfirm: (String) -&gt; Unit, onDismiss: () -&gt; Unit, focusManager: FocusManager )</ID>
-    <ID>FunctionNaming:SettingsDialogs.kt$@Composable fun TimeFormatSettingsDialog( currentFormat: TimeFormatPreference, onSelectFormat: (TimeFormatPreference) -&gt; Unit, onDismiss: () -&gt; Unit, performHaptic: () -&gt; Unit )</ID>
-    <ID>FunctionNaming:SettingsPreviews.kt$@Preview(name = "Theme Selection Screen Preview", showSystemUi = true) @Composable private fun ThemeSelectionScreenPreview()</ID>
-    <ID>FunctionNaming:SettingsRootContent.kt$@Composable fun SettingsRootContent( paddingValues: PaddingValues, currentLanguageCode: String, languages: List&lt;Pair&lt;String, String&gt;&gt;, appThemeMode: Int, timeFormatPreference: TimeFormatPreference, dateFormatPreference: DateFormatPreference, dynamicColor: Boolean, currentAccentSeed: Int, hapticEnabled: Boolean, disableScreenshots: Boolean, confirmQuitting: Boolean, confirmCalling: Boolean, udpEnabled: Boolean, runAtStartup: Boolean, bootstrapNodeSource: BootstrapNodeSource, ftAutoAccept: FtAutoAccept, autoSaveToDownloads: Boolean, cacheSizeText: String, proxyType: ProxyType, proxyAddress: String, proxyPortInput: String, autoAwayEnabled: Boolean, autoAwaySecondsInput: String, focusManager: FocusManager, performHaptic: () -&gt; Unit, onLanguageClick: () -&gt; Unit, onThemeClick: () -&gt; Unit, onDateFormatClick: () -&gt; Unit, onTimeFormatClick: () -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorClick: () -&gt; Unit, onHapticEnabledChanged: (Boolean) -&gt; Unit, onSoundsClick: () -&gt; Unit, onBackupClick: () -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, onConfirmQuittingChanged: (Boolean) -&gt; Unit, onConfirmCallingChanged: (Boolean) -&gt; Unit, onUdpEnabledChanged: (Boolean) -&gt; Unit, onRunAtStartupChanged: (Boolean) -&gt; Unit, onBootstrapNodesClick: () -&gt; Unit, onFtAutoAcceptClick: () -&gt; Unit, onAutoSaveToDownloadsChanged: (Boolean) -&gt; Unit, onClearCacheClick: () -&gt; Unit, onProxyTypeClick: () -&gt; Unit, onProxyAddressChanged: (String) -&gt; Unit, onProxyPortInputChanged: (String) -&gt; Unit, onAutoAwayEnabledChanged: (Boolean) -&gt; Unit, onAutoAwaySecondsInputChanged: (String) -&gt; Unit, modifier: Modifier = Modifier )</ID>
-    <ID>FunctionNaming:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( settings: Settings, appearance: AppAppearance, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, vmFactory: ViewModelProvider.Factory? = null, viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory) )</ID>
+    <ID>FunctionNaming:SettingsConnectionScreen.kt$@Composable fun SettingsConnectionScreen( paddingValues: PaddingValues, udpEnabled: Boolean, runAtStartup: Boolean, bootstrapNodeSource: BootstrapNodeSource, disableScreenshots: Boolean, confirmQuitting: Boolean, confirmCalling: Boolean, proxyType: ProxyType, proxyAddress: String, proxyPortInput: String, focusManager: FocusManager, performHaptic: () -&gt; Unit, onUdpEnabledChanged: (Boolean) -&gt; Unit, onRunAtStartupChanged: (Boolean) -&gt; Unit, onBootstrapNodesClick: () -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, onConfirmQuittingChanged: (Boolean) -&gt; Unit, onConfirmCallingChanged: (Boolean) -&gt; Unit, onProxyTypeClick: () -&gt; Unit, onProxyAddressChanged: (String) -&gt; Unit, onProxyPortInputChanged: (String) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:SettingsPreviews.kt$@Preview(name = "Backup Settings Screen Preview", showSystemUi = true) @Composable fun BackupSettingsScreenPreview()</ID>
+    <ID>FunctionNaming:SettingsPreviews.kt$@Preview(name = "Language Settings Screen Preview", showSystemUi = true) @Composable fun LanguageSelectionScreenPreview()</ID>
+    <ID>FunctionNaming:SettingsPreviews.kt$@Preview(name = "Main Settings List Preview", showSystemUi = true) @Composable fun SettingsRootContentPreview()</ID>
+    <ID>FunctionNaming:SettingsPreviews.kt$@Preview(name = "Sound Settings Screen Preview", showSystemUi = true) @Composable fun SoundSettingsScreenPreview()</ID>
+    <ID>FunctionNaming:SettingsPreviews.kt$@Preview(name = "Theme Settings Screen Preview", showSystemUi = true) @Composable fun ThemeSelectionScreenPreview()</ID>
+    <ID>FunctionNaming:SettingsRootContent.kt$@Composable fun SettingsCategoryRow( title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, iconContainerColor: androidx.compose.ui.graphics.Color, iconTint: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.White, onClick: () -&gt; Unit )</ID>
+    <ID>FunctionNaming:SettingsRootContent.kt$@Composable fun SettingsRootContent( paddingValues: PaddingValues, currentLanguageLabel: String, themeLabel: String, onAppearanceClick: () -&gt; Unit, onChatClick: () -&gt; Unit, onSoundsClick: () -&gt; Unit, onConnectionClick: () -&gt; Unit, onBackupClick: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( settings: Settings, appearance: AppAppearance, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, vmFactory: ViewModelProvider.Factory? = null, onTitleChanged: (String) -&gt; Unit = {}, onBackActionChanged: ((() -&gt; Unit)?) -&gt; Unit = {}, onSearchActionChanged: ((() -&gt; Unit)?) -&gt; Unit = {}, viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory) )</ID>
+    <ID>FunctionNaming:SettingsSearchPopup.kt$@Composable internal fun SettingsSearchPopup( searchQuery: String, onSearchQueryChange: (String) -&gt; Unit, searchItems: List&lt;SearchableSetting&gt;, onDismissRequest: () -&gt; Unit, performHaptic: () -&gt; Unit, onItemClick: (SearchableSetting) -&gt; Unit )</ID>
     <ID>FunctionNaming:SoundSettings.kt$@Composable fun SoundSettingsScreen( paddingValues: PaddingValues, sentMessageSoundVolume: Int, callSoundVolume: Int, notificationSoundVolume: Int, activeChatSoundVolume: Int, sentMessageSoundUri: String, callRingtoneUri: String, notificationSoundUri: String, activeChatSoundUri: String, onVolumeChanged: (SoundPickerTarget, Int) -&gt; Unit, onSoundPickerClick: (SoundPickerTarget, String, Int) -&gt; Unit, performHaptic: () -&gt; Unit )</ID>
     <ID>FunctionNaming:Theme.kt$@Composable fun AToxTheme( darkTheme: Boolean = isSystemInDarkTheme(), dynamicColor: Boolean = true, accentColorSeedArgb: Int = 0xFF3F51B5.toInt(), content: @Composable () -&gt; Unit )</ID>
-    <ID>FunctionNaming:ThemeSettings.kt$@Composable fun AccentColorDialog( currentAccentSeed: Int, onAccentColorSeedChanged: (Int) -&gt; Unit, onDismiss: () -&gt; Unit )</ID>
     <ID>FunctionNaming:ThemeSettings.kt$@Composable fun ThemeSelectionScreen( paddingValues: PaddingValues, appThemeMode: Int, onThemeSelect: (Int) -&gt; Unit )</ID>
+    <ID>FunctionNaming:ToxIdShareCard.kt$@Composable fun ToxIdShareCard( toxId: String, onCopyClick: () -&gt; Unit, onShareClick: () -&gt; Unit, onQrClick: () -&gt; Unit )</ID>
     <ID>FunctionNaming:TypingBubble.kt$@Composable fun TypingBubble()</ID>
+    <ID>FunctionNaming:UnlockScreenContent.kt$@Composable fun UnlockScreenContent( isError: Boolean, isLoading: Boolean, onSubmitUnlock: (String) -&gt; Unit, onQuit: () -&gt; Unit, onClearError: () -&gt; Unit, )</ID>
     <ID>FunctionNaming:UserProfilePreviews.kt$@Preview(name = "User Profile Screen Preview", showSystemUi = true) @Composable private fun UserProfileScreenPreview()</ID>
     <ID>FunctionNaming:UserProfileScreen.kt$@Composable fun StatusRow( title: String, color: Color, isSelected: Boolean, onClick: () -&gt; Unit )</ID>
-    <ID>FunctionNaming:UserProfileScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun UserProfileScreen( user: User?, toxId: String, avatar: android.graphics.Bitmap?, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, onSetName: (String) -&gt; Unit, onSetStatusMessage: (String) -&gt; Unit, onSetStatus: (UserStatus) -&gt; Unit, onLogout: () -&gt; Unit = {}, onAvatarChanged: () -&gt; Unit = {}, onCropAndSaveAvatar: suspend (android.graphics.Bitmap, Float, Float, Float, Float, Float) -&gt; Boolean )</ID>
+    <ID>FunctionNaming:UserProfileScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun UserProfileScreen( user: User?, toxId: String, avatar: android.graphics.Bitmap?, cropState: AvatarCropUiState = AvatarCropUiState.Idle, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, onSetName: (String) -&gt; Unit, onSetStatusMessage: (String) -&gt; Unit, onSetStatus: (UserStatus) -&gt; Unit, onLogout: () -&gt; Unit = {}, onAvatarChanged: () -&gt; Unit = {}, onResetCropState: () -&gt; Unit = {}, onCropAndSaveAvatar: (android.graphics.Bitmap, Float, Float, Float, Float, Float) -&gt; Unit, performHaptic: () -&gt; Unit = {} )</ID>
+    <ID>FunctionNaming:VoiceMessageCard.kt$@Composable fun VoiceMessageCard( ft: FileTransfer, contentColor: Color, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, msg: Message, isOutgoing: Boolean, settings: Settings )</ID>
     <ID>ImplicitDefaultLocale:AvatarEditDialog.kt$String.format("%.1fx", scale)</ID>
     <ID>ImplicitDefaultLocale:CallViewModel.kt$CallViewModel$String.format("%02d:%02d", minutes, seconds)</ID>
     <ID>ImplicitDefaultLocale:SettingsScreen.kt$String.format("%.2f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])</ID>
     <ID>InstanceOfCheckForException:MainActivity.kt$MainActivity$e is SecurityException</ID>
-    <ID>LongMethod:AToxNavGraph.kt$@Composable fun AToxNavGraph( appearance: AppAppearance, settings: Settings, vmFactory: ViewModelProvider.Factory, callManager: CallManager, notificationHelper: NotificationHelper, permissionManager: PermissionManager, systemSoundPlayer: SystemSoundPlayer, initialToxIdToLink: MutableState&lt;String?&gt;, callScreenMinimized: MutableState&lt;Boolean&gt;, onOpenFile: (FileTransfer) -&gt; Unit, onQuitApp: () -&gt; Unit, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, )</ID>
+    <ID>LongMethod:AToxNavGraph.kt$@Composable @kotlin.OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class) fun AToxNavGraph( appearance: AppAppearance, settings: Settings, vmFactory: ViewModelProvider.Factory, callManager: CallManager, notificationHelper: NotificationHelper, permissionManager: PermissionManager, systemSoundPlayer: SystemSoundPlayer, initialToxIdToLink: MutableState&lt;String?&gt;, callScreenMinimized: MutableState&lt;Boolean&gt;, onOpenFile: (FileTransfer) -&gt; Unit, onQuitApp: () -&gt; Unit, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, )</ID>
+    <ID>LongMethod:AvatarEditDialog.kt$@Composable fun AvatarEditDialog( imageUri: Uri, onDismiss: () -&gt; Unit, onConfirm: (originalBitmap: Bitmap, scale: Float, offsetX: Float, offsetY: Float, rotation: Float, viewportWidth: Float) -&gt; Unit )</ID>
     <ID>LongMethod:BackupSettings.kt$@Composable fun BackupSettingsScreen( paddingValues: PaddingValues, backupProviders: List&lt;BackupDataProvider&gt;, backupExporting: Boolean, backupImporting: Boolean, backupPasswordEnabled: Boolean, backupPassword: String, backupPasswordVisible: Boolean, automaticBackupEnabled: Boolean, backupFrequency: BackupFrequency, backupUseCellular: Boolean, backupDestinations: Set&lt;BackupDestination&gt;, backupEndToEndEncryptionEnabled: Boolean, backupGoogleAccount: String, selectedBackupIds: Set&lt;String&gt;, mandatoryBackupId: String, onBackupPasswordEnabledChanged: (Boolean) -&gt; Unit, onBackupPasswordChanged: (String) -&gt; Unit, onBackupPasswordVisibleChanged: (Boolean) -&gt; Unit, onAutomaticBackupEnabledChanged: (Boolean) -&gt; Unit, onBackupFrequencyChanged: (BackupFrequency) -&gt; Unit, onBackupUseCellularChanged: (Boolean) -&gt; Unit, onBackupDestinationsChanged: (Set&lt;BackupDestination&gt;) -&gt; Unit, onBackupEndToEndEncryptionEnabledChanged: (Boolean) -&gt; Unit, onGoogleAccountClick: () -&gt; Unit, onSelectedBackupIdsChanged: (Set&lt;String&gt;) -&gt; Unit, onCreateBackupClick: () -&gt; Unit, onRestoreBackupClick: () -&gt; Unit, performHaptic: () -&gt; Unit )</ID>
-    <ID>LongMethod:ChatScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ChatScreen( contact: Contact?, messages: List&lt;Message&gt;?, fileTransfers: List&lt;FileTransfer&gt;, settings: Settings, onBack: () -&gt; Unit, onSendMessage: (String) -&gt; Unit, onTypingChanged: (Boolean) -&gt; Unit, onSendFile: (Uri) -&gt; Unit, onCallClick: () -&gt; Unit, onCallHistoryClick: () -&gt; Unit, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveFt: (Int, Uri) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, systemSoundPlayer: SystemSoundPlayer, )</ID>
-    <ID>LongMethod:SettingsRootContent.kt$@Composable fun SettingsRootContent( paddingValues: PaddingValues, currentLanguageCode: String, languages: List&lt;Pair&lt;String, String&gt;&gt;, appThemeMode: Int, timeFormatPreference: TimeFormatPreference, dateFormatPreference: DateFormatPreference, dynamicColor: Boolean, currentAccentSeed: Int, hapticEnabled: Boolean, disableScreenshots: Boolean, confirmQuitting: Boolean, confirmCalling: Boolean, udpEnabled: Boolean, runAtStartup: Boolean, bootstrapNodeSource: BootstrapNodeSource, ftAutoAccept: FtAutoAccept, autoSaveToDownloads: Boolean, cacheSizeText: String, proxyType: ProxyType, proxyAddress: String, proxyPortInput: String, autoAwayEnabled: Boolean, autoAwaySecondsInput: String, focusManager: FocusManager, performHaptic: () -&gt; Unit, onLanguageClick: () -&gt; Unit, onThemeClick: () -&gt; Unit, onDateFormatClick: () -&gt; Unit, onTimeFormatClick: () -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorClick: () -&gt; Unit, onHapticEnabledChanged: (Boolean) -&gt; Unit, onSoundsClick: () -&gt; Unit, onBackupClick: () -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, onConfirmQuittingChanged: (Boolean) -&gt; Unit, onConfirmCallingChanged: (Boolean) -&gt; Unit, onUdpEnabledChanged: (Boolean) -&gt; Unit, onRunAtStartupChanged: (Boolean) -&gt; Unit, onBootstrapNodesClick: () -&gt; Unit, onFtAutoAcceptClick: () -&gt; Unit, onAutoSaveToDownloadsChanged: (Boolean) -&gt; Unit, onClearCacheClick: () -&gt; Unit, onProxyTypeClick: () -&gt; Unit, onProxyAddressChanged: (String) -&gt; Unit, onProxyPortInputChanged: (String) -&gt; Unit, onAutoAwayEnabledChanged: (Boolean) -&gt; Unit, onAutoAwaySecondsInputChanged: (String) -&gt; Unit, modifier: Modifier = Modifier )</ID>
-    <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( settings: Settings, appearance: AppAppearance, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, vmFactory: ViewModelProvider.Factory? = null, viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory) )</ID>
-    <ID>LongMethod:UserProfileScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun UserProfileScreen( user: User?, toxId: String, avatar: android.graphics.Bitmap?, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, onSetName: (String) -&gt; Unit, onSetStatusMessage: (String) -&gt; Unit, onSetStatus: (UserStatus) -&gt; Unit, onLogout: () -&gt; Unit = {}, onAvatarChanged: () -&gt; Unit = {}, onCropAndSaveAvatar: suspend (android.graphics.Bitmap, Float, Float, Float, Float, Float) -&gt; Boolean )</ID>
-    <ID>MagicNumber:AToxNavGraph.kt$300L</ID>
-    <ID>MagicNumber:AddContactScreen.kt$64</ID>
+    <ID>LongMethod:ChatInputBar.kt$@OptIn(ExperimentalAnimationApi::class) @Composable fun ChatInputBar( contact: Contact?, settings: Settings, systemSoundPlayer: SystemSoundPlayer, onSendMessage: (String) -&gt; Unit, onTypingChanged: (Boolean) -&gt; Unit, onAttachClick: () -&gt; Unit, onHaptic: () -&gt; Unit, replyingToMessage: Message?, onCancelReply: () -&gt; Unit, onSendVoice: (android.net.Uri) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:ChatScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ChatScreen( contact: Contact?, messages: List&lt;Message&gt;?, fileTransfers: List&lt;FileTransfer&gt;, settings: Settings, onBack: () -&gt; Unit, onSendMessage: (String) -&gt; Unit, onTypingChanged: (Boolean) -&gt; Unit, onSendFile: (Uri) -&gt; Unit, onCallClick: () -&gt; Unit, onCallHistoryClick: () -&gt; Unit, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveFt: (Int, Uri) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, systemSoundPlayer: SystemSoundPlayer, replyingToMessage: Message? = null, onCancelReply: () -&gt; Unit = {}, onReplyClick: (Message) -&gt; Unit = {}, onCopyClick: (Message) -&gt; Unit = {}, onForwardClick: (Message) -&gt; Unit = {}, onSendVoice: (Uri) -&gt; Unit = {}, onJoinGroupClick: (String, String) -&gt; Unit = { _, _ -&gt; }, isJoinedGroup: (String) -&gt; Boolean = { false }, )</ID>
+    <ID>LongMethod:FileTransferCard.kt$@Composable fun FileTransferCard( ft: FileTransfer, msg: Message, onHaptic: () -&gt; Unit, contentColor: Color, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit )</ID>
+    <ID>LongMethod:ForwardSelectionScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun ForwardSelectionScreen( contacts: List&lt;Contact&gt;, settings: Settings, onBack: () -&gt; Unit, onContactsSelect: (List&lt;Contact&gt;) -&gt; Unit, )</ID>
+    <ID>LongMethod:GroupChatScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun GroupChatScreen( groupState: State&lt;Group?&gt;, messagesState: State&lt;List&lt;GroupMessage&gt;?&gt;, peersState: State&lt;List&lt;GroupPeer&gt;?&gt;, contactsState: State&lt;List&lt;Contact&gt;&gt;, connectionStatusState: State&lt;GroupConnectionStatus&gt;, fileTransfersState: State&lt;List&lt;FileTransfer&gt;&gt;, settings: Settings, onBack: () -&gt; Unit, onSendMessage: (String) -&gt; Unit, onSendFile: (android.net.Uri) -&gt; Unit, onSendVoice: (android.net.Uri) -&gt; Unit, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (GroupMessage) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, onLeaveGroup: () -&gt; Unit, onCopyInvite: () -&gt; Unit, onInviteFriend: (friendPublicKey: String) -&gt; Unit, systemSoundPlayer: SystemSoundPlayer, onInviteClick: (() -&gt; Unit) -&gt; Unit = {}, onPeersClick: (() -&gt; Unit) -&gt; Unit = {}, onLeaveClick: (() -&gt; Unit) -&gt; Unit = {}, onGroupInfoChanged: (name: String, topic: String, peersCount: Int, status: GroupConnectionStatus) -&gt; Unit = { _, _, _, _ -&gt; }, )</ID>
+    <ID>LongMethod:GroupInviteSheet.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun GroupInviteSheet( onDismissRequest: () -&gt; Unit, onCopyInvite: () -&gt; Unit, onInviteFriend: (friendPublicKey: String) -&gt; Unit, peers: List&lt;GroupPeer&gt;, contacts: List&lt;Contact&gt;, settings: Settings, onInviteResult: (String) -&gt; Unit )</ID>
+    <ID>LongMethod:MainTabNavigation.kt$@OptIn(ExperimentalMaterial3Api::class) fun NavGraphBuilder.mainTabGraph( mainNavController: NavHostController, navController: NavHostController, vmFactory: ViewModelProvider.Factory, contactListViewModel: ContactListViewModel, settings: Settings, appearance: AppAppearance, isSearchingState: MutableState&lt;Boolean&gt;, settingsTitleState: MutableState&lt;String&gt;, settingsOnBackActionState: MutableState&lt;(() -&gt; Unit)?&gt;, settingsOnSearchActionState: MutableState&lt;(() -&gt; Unit)?&gt;, contactsState: State&lt;List&lt;Contact&gt;&gt;, friendRequestsState: State&lt;List&lt;FriendRequest&gt;&gt;, groupInviteState: State&lt;GroupInvite?&gt;, groupInviteFriendNameState: State&lt;String&gt;, coroutineScope: CoroutineScope, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, )</ID>
+    <ID>LongMethod:MessageBubble.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun MessageBubble( msg: Message, messages: List&lt;Message&gt;, settings: Settings, contactName: String, onHaptic: () -&gt; Unit, onCallHistoryClick: () -&gt; Unit = {}, fileTransfers: List&lt;FileTransfer&gt;, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, onCancelFt: (Message) -&gt; Unit, onSaveAsClick: (Int, String) -&gt; Unit, onOpenFile: (FileTransfer) -&gt; Unit, onCopyMessage: ((Message) -&gt; Unit)? = null, onReplyMessage: ((Message) -&gt; Unit)? = null, onForwardMessage: ((Message) -&gt; Unit)? = null, onParentMessageClick: ((Message) -&gt; Unit)? = null, onJoinGroupClick: ((chatId: String, groupName: String) -&gt; Unit)? = null, isJoinedGroup: ((chatId: String) -&gt; Boolean)? = null, // Group chat specific parameters showAvatar: Boolean = false, senderName: String? = null, senderColor: Color? = null, avatarUri: String = "" )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( settings: Settings, appearance: AppAppearance, onThemeChanged: (Int) -&gt; Unit, onDynamicColorChanged: (Boolean) -&gt; Unit, onAccentColorSeedChanged: (Int) -&gt; Unit, onLocaleTagChanged: (String) -&gt; Unit, onDisableScreenshotsChanged: (Boolean) -&gt; Unit, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, vmFactory: ViewModelProvider.Factory? = null, onTitleChanged: (String) -&gt; Unit = {}, onBackActionChanged: ((() -&gt; Unit)?) -&gt; Unit = {}, onSearchActionChanged: ((() -&gt; Unit)?) -&gt; Unit = {}, viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory) )</ID>
+    <ID>LongMethod:UserProfileScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun UserProfileScreen( user: User?, toxId: String, avatar: android.graphics.Bitmap?, cropState: AvatarCropUiState = AvatarCropUiState.Idle, onBack: () -&gt; Unit = {}, showBackButton: Boolean = true, onSetName: (String) -&gt; Unit, onSetStatusMessage: (String) -&gt; Unit, onSetStatus: (UserStatus) -&gt; Unit, onLogout: () -&gt; Unit = {}, onAvatarChanged: () -&gt; Unit = {}, onResetCropState: () -&gt; Unit = {}, onCropAndSaveAvatar: (android.graphics.Bitmap, Float, Float, Float, Float, Float) -&gt; Unit, performHaptic: () -&gt; Unit = {} )</ID>
+    <ID>LongMethod:VoiceMessageCard.kt$@Composable fun VoiceMessageCard( ft: FileTransfer, contentColor: Color, onAcceptFt: (Int) -&gt; Unit, onRejectFt: (Int) -&gt; Unit, msg: Message, isOutgoing: Boolean, settings: Settings )</ID>
+    <ID>LoopWithTooManyJumpStatements:ChatInputBar.kt$while</ID>
+    <ID>MagicNumber:AToxMotion.kt$AToxMotion$150</ID>
+    <ID>MagicNumber:AToxMotion.kt$AToxMotion$75</ID>
+    <ID>MagicNumber:AToxNavGraph.kt$32</ID>
+    <ID>MagicNumber:AddContactScreen.kt$16</ID>
+    <ID>MagicNumber:AddContactScreen.kt$36</ID>
+    <ID>MagicNumber:AddContactScreen.kt$37</ID>
+    <ID>MagicNumber:AddContactScreen.kt$38</ID>
+    <ID>MagicNumber:AddContactScreen.kt$76</ID>
     <ID>MagicNumber:AddContactViewModel.kt$AddContactViewModel$64</ID>
+    <ID>MagicNumber:AuthViewModel.kt$AuthViewModel$10_000L</ID>
+    <ID>MagicNumber:AvatarEditDialog.kt$0xFF08040F</ID>
+    <ID>MagicNumber:AvatarEditDialog.kt$0xFF0F0A1A</ID>
+    <ID>MagicNumber:AvatarEditDialog.kt$0xFF1B1429</ID>
+    <ID>MagicNumber:AvatarEditDialog.kt$0xFF2196F3</ID>
     <ID>MagicNumber:AvatarEditDialog.kt$500f</ID>
-    <ID>MagicNumber:CallScreen.kt$0xFF08040F</ID>
-    <ID>MagicNumber:CallScreen.kt$0xFF0F0A1A</ID>
-    <ID>MagicNumber:CallScreen.kt$0xFF1B1429</ID>
-    <ID>MagicNumber:CallScreen.kt$0xFF2196F3</ID>
-    <ID>MagicNumber:CallScreen.kt$0xFF4CAF50</ID>
-    <ID>MagicNumber:CallScreen.kt$0xFFBA1A1A</ID>
-    <ID>MagicNumber:CallScreen.kt$0xFFE84A5F</ID>
     <ID>MagicNumber:CallScreen.kt$10000</ID>
     <ID>MagicNumber:CallScreen.kt$5000</ID>
     <ID>MagicNumber:CallViewModel.kt$CallViewModel$1000</ID>
     <ID>MagicNumber:CallViewModel.kt$CallViewModel$60</ID>
+    <ID>MagicNumber:ChatInputBar.kt$100</ID>
+    <ID>MagicNumber:ChatInputBar.kt$1000</ID>
+    <ID>MagicNumber:ChatInputBar.kt$150</ID>
+    <ID>MagicNumber:ChatInputBar.kt$200</ID>
+    <ID>MagicNumber:ChatInputBar.kt$60</ID>
+    <ID>MagicNumber:ChatInputBar.kt$800</ID>
+    <ID>MagicNumber:ChatInputBar.kt$RecordingState$44100</ID>
+    <ID>MagicNumber:ChatInputBar.kt$RecordingState$96000</ID>
+    <ID>MagicNumber:ChatNavigation.kt$64</ID>
+    <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$15</ID>
+    <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$450L</ID>
+    <ID>MagicNumber:ContactListViewModel.kt$ContactListViewModel$15</ID>
     <ID>MagicNumber:FileTransferBackupDataProvider.kt$120</ID>
     <ID>MagicNumber:FileTransferCard.kt$1024.0</ID>
+    <ID>MagicNumber:FileTransferCard.kt$512</ID>
     <ID>MagicNumber:FriendEventHandler.kt$FriendEventHandler$1000</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$100</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$1000</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$1000000</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$1000L</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$1024</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$150</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$180</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$20f</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$24f</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$25000L</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$250L</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$255</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$2L</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$3000</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$40f</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$512</ID>
+    <ID>MagicNumber:GroupChatViewModel.kt$GroupChatViewModel$700</ID>
+    <ID>MagicNumber:GroupListViewModel.kt$GroupListViewModel$64</ID>
+    <ID>MagicNumber:MainTabsScreen.kt$200</ID>
+    <ID>MagicNumber:MainTabsScreen.kt$300</ID>
     <ID>MagicNumber:MainTabsScreen.kt$99</ID>
+    <ID>MagicNumber:MorphingNavigationIcon.kt$150</ID>
+    <ID>MagicNumber:MorphingNavigationIcon.kt$180f</ID>
+    <ID>MagicNumber:MorphingNavigationIcon.kt$200</ID>
     <ID>MagicNumber:QrCodeView.kt$0.5f</ID>
+    <ID>MagicNumber:ReturnToCallBanner.kt$0xFF4CAF50</ID>
+    <ID>MagicNumber:ReturnToCallBanner.kt$1000</ID>
+    <ID>MagicNumber:SettingsConnectionScreen.kt$0.38f</ID>
     <ID>MagicNumber:SettingsScreen.kt$1024.0</ID>
-    <ID>MagicNumber:SettingsScreen.kt$180L</ID>
+    <ID>MagicNumber:SettingsViewModel.kt$SettingsViewModel$65535</ID>
     <ID>MagicNumber:SoundEffectPlayer.kt$SoundEffectPlayer$100</ID>
     <ID>MagicNumber:SystemSoundPlayer.kt$SystemSoundPlayer$100</ID>
     <ID>MagicNumber:SystemSoundPlayer.kt$SystemSoundPlayer$100f</ID>
     <ID>MagicNumber:Theme.kt$0.5f</ID>
-    <ID>MagicNumber:UserProfileScreen.kt$1.2f</ID>
+    <ID>MagicNumber:ToxIdShareCard.kt$1.2f</ID>
+    <ID>MagicNumber:UserProfileViewModel.kt$UserProfileViewModel$800</ID>
+    <ID>MagicNumber:VoiceMessageCard.kt$100</ID>
+    <ID>MagicNumber:VoiceMessageCard.kt$1000</ID>
+    <ID>MagicNumber:VoiceMessageCard.kt$60</ID>
     <ID>MatchingDeclarationName:SoundSettings.kt$SoundPickerTarget</ID>
     <ID>MaxLineLength:AppModule.kt$AppModule$fun</ID>
     <ID>MaxLineLength:CallScreen.kt$currentCallState = CallState.Active(ltd.evilcorp.core.model.PublicKey("456"), System.currentTimeMillis() - 10000, System.currentTimeMillis() - 5000, true)</ID>
-    <ID>MaxLineLength:ChatScreen.kt$Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_drawer_close), tint = MaterialTheme.colorScheme.onSurface)</ID>
+    <ID>MaxLineLength:ChatScreen.kt$text = contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) } ?: stringResource(R.string.contact_default_name)</ID>
+    <ID>MaxLineLength:MessageBubble.kt$text = if (parentMsg.type == MessageType.FileTransfer) stringResource(R.string.voice_message) else stripReplyPrefix(parentMsg.message)</ID>
+    <ID>MaxLineLength:SettingsChatScreen.kt$text = { Text("Вы уверены, что хотите удалить кэш файлов? Все скачанные медиафайлы останутся на устройстве, но будут удалены из кэша приложения.") }</ID>
+    <ID>PrintStackTrace:ChatInputBar.kt$RecordingState$e</ID>
+    <ID>PrintStackTrace:VoiceMessageCard.kt$e</ID>
     <ID>UnusedParameter:CallScreen.kt$currentCallState: CallState</ID>
+    <ID>UnusedParameter:ChatNavigation.kt$contactListViewModel: ContactListViewModel</ID>
+    <ID>UnusedParameter:CreateGroupScreen.kt$onBack: () -&gt; Unit</ID>
+    <ID>UnusedParameter:GroupEventHandler.kt$GroupEventHandler$peerId: Int</ID>
+    <ID>UnusedParameter:GroupEventHandler.kt$GroupEventHandler$type: ToxMessageType</ID>
+    <ID>UnusedParameter:GroupListViewModel.kt$GroupListViewModel$friendPublicKey: String</ID>
+    <ID>UnusedParameter:JoinGroupScreen.kt$onBack: () -&gt; Unit</ID>
+    <ID>UnusedPrivateMember:AToxNavGraph.kt$private fun getRouteOrder(key: String): Int</ID>
     <ID>UnusedPrivateMember:ChatListPreviews.kt$@Preview(name = "Chat list empty", showBackground = true) @Composable private fun EmptyChatListPreview()</ID>
     <ID>UnusedPrivateMember:ChatListPreviews.kt$@Preview(name = "Chat list mixed", showBackground = true) @Composable private fun ChatListTabPreview()</ID>
     <ID>UnusedPrivateMember:ChatListPreviews.kt$@Preview(name = "Chat rows", showBackground = true) @Composable private fun ContactRowsPreview()</ID>
@@ -135,26 +242,60 @@
     <ID>UnusedPrivateMember:NavigationPreviews.kt$@Preview(name = "Unlock Screen Error", showBackground = true) @Composable private fun UnlockScreenErrorPreview()</ID>
     <ID>UnusedPrivateMember:NavigationPreviews.kt$@Preview(name = "Unlock Screen Loading State", showBackground = true) @Composable private fun UnlockScreenLoadingPreview()</ID>
     <ID>UnusedPrivateMember:NavigationPreviews.kt$@Preview(name = "Unlock Screen Normal", showBackground = true) @Composable private fun UnlockScreenPreview()</ID>
-    <ID>UnusedPrivateMember:SettingsPreviews.kt$@Preview(name = "Theme Selection Screen Preview", showSystemUi = true) @Composable private fun ThemeSelectionScreenPreview()</ID>
     <ID>UnusedPrivateMember:UserProfilePreviews.kt$@Preview(name = "User Profile Screen Preview", showSystemUi = true) @Composable private fun UserProfileScreenPreview()</ID>
     <ID>UnusedPrivateProperty:AvatarEditDialog.kt$val layer = androidCanvas.saveLayer(0f, 0f, canvasWidth, canvasHeight, null)</ID>
+    <ID>UnusedPrivateProperty:ChatScreen.kt$private const val CHAT_ENTER_CONTENT_DELAY_MS = 320L</ID>
+    <ID>UnusedPrivateProperty:ContactListViewModel.kt$ContactListViewModel$private val callManager: CallManager</ID>
+    <ID>UnusedPrivateProperty:ContactListViewModel.kt$ContactListViewModel$private val notificationHelper: NotificationHelper</ID>
+    <ID>UnusedPrivateProperty:GroupChatScreen.kt$val inviteCopiedText = stringResource(R.string.group_invite_copied)</ID>
+    <ID>UnusedPrivateProperty:GroupChatScreen.kt$val inviteFailedText = stringResource(R.string.group_invite_failed)</ID>
+    <ID>UnusedPrivateProperty:GroupChatScreen.kt$val inviteSentText = stringResource(R.string.group_invite_sent)</ID>
+    <ID>UnusedPrivateProperty:GroupChatScreen.kt$val isKeyboardOpen = WindowInsets.ime.asPaddingValues().calculateBottomPadding() &gt; 0.dp</ID>
+    <ID>UnusedPrivateProperty:GroupChatScreen.kt$var invitingContactId by remember { mutableStateOf&lt;String?&gt;(null) }</ID>
+    <ID>UnusedPrivateProperty:GroupChatScreen.kt$var isCopying by remember { mutableStateOf(false) }</ID>
+    <ID>UnusedPrivateProperty:GroupChatViewModel.kt$GroupChatViewModel$private val systemSoundPlayer: SystemSoundPlayer</ID>
+    <ID>UnusedPrivateProperty:GroupEventHandler.kt$GroupEventHandler$private val contactRepository: ContactRepository</ID>
+    <ID>UnusedPrivateProperty:GroupInviteSheet.kt$val performHaptic = { if (settings.hapticEnabled) { // Can perform haptic internally if needed, but not strictly required } }</ID>
+    <ID>UnusedPrivateProperty:GroupListViewModel.kt$GroupListViewModel$private val scope: CoroutineScope</ID>
+    <ID>UnusedPrivateProperty:MainActivity.kt$MainActivity$private var groupInviteDialog: android.app.AlertDialog? = null</ID>
+    <ID>UnusedPrivateProperty:MainTabNavigation.kt$val isSearchingLocal = isSearchingState.value</ID>
     <ID>UnusedPrivateProperty:SystemSoundPlayer.kt$SystemSoundPlayer$val player = MediaPlayer().apply { setDataSource(context, uri) setAudioAttributes( AudioAttributes.Builder() .setUsage(usage) .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION) .build() ) val normalized = safeVolume / 100f setVolume(normalized, normalized) setOnPreparedListener { it.start() } setOnCompletionListener { it.release() } prepareAsync() }</ID>
+    <ID>UnusedPrivateProperty:ToxServiceLifecycleController.kt$ToxServiceLifecycleController$private val permissionManager: PermissionManager</ID>
+    <ID>UnusedPrivateProperty:ToxServiceLifecycleController.kt$private const val TAG = "ToxServiceLC"</ID>
+    <ID>UnusedPrivateProperty:UserProfileScreen.kt$val scope = rememberCoroutineScope()</ID>
+    <ID>UseCheckOrError:GroupChatViewModel.kt$GroupChatViewModel$throw IllegalStateException("Failed to create ${ft.fileName} in $directoryUri")</ID>
+    <ID>UseCheckOrError:GroupChatViewModel.kt$GroupChatViewModel$throw IllegalStateException("Failed to open $targetUri for writing")</ID>
     <ID>UseCheckOrError:MainActivity.kt$MainActivity$throw IllegalStateException("Unable to open $uri for sharing")</ID>
+    <ID>WildcardImport:AToxMotion.kt$import androidx.compose.animation.*</ID>
+    <ID>WildcardImport:AToxNavGraph.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:AccentColorDialog.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:AccentColorDialog.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:AddContactScreen.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:AddContactScreen.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:AddContactScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:AtoxLoadingButton.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:AvatarEditDialog.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:AvatarEditDialog.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:AvatarEditDialog.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:AvatarSourceDialog.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:AvatarSourceDialog.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:BackupFrequencyDialog.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:BackupFrequencyDialog.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:BackupModuleCard.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:BackupModuleCard.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:BackupSettings.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:BackupSettings.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:BackupSettings.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:BootstrapSettingsDialog.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:BootstrapSettingsDialog.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:CallHistoryCard.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:CallHistoryCard.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:CallScreen.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:CallScreen.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:CallScreen.kt$import androidx.compose.runtime.*</ID>
     <ID>WildcardImport:CallViewModel.kt$import kotlinx.coroutines.flow.*</ID>
+    <ID>WildcardImport:ChatInputBar.kt$import androidx.compose.animation.*</ID>
+    <ID>WildcardImport:ChatInputBar.kt$import androidx.compose.animation.core.*</ID>
     <ID>WildcardImport:ChatInputBar.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:ChatInputBar.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:ChatInputBar.kt$import androidx.compose.runtime.*</ID>
@@ -163,34 +304,81 @@
     <ID>WildcardImport:ChatScreen.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:ChatScreen.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:ChatScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:CreateGroupScreen.kt$import androidx.compose.animation.*</ID>
+    <ID>WildcardImport:CreateGroupScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:CreateGroupScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:CreateGroupScreen.kt$import androidx.compose.runtime.*</ID>
     <ID>WildcardImport:CreateProfileScreen.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:CreateProfileScreen.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:CreateProfileScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:DateSeparator.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:DateSeparator.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:FileTransferCard.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:FileTransferCard.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:FormatSettingsDialogs.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:FormatSettingsDialogs.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:ForwardSelectionScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:ForwardSelectionScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:ForwardSelectionScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:FtAutoAcceptSettingsDialog.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:FtAutoAcceptSettingsDialog.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:GoogleAccountDialog.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:GroupChatScreen.kt$import androidx.compose.animation.core.*</ID>
+    <ID>WildcardImport:GroupChatScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:GroupChatScreen.kt$import androidx.compose.material.icons.filled.*</ID>
+    <ID>WildcardImport:GroupChatScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:GroupChatScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:GroupInviteCard.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:GroupInviteCard.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:GroupInviteCard.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:GroupInviteSheet.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:GroupInviteSheet.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:GroupInviteSheet.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:GroupItemCard.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:GroupItemCard.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:GroupListScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:GroupListScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:GroupListScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:GroupPeersSheet.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:GroupPeersSheet.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:JoinGroupScreen.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:JoinGroupScreen.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:JoinGroupScreen.kt$import androidx.compose.runtime.*</ID>
     <ID>WildcardImport:LanguageSettings.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:LanguageSettings.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:MessageBubble.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:MessageBubble.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:MessageBubble.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:MorphingNavigationIcon.kt$import androidx.compose.animation.*</ID>
+    <ID>WildcardImport:MorphingNavigationIcon.kt$import androidx.compose.animation.core.*</ID>
+    <ID>WildcardImport:MorphingNavigationIcon.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:MorphingNavigationIcon.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:ProxySettingsDialog.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:ProxySettingsDialog.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:RestoreBackupConfirmDialog.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:RestoreBackupConfirmDialog.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:RestoreBackupConfirmDialog.kt$import androidx.compose.runtime.*</ID>
     <ID>WildcardImport:SettingsCommonComponents.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:SettingsCommonComponents.kt$import androidx.compose.material3.*</ID>
-    <ID>WildcardImport:SettingsDialogs.kt$import androidx.compose.foundation.layout.*</ID>
-    <ID>WildcardImport:SettingsDialogs.kt$import androidx.compose.material3.*</ID>
-    <ID>WildcardImport:SettingsDialogs.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:SettingsPreviews.kt$import ltd.evilcorp.atox.ui.settings.components.*</ID>
     <ID>WildcardImport:SettingsRootContent.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:SettingsRootContent.kt$import androidx.compose.material3.*</ID>
-    <ID>WildcardImport:SettingsScreen.kt$import androidx.compose.animation.*</ID>
-    <ID>WildcardImport:SettingsScreen.kt$import androidx.compose.foundation.layout.*</ID>
-    <ID>WildcardImport:SettingsScreen.kt$import androidx.compose.material3.*</ID>
-    <ID>WildcardImport:SettingsScreen.kt$import androidx.compose.runtime.*</ID>
-    <ID>WildcardImport:SettingsScreen.kt$import ltd.evilcorp.atox.ui.settings.components.*</ID>
+    <ID>WildcardImport:SettingsSearchPopup.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:SettingsSearchPopup.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:SoundSettings.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:ThemeSettings.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:ThemeSettings.kt$import androidx.compose.material3.*</ID>
-    <ID>WildcardImport:TypingBubble.kt$import androidx.compose.animation.core.*</ID>
+    <ID>WildcardImport:ToxIdShareCard.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:ToxIdShareCard.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:TypingBubble.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:UnlockScreenContent.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:UnlockScreenContent.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:UnlockScreenContent.kt$import androidx.compose.runtime.*</ID>
     <ID>WildcardImport:UserProfileScreen.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:UserProfileScreen.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:UserProfileScreen.kt$import androidx.compose.runtime.*</ID>
+    <ID>WildcardImport:VoiceMessageCard.kt$import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:VoiceMessageCard.kt$import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:VoiceMessageCard.kt$import androidx.compose.runtime.*</ID>
   </CurrentIssues>
 </SmellBaseline>

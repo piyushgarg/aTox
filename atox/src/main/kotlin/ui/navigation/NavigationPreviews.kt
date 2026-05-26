@@ -8,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import ltd.evilcorp.atox.ui.theme.AToxTheme
+import ltd.evilcorp.atox.ui.navigation.components.UnlockScreenContent
 
 @Preview(name = "Launch Screen Loading", showBackground = true)
 @Composable

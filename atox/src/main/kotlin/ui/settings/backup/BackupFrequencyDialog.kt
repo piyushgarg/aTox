@@ -1,4 +1,8 @@
-package ltd.evilcorp.atox.ui.settings.components
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
+package ltd.evilcorp.atox.ui.settings.backup
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,41 +19,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.core.model.BootstrapNodeSource
+import ltd.evilcorp.core.model.BackupFrequency
 
 @Composable
-fun BootstrapSettingsDialog(
-    currentSource: BootstrapNodeSource,
-    onSelectSource: (BootstrapNodeSource) -> Unit,
-    onDismiss: () -> Unit
+fun BackupFrequencyDialog(
+    backupFrequency: BackupFrequency,
+    onDismissRequest: () -> Unit,
+    onBackupFrequencyChanged: (BackupFrequency) -> Unit,
 ) {
-    val bootstrapTypes = listOf(
-        BootstrapNodeSource.BuiltIn to stringResource(R.string.settings_nodes_builtin),
-        BootstrapNodeSource.UserProvided to stringResource(R.string.settings_nodes_user)
+    val frequencies = listOf(
+        BackupFrequency.Off,
+        BackupFrequency.Daily,
+        BackupFrequency.Weekly,
+        BackupFrequency.Monthly,
     )
     AlertDialog(
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_nodes_list), fontWeight = FontWeight.Bold) },
+        onDismissRequest = onDismissRequest,
+        title = { Text(stringResource(R.string.backup_frequency_title), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                bootstrapTypes.forEach { item ->
-                    val isSelected = item.first == currentSource
+                frequencies.forEach { frequency ->
+                    val isSelected = frequency == backupFrequency
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .clickable {
-                                onSelectSource(item.first)
+                                onBackupFrequencyChanged(frequency)
+                                onDismissRequest()
                             }
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = item.second,
+                            text = backupFrequencyTitle(frequency),
                             fontSize = 16.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
@@ -67,9 +74,17 @@ fun BootstrapSettingsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismissRequest) {
                 Text(stringResource(R.string.close))
             }
         }
     )
+}
+
+@Composable
+fun backupFrequencyTitle(frequency: BackupFrequency): String = when (frequency) {
+    BackupFrequency.Off -> stringResource(R.string.backup_frequency_off)
+    BackupFrequency.Daily -> stringResource(R.string.backup_frequency_daily)
+    BackupFrequency.Weekly -> stringResource(R.string.backup_frequency_weekly)
+    BackupFrequency.Monthly -> stringResource(R.string.backup_frequency_monthly)
 }

@@ -32,6 +32,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +53,11 @@ fun JoinGroupScreen(
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     val performHaptic = {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -103,8 +110,9 @@ fun JoinGroupScreen(
                             errorMessage = null
                         },
                         label = { Text(stringResource(R.string.group_chat_id)) },
-                        placeholder = { Text(stringResource(R.string.group_chat_id_placeholder)) },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
                         singleLine = true,
                         enabled = !isJoining,
                         shape = MaterialTheme.shapes.medium,

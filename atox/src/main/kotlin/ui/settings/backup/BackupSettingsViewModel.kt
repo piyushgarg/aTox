@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package ltd.evilcorp.atox.ui.settings
+package ltd.evilcorp.atox.ui.settings.backup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

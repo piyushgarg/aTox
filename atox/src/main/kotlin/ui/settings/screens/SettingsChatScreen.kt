@@ -25,10 +25,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.ui.settings.components.SettingsClickableRow
-import ltd.evilcorp.atox.ui.settings.components.SettingsGroup
-import ltd.evilcorp.atox.ui.settings.components.SettingsSwitchRow
-import ltd.evilcorp.atox.ui.settings.components.SettingsErrorClickableRow
+import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
+import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
+import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
+import ltd.evilcorp.atox.ui.settings.common.SettingsErrorClickableRow
 import ltd.evilcorp.core.model.FtAutoAccept
 
 @Composable

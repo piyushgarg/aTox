@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -54,6 +55,8 @@ import ltd.evilcorp.atox.ui.userprofile.components.AvatarEditDialog
 import ltd.evilcorp.atox.ui.userprofile.components.LogoutConfirmDialog
 import ltd.evilcorp.atox.ui.userprofile.components.QrCodeDialog
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarProcessingDialog
+import ltd.evilcorp.atox.ui.userprofile.components.AvatarSourceDialog
+import ltd.evilcorp.atox.ui.userprofile.components.ToxIdShareCard
 import ltd.evilcorp.core.model.User
 import ltd.evilcorp.core.model.UserStatus
 
@@ -125,8 +128,21 @@ fun UserProfileScreen(
 
     var showSourceDialog by remember { mutableStateOf(false) }
 
-    var tempName by remember(user?.name) { mutableStateOf(user?.name ?: "") }
-    var tempStatus by remember(user?.statusMessage) { mutableStateOf(user?.statusMessage ?: "") }
+    var tempName by remember { mutableStateOf("") }
+    var tempStatus by remember { mutableStateOf("") }
+    var nameHasFocus by remember { mutableStateOf(false) }
+    var statusHasFocus by remember { mutableStateOf(false) }
+
+    LaunchedEffect(user) {
+        user?.let {
+            if (!nameHasFocus) {
+                tempName = it.name
+            }
+            if (!statusHasFocus) {
+                tempStatus = it.statusMessage
+            }
+        }
+    }
     var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     var showQrDialog by remember { mutableStateOf(false) }
 
@@ -242,7 +258,9 @@ fun UserProfileScreen(
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { nameHasFocus = it.isFocused }
                     )
 
                     OutlinedTextField(
@@ -261,7 +279,9 @@ fun UserProfileScreen(
                         keyboardActions = KeyboardActions(
                             onDone = { focusManager.clearFocus() }
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { statusHasFocus = it.isFocused }
                     )
                 }
             }
@@ -317,115 +337,23 @@ fun UserProfileScreen(
             }
 
             // Tox ID Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = stringResource(R.string.profile_your_tox_id),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.profile_share_tox_id_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Tox ID Box
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = toxId,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(12.dp),
-                            lineHeight = 18.sp
-                        )
+            ToxIdShareCard(
+                toxId = toxId,
+                onCopyClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Tox ID", toxId)
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(context, context.getString(R.string.profile_copied), Toast.LENGTH_SHORT).show()
+                },
+                onShareClick = {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, "tox:$toxId")
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilledTonalButton(
-                            onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip = ClipData.newPlainText("Tox ID", toxId)
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, context.getString(R.string.profile_copied), Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.weight(1.2f),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
-                        ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.copy_atox),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                fontSize = 12.sp
-                            )
-                        }
-
-                        FilledTonalButton(
-                            onClick = {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(android.content.Intent.EXTRA_TEXT, "tox:$toxId")
-                                }
-                                context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.tox_id_share)))
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
-                        ) {
-                            Icon(Icons.Default.Share, contentDescription = "Share")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.share),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                fontSize = 12.sp
-                            )
-                        }
-
-                        FilledTonalButton(
-                            onClick = { showQrDialog = true },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
-                        ) {
-                            Icon(Icons.Default.QrCode, contentDescription = "QR Code")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.read_qr),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
-            }
+                    context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.tox_id_share)))
+                },
+                onQrClick = { showQrDialog = true }
+            )
 
             // Logout Card
             Card(
@@ -526,75 +454,21 @@ fun UserProfileScreen(
     }
 
     if (showSourceDialog) {
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        AvatarSourceDialog(
             onDismissRequest = { showSourceDialog = false },
-            title = { Text(stringResource(R.string.avatar_source_title), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextButton(
-                        onClick = {
-                            showSourceDialog = false
-                            try {
-                                cameraLauncher.launch(tempFileUri)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = stringResource(R.string.avatar_source_camera),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                    TextButton(
-                        onClick = {
-                            showSourceDialog = false
-                            galleryLauncher.launch("image/*")
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = stringResource(R.string.avatar_source_gallery),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
+            onCameraClick = {
+                showSourceDialog = false
+                try {
+                    cameraLauncher.launch(tempFileUri)
+                } catch (e: android.content.ActivityNotFoundException) {
+                    Toast.makeText(context, "Camera application not found", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showSourceDialog = false }) {
-                    Text(stringResource(R.string.avatar_editor_cancel))
-                }
+            onGalleryClick = {
+                showSourceDialog = false
+                galleryLauncher.launch("image/*")
             }
         )
     }

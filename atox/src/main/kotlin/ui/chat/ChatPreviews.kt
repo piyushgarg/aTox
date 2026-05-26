@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.ui.chat.components.CallHistoryCard
-import ltd.evilcorp.atox.ui.chat.components.FileTransferCard
+import ltd.evilcorp.atox.ui.common.chat.FileTransferCard
 import ltd.evilcorp.atox.ui.chat.components.TypingBubble
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 import ltd.evilcorp.core.model.FileTransfer
@@ -88,11 +88,11 @@ private fun FileTransferCardsPreview() {
                 msg = msgIncoming,
                 onHaptic = {},
                 contentColor = Color.Black,
-                onAcceptFt = {},
-                onRejectFt = {},
-                onCancelFt = {},
+                onAcceptFt = { _ -> },
+                onRejectFt = { _ -> },
+                onCancelFt = { _ -> },
                 onSaveAsClick = { _, _ -> },
-                onOpenFile = {}
+                onOpenFile = { _ -> }
             )
 
             val outgoingFt = FileTransfer(
@@ -119,11 +119,11 @@ private fun FileTransferCardsPreview() {
                 msg = msgOutgoing,
                 onHaptic = {},
                 contentColor = Color.White,
-                onAcceptFt = {},
-                onRejectFt = {},
-                onCancelFt = {},
+                onAcceptFt = { _ -> },
+                onRejectFt = { _ -> },
+                onCancelFt = { _ -> },
                 onSaveAsClick = { _, _ -> },
-                onOpenFile = {}
+                onOpenFile = { _ -> }
             )
         }
     }

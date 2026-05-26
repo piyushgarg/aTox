@@ -2,43 +2,43 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package ltd.evilcorp.atox.ui.settings.components
+package ltd.evilcorp.atox.ui.settings.appearance
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.theme.AccentPresets
+import ltd.evilcorp.atox.ui.theme.LocalAToxThemeIsDark
+import ltd.evilcorp.atox.ui.theme.accentPreviewColor
 
 @Composable
-fun LanguageSelectionScreen(
+fun ThemeSelectionScreen(
     paddingValues: PaddingValues,
-    currentLanguageCode: String,
-    onLanguageSelect: (String) -> Unit
+    appThemeMode: Int,
+    onThemeSelect: (Int) -> Unit
 ) {
-    val systemDefaultLabel = stringResource(R.string.pref_theme_follow_system)
-    val languages = remember(systemDefaultLabel) {
-        listOf(
-            "" to systemDefaultLabel,
-            "en" to "English",
-            "ru" to "Русский",
-            "sv" to "Svenska",
-            "de" to "Deutsch",
-            "es" to "Español",
-            "fr" to "Français",
-            "it" to "Italiano",
-            "uk" to "Українська"
-        )
-    }
+    val themes = listOf(
+        androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM to stringResource(R.string.pref_theme_follow_system),
+        androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO to stringResource(R.string.pref_theme_light),
+        androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES to stringResource(R.string.pref_theme_dark)
+    )
 
     LazyColumn(
         modifier = Modifier
@@ -56,28 +56,27 @@ fun LanguageSelectionScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             ) {
                 Column {
-                    languages.forEachIndexed { index, item ->
-                        val isSelected = item.first == currentLanguageCode
+                    themes.forEachIndexed { index, item ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onLanguageSelect(item.first) }
+                                .clickable { onThemeSelect(item.first) }
                                 .padding(horizontal = 16.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = item.second,
                                 style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                fontWeight = if (item.first == appThemeMode) FontWeight.SemiBold else FontWeight.Normal,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f),
                             )
                             RadioButton(
-                                selected = isSelected,
+                                selected = item.first == appThemeMode,
                                 onClick = null,
                             )
                         }
-                        if (index != languages.lastIndex) {
+                        if (index != themes.lastIndex) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
                         }
                     }
@@ -86,3 +85,5 @@ fun LanguageSelectionScreen(
         }
     }
 }
+
+

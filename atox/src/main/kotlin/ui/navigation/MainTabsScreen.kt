@@ -31,6 +31,7 @@ import ltd.evilcorp.atox.R
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -80,7 +81,7 @@ fun MainTabsScreen(
                           currentRoute == AppRoutes.CreateGroup ||
                           currentRoute == AppRoutes.JoinGroup
 
-        val bottomPadding = if (isSubScreen) {
+        val targetBottomPadding = if (isSubScreen) {
             0.dp
         } else {
             // M3 NavigationBar default height is 80.dp.
@@ -88,9 +89,18 @@ fun MainTabsScreen(
             80.dp + with(density) { navigationBarsInsets.getBottom(density).toDp() }
         }
 
+        val animatedBottomPadding by androidx.compose.animation.core.animateDpAsState(
+            targetValue = targetBottomPadding,
+            animationSpec = tween(
+                durationMillis = 300,
+                easing = AToxMotion.EmphasizedDecelerate
+            ),
+            label = "bottomPaddingAnimation"
+        )
+
         val tabPadding = PaddingValues(
             top = paddingValues.calculateTopPadding(),
-            bottom = bottomPadding
+            bottom = animatedBottomPadding
         )
         CompositionLocalProvider(LocalTabPadding provides tabPadding) {
             Box(

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package ltd.evilcorp.atox.ui.chat.components
+package ltd.evilcorp.atox.ui.common.chat
 
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -106,7 +106,7 @@ fun FileTransferCard(
                             inJustDecodeBounds = true
                         }
                         BitmapFactory.decodeByteArray(tempBytes, 0, tempBytes.size, options)
-
+ 
                         val reqWidth = 512
                         val reqHeight = 512
                         var inSampleSize = 1
@@ -117,7 +117,7 @@ fun FileTransferCard(
                                 inSampleSize *= 2
                             }
                         }
-
+ 
                         val decodeOptions = BitmapFactory.Options().apply {
                             this.inSampleSize = inSampleSize
                         }

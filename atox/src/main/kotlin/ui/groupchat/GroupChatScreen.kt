@@ -37,10 +37,10 @@ import ltd.evilcorp.atox.media.SystemSoundPlayer
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.ui.common.formatChatTime
 import ltd.evilcorp.atox.ui.common.ContactAvatar
-import ltd.evilcorp.atox.ui.chat.components.ChatInputBar
+import ltd.evilcorp.atox.ui.common.chat.ChatInputBar
+import ltd.evilcorp.atox.ui.common.chat.MessageBubble
+import ltd.evilcorp.atox.ui.common.chat.DateSeparator
 import android.widget.Toast
-import ltd.evilcorp.atox.ui.chat.components.VoiceMessageCard
-import ltd.evilcorp.atox.ui.chat.components.FileTransferCard
 import ltd.evilcorp.atox.ui.groupchat.components.GroupPeersSheet
 import ltd.evilcorp.atox.ui.groupchat.components.GroupInviteSheet
 import ltd.evilcorp.core.model.Contact
@@ -101,6 +101,18 @@ fun GroupChatScreen(
 ) {
     val group = groupState.value
     val messages = messagesState.value ?: emptyList()
+    val mappedMessages = remember(messages) {
+        messages.map { m ->
+            ltd.evilcorp.core.model.Message(
+                publicKey = m.groupChatId,
+                message = m.message,
+                sender = m.sender,
+                type = m.type,
+                correlationId = m.correlationId,
+                timestamp = m.timestamp
+            ).apply { this.id = m.id }
+        }
+    }
     val peers = peersState.value ?: emptyList()
     val connStatus = connectionStatusState.value
     val listState = rememberLazyListState()
@@ -471,35 +483,37 @@ fun GroupChatScreen(
 
                         Column {
                             if (rawIndex == 0 || currentHeader != previousHeader) {
-                                ltd.evilcorp.atox.ui.chat.components.DateSeparator(label = currentHeader)
+                                DateSeparator(label = currentHeader)
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
 
-                            GroupMessageBubble(
-                                msg = msg,
+                            val isOutgoing = msg.sender == Sender.Sent
+                            val senderPeer = peers.find { it.peerId == msg.peerId }
+                            val senderName = senderPeer?.name ?: msg.senderName
+                            val peerColor = remember(senderName) { getPeerColor(senderName) }
+                            val matchingContact = contacts.find { it.publicKey.equals(senderPeer?.publicKey ?: "", ignoreCase = true) }
+                            val mappedMessage = mappedMessages[rawIndex]
+
+                            MessageBubble(
+                                msg = mappedMessage,
+                                messages = mappedMessages,
                                 settings = settings,
-                                peers = peers,
-                                contacts = contacts,
+                                contactName = senderName,
+                                onHaptic = performHaptic,
                                 fileTransfers = fileTransfers,
-                                onAcceptFt = { ftId ->
-                                    performHaptic()
-                                    onAcceptFt(ftId)
-                                },
-                                onRejectFt = { ftId ->
-                                    performHaptic()
-                                    onRejectFt(ftId)
-                                },
-                                onCancelFt = { m ->
-                                    performHaptic()
-                                    onCancelFt(m)
-                                },
+                                onAcceptFt = onAcceptFt,
+                                onRejectFt = onRejectFt,
+                                onCancelFt = { onCancelFt(msg) },
                                 onSaveAsClick = { ftId, fileName ->
                                     performHaptic()
                                     activeFtIdToSave.value = ftId
                                     saveFileLauncher.launch(fileName)
                                 },
                                 onOpenFile = onOpenFile,
-                                onHaptic = performHaptic
+                                showAvatar = !isOutgoing,
+                                senderName = if (isOutgoing) null else senderName,
+                                senderColor = if (isOutgoing) null else peerColor,
+                                avatarUri = if (isOutgoing) "" else (matchingContact?.avatarUri ?: "")
                             )
                         }
                     }
@@ -561,260 +575,3 @@ fun GroupChatScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun GroupMessageBubble(
-    msg: GroupMessage,
-    settings: Settings,
-    peers: List<GroupPeer>,
-    contacts: List<Contact>,
-    fileTransfers: List<FileTransfer>,
-    onAcceptFt: (Int) -> Unit,
-    onRejectFt: (Int) -> Unit,
-    onCancelFt: (GroupMessage) -> Unit,
-    onSaveAsClick: (Int, String) -> Unit,
-    onOpenFile: (FileTransfer) -> Unit,
-    onHaptic: () -> Unit
-) {
-    val context = LocalContext.current
-
-    if (msg.type == MessageType.GroupEvent) {
-        val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
-            val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
-            formatChatTime(context, time, settings.timeFormatPreference)
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Surface(
-                shape = RoundedCornerShape(999.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-                tonalElevation = 1.dp,
-            ) {
-                Text(
-                    text = msg.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = timeString,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                fontSize = 10.sp,
-            )
-        }
-        return
-    }
-
-    val isOutgoing = msg.sender == Sender.Sent
-    val isAction = msg.type == MessageType.Action
-
-    val senderPeer = peers.find { it.peerId == msg.peerId }
-    val senderName = senderPeer?.name ?: msg.senderName
-
-    val containerColor = if (isOutgoing) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
-
-    val contentColor = if (isOutgoing) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    val alignment = if (isOutgoing) Alignment.End else Alignment.Start
-    val shape = if (isOutgoing) {
-        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 2.dp)
-    } else {
-        RoundedCornerShape(topStart = 2.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
-    }
-
-    // Map GroupMessage to regular Message object to perfectly satisfy shared FileTransfer Card interfaces!
-    val mappedMessage = remember(msg) {
-        ltd.evilcorp.core.model.Message(
-            publicKey = msg.groupChatId,
-            message = msg.message,
-            sender = msg.sender,
-            type = msg.type,
-            correlationId = msg.correlationId,
-            timestamp = msg.timestamp
-        ).apply { this.id = msg.id }
-    }
-
-    val peerColor = remember(senderName) { getPeerColor(senderName) }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isOutgoing) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Bottom
-    ) {
-        // 1. Telegram Style Round Avatar on the left side of incoming messages!
-        if (!isOutgoing) {
-            val matchingContact = contacts.find { it.publicKey.equals(senderPeer?.publicKey ?: "", ignoreCase = true) }
-            ContactAvatar(
-                name = senderName,
-                publicKey = senderPeer?.publicKey ?: "",
-                avatarUri = matchingContact?.avatarUri ?: "",
-                size = 32.dp,
-                fontSize = 13.sp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-
-        // 2. Message Bubble Column
-        Column(
-            modifier = Modifier.widthIn(max = 280.dp),
-            horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
-        ) {
-            Surface(
-                color = containerColor,
-                contentColor = contentColor,
-                shape = shape,
-                tonalElevation = 1.dp,
-                modifier = Modifier.combinedClickable(
-                    onClick = {},
-                    onLongClick = {
-                        onHaptic()
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val clip = android.content.ClipData.newPlainText("message", msg.message)
-                        clipboard.setPrimaryClip(clip)
-                        android.widget.Toast.makeText(context, R.string.message_copied, android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                )
-            ) {
-                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    // 3. Colored Sender Name on top of incoming group chat messages!
-                    if (!isOutgoing) {
-                        Text(
-                            text = senderName,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = peerColor,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    val isVoice = if (msg.type == MessageType.FileTransfer) {
-                        val ft = fileTransfers.find { it.fileNumber == msg.correlationId || it.id == msg.correlationId }
-                        ft != null && ft.fileName.startsWith("voice_message_")
-                    } else {
-                        false
-                    }
-
-                    // 4. Message Content (Text / File / Voice card)
-                    if (msg.type == MessageType.FileTransfer) {
-                        val ft = fileTransfers.find { it.fileNumber == msg.correlationId || it.id == msg.correlationId }
-                        if (ft != null) {
-                            if (ft.fileName.startsWith("voice_message_")) {
-                                VoiceMessageCard(
-                                    ft = ft,
-                                    contentColor = contentColor,
-                                    onAcceptFt = onAcceptFt,
-                                    onRejectFt = onRejectFt,
-                                    msg = mappedMessage,
-                                    isOutgoing = isOutgoing,
-                                    settings = settings
-                                )
-                            } else {
-                                FileTransferCard(
-                                    ft = ft,
-                                    msg = mappedMessage,
-                                    onHaptic = onHaptic,
-                                    contentColor = contentColor,
-                                    onAcceptFt = onAcceptFt,
-                                    onRejectFt = onRejectFt,
-                                    onCancelFt = { onCancelFt(msg) },
-                                    onSaveAsClick = onSaveAsClick,
-                                    onOpenFile = onOpenFile
-                                )
-                            }
-                        } else {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = contentColor)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = msg.message,
-                                    fontSize = 15.sp,
-                                    color = contentColor
-                                )
-                            }
-                        }
-                    } else {
-                        // Render standard Text or Action messages
-                        val isImageMarker = msg.message.startsWith("[FILE:") && msg.message.contains("|")
-                        val isVoiceMarker = msg.message.startsWith("[VOICE:") && msg.message.contains("|")
-                        
-                        val displayText = when {
-                            isImageMarker -> stringResource(R.string.ft_status_waiting)
-                            isVoiceMarker -> stringResource(R.string.voice_message)
-                            else -> msg.message
-                        }
-                        
-                        Text(
-                            text = displayText,
-                            fontSize = 15.sp,
-                            color = contentColor
-                        )
-                    }
-
-                    // 5. Chat Time and Sending Indicators
-                    if (!isVoice) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
-                            val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
-                            formatChatTime(context, time, settings.timeFormatPreference)
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.End,
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text(
-                                text = timeString,
-                                fontSize = 10.sp,
-                                color = contentColor.copy(alpha = 0.7f)
-                            )
-                            if (isOutgoing) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                if (msg.timestamp == 0L) {
-                                    Icon(
-                                        imageVector = Icons.Default.AccessTime,
-                                        contentDescription = "Sending",
-                                        tint = contentColor.copy(alpha = 0.7f),
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                } else {
-                                    Box(modifier = Modifier.size(width = 18.dp, height = 12.dp)) {
-                                        Icon(
-                                            imageVector = Icons.Default.Done,
-                                            contentDescription = "Delivered",
-                                            tint = contentColor.copy(alpha = 0.7f),
-                                            modifier = Modifier.size(12.dp).align(Alignment.CenterStart)
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Default.Done,
-                                            contentDescription = "Delivered",
-                                            tint = contentColor.copy(alpha = 0.7f),
-                                            modifier = Modifier.size(12.dp).align(Alignment.CenterEnd)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}

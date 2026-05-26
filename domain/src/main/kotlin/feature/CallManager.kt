@@ -6,10 +6,8 @@ package ltd.evilcorp.domain.feature
 
 import android.content.Context
 import android.media.AudioManager
-import android.media.MediaPlayer
-import android.media.RingtoneManager
-import android.media.ToneGenerator
-import android.net.Uri
+import android.media.AudioDeviceInfo
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -30,9 +28,8 @@ import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.Sender
 import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.repository.MessageRepository
-import ltd.evilcorp.core.repository.UserSettingsRepository
-import ltd.evilcorp.domain.R
-import ltd.evilcorp.domain.av.AudioCapture
+import ltd.evilcorp.domain.media.CallSignalPlayer
+import ltd.evilcorp.domain.av.CallAudioRecorder
 import ltd.evilcorp.domain.tox.Tox
 
 sealed class CallState {
@@ -46,36 +43,27 @@ sealed class CallState {
 }
 
 private const val TAG = "CallManager"
-private const val AUDIO_CHANNELS = 1
-private const val AUDIO_SAMPLING_RATE_HZ = 48_000
-private const val AUDIO_SEND_INTERVAL_MS = 20
-private const val RINGBACK_TONE_DURATION_MS = 1_500
-private const val RINGBACK_TONE_INTERVAL_MS = 2_000L
 
 @Singleton
 class CallManager @Inject constructor(
     private val tox: Tox,
     private val scope: CoroutineScope,
-    private val userSettingsRepository: UserSettingsRepository,
     private val context: Context,
     private val contactRepository: ContactRepository,
     private val messageRepository: MessageRepository,
+    private val signalPlayer: CallSignalPlayer,
+    private val audioRecorder: CallAudioRecorder
 ) {
     private val _inCall = MutableStateFlow<CallState>(CallState.Idle)
     val inCall: StateFlow<CallState> get() = _inCall
 
-    private val _sendingAudio = MutableStateFlow(false)
-    val sendingAudio: StateFlow<Boolean> get() = _sendingAudio
+    val sendingAudio: StateFlow<Boolean> get() = audioRecorder.sendingAudio
 
     private val _speakerphoneOn = MutableStateFlow(false)
     val speakerphoneOnState: StateFlow<Boolean> get() = _speakerphoneOn
 
     private val audioManager = ContextCompat.getSystemService(context, AudioManager::class.java)
-    private var ringtone: android.media.Ringtone? = null
-    private var toneGenerator: ToneGenerator? = null
-    private var ringbackJob: Job? = null
     private var transitionJob: Job? = null
-    private var audioCaptureJob: Job? = null
     private var microphoneDesired = true
     private var focusRequest: android.media.AudioFocusRequest? = null
 
@@ -84,7 +72,7 @@ class CallManager @Inject constructor(
             AudioManager.AUDIOFOCUS_LOSS,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                _sendingAudio.value = false
+                audioRecorder.stopAudioCapture()
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
                 val target = currentTarget()
@@ -144,7 +132,12 @@ class CallManager @Inject constructor(
             tox.startCall(publicKey)
             audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
             setState(CallState.OutgoingRequesting(publicKey, SystemClock.elapsedRealtime()))
-            playRingback()
+            signalPlayer.playRingback(scope) {
+                val state = _inCall.value
+                state is CallState.OutgoingRequesting ||
+                    state is CallState.OutgoingWaiting ||
+                    state is CallState.OutgoingRinging
+            }
             transitionJob?.cancel()
             transitionJob = scope.launch {
                 delay(500)
@@ -173,7 +166,7 @@ class CallManager @Inject constructor(
         }
         microphoneDesired = true
         setState(CallState.IncomingRinging(from, SystemClock.elapsedRealtime()))
-        playIncomingRingtone()
+        signalPlayer.playIncomingRingtone(scope)
     }
 
     fun removePendingCall(publicKey: PublicKey) {
@@ -186,7 +179,7 @@ class CallManager @Inject constructor(
         val incoming = _inCall.value as? CallState.IncomingRinging ?: return false
         if (incoming.contact.publicKey != publicKey.string()) return false
         return try {
-            stopSignals()
+            signalPlayer.stopSignals()
             requestAudioFocus()
             tox.answerCall(publicKey)
             audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
@@ -231,7 +224,7 @@ class CallManager @Inject constructor(
             else -> null
         } ?: return
 
-        stopSignals()
+        signalPlayer.stopSignals()
         setState(nextState)
         if (microphoneDesired) {
             startAudioCapture(publicKey)
@@ -285,14 +278,32 @@ class CallManager @Inject constructor(
 
     fun stopSendingAudio() {
         microphoneDesired = false
-        _sendingAudio.value = false
+        audioRecorder.stopAudioCapture()
     }
 
     fun toggleSpeakerphone() {
         val next = !_speakerphoneOn.value
         _speakerphoneOn.value = next
-        audioManager?.isSpeakerphoneOn = next
+        setSpeakerphoneRoute(next)
         restartAudioCaptureForRouteChange()
+    }
+
+    private fun setSpeakerphoneRoute(on: Boolean) {
+        val am = audioManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (on) {
+                val speakerDevice = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                    ?.find { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                if (speakerDevice != null) {
+                    am.setCommunicationDevice(speakerDevice)
+                }
+            } else {
+                am.clearCommunicationDevice()
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            am.isSpeakerphoneOn = on
+        }
     }
 
     private fun finishSession(publicKey: PublicKey, localHangup: Boolean, record: CallHistory?) {
@@ -315,90 +326,13 @@ class CallManager @Inject constructor(
         transitionJob?.cancel()
         transitionJob = null
         microphoneDesired = true
-        _sendingAudio.value = false
-        audioCaptureJob?.cancel()
-        audioCaptureJob = null
-        stopSignals()
+        audioRecorder.stopAudioCapture()
+        signalPlayer.stopSignals()
         abandonAudioFocus()
         _speakerphoneOn.value = false
-        audioManager?.isSpeakerphoneOn = false
+        setSpeakerphoneRoute(false)
         audioManager?.mode = AudioManager.MODE_NORMAL
         setState(CallState.Idle)
-    }
-
-    private fun playIncomingRingtone() {
-        scope.launch {
-            stopSignals()
-            try {
-                val settings = userSettingsRepository.settings.value
-                var uri = settings.callRingtoneUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                var rt = RingtoneManager.getRingtone(context, uri)
-                if (rt == null) {
-                    uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                    rt = RingtoneManager.getRingtone(context, uri)
-                }
-                rt?.let {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                        it.isLooping = true
-                        val volume = settings.callSoundVolume.coerceIn(0, 100) / 100f
-                        it.volume = volume
-                    }
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                        it.audioAttributes = android.media.AudioAttributes.Builder()
-                            .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    }
-                    it.play()
-                    ringtone = it
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error playing ringtone via RingtoneManager, falling back to default", e)
-                try {
-                    val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                    RingtoneManager.getRingtone(context, defaultUri)?.let { fallbackRt ->
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                            fallbackRt.isLooping = true
-                        }
-                        fallbackRt.play()
-                        ringtone = fallbackRt
-                    }
-                } catch (ex: Exception) {
-                    Log.e(TAG, "Error playing fallback ringtone", ex)
-                }
-            }
-        }
-    }
-
-    private fun playRingback() {
-        scope.launch {
-            stopSignals()
-            toneGenerator = ToneGenerator(
-                AudioManager.STREAM_VOICE_CALL,
-                userSettingsRepository.settings.value.callSoundVolume.coerceIn(0, 100),
-            )
-            ringbackJob = scope.launch {
-                while (_inCall.value is CallState.OutgoingRequesting ||
-                    _inCall.value is CallState.OutgoingWaiting ||
-                    _inCall.value is CallState.OutgoingRinging
-                ) {
-                    runCatching { toneGenerator?.startTone(ToneGenerator.TONE_SUP_RINGTONE, RINGBACK_TONE_DURATION_MS) }
-                    delay(RINGBACK_TONE_INTERVAL_MS)
-                }
-            }
-        }
-    }
-
-    private fun stopSignals() {
-        transitionJob?.cancel()
-        ringbackJob?.cancel()
-        ringbackJob = null
-        runCatching { toneGenerator?.stopTone() }
-        toneGenerator?.release()
-        toneGenerator = null
-        runCatching { ringtone?.stop() }
-        ringtone = null
     }
 
     private fun currentTarget(): PublicKey? = when (val current = _inCall.value) {
@@ -412,43 +346,18 @@ class CallManager @Inject constructor(
     }
 
     private fun startAudioCapture(to: PublicKey) {
-        if (audioCaptureJob?.isActive == true) return
-        val recorder = AudioCapture.create(
-            AUDIO_SAMPLING_RATE_HZ,
-            AUDIO_CHANNELS,
-            AUDIO_SEND_INTERVAL_MS,
-            enableAutomaticGainControl = !_speakerphoneOn.value,
-        ) ?: return
-        audioCaptureJob = scope.launch {
-            recorder.start()
-            _sendingAudio.value = true
-            try {
-                while (_sendingAudio.value && currentTarget() == to) {
-                    val start = System.currentTimeMillis()
-                    val audioFrame = recorder.read()
-                    if (audioFrame != null) {
-                        runCatching { tox.sendAudio(to, audioFrame, AUDIO_CHANNELS, AUDIO_SAMPLING_RATE_HZ) }
-                    }
-                    val elapsed = System.currentTimeMillis() - start
-                    if (elapsed < AUDIO_SEND_INTERVAL_MS) {
-                        delay(AUDIO_SEND_INTERVAL_MS - elapsed)
-                    }
-                }
-            } finally {
-                runCatching { recorder.stop() }
-                recorder.release()
-                _sendingAudio.value = false
-            }
+        audioRecorder.startAudioCapture(scope, to, _speakerphoneOn.value) {
+            currentTarget() == to
         }
     }
 
     private fun restartAudioCaptureForRouteChange() {
         val target = currentTarget() ?: return
-        if (_inCall.value !is CallState.Active || !microphoneDesired || !_sendingAudio.value) return
+        if (_inCall.value !is CallState.Active || !microphoneDesired || !audioRecorder.sendingAudio.value) return
 
-        _sendingAudio.value = false
+        audioRecorder.stopAudioCapture()
         scope.launch {
-            audioCaptureJob?.join()
+            audioRecorder.joinRecording()
             if (_inCall.value is CallState.Active && microphoneDesired && currentTarget() == target) {
                 startAudioCapture(target)
             }

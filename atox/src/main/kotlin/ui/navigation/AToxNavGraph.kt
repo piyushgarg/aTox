@@ -233,30 +233,10 @@ fun AToxNavGraph(
                     NavHost(
                         navController = mainNavController,
                         startDestination = AppRoutes.Chats,
-                        enterTransition = {
-                            val initialRoute = initialState.destination.route.orEmpty()
-                            val targetRoute = targetState.destination.route.orEmpty()
-                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
-                            AToxMotion.sharedAxisXEnter(forward = forward)
-                        },
-                        exitTransition = {
-                            val initialRoute = initialState.destination.route.orEmpty()
-                            val targetRoute = targetState.destination.route.orEmpty()
-                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
-                            AToxMotion.sharedAxisXExit(forward = forward)
-                        },
-                        popEnterTransition = {
-                            val initialRoute = initialState.destination.route.orEmpty()
-                            val targetRoute = targetState.destination.route.orEmpty()
-                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
-                            AToxMotion.sharedAxisXEnter(forward = forward)
-                        },
-                        popExitTransition = {
-                            val initialRoute = initialState.destination.route.orEmpty()
-                            val targetRoute = targetState.destination.route.orEmpty()
-                            val forward = getRouteOrder(targetRoute) > getRouteOrder(initialRoute)
-                            AToxMotion.sharedAxisXExit(forward = forward)
-                        },
+                        enterTransition = { AToxMotion.fadeThroughEnter() },
+                        exitTransition = { AToxMotion.fadeThroughExit() },
+                        popEnterTransition = { AToxMotion.fadeThroughEnter() },
+                        popExitTransition = { AToxMotion.fadeThroughExit() },
                     ) {
                         mainTabGraph(
                             mainNavController = mainNavController,

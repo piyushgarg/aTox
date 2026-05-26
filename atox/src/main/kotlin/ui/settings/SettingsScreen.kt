@@ -110,34 +110,28 @@ import ltd.evilcorp.core.model.DateFormatPreference
 import ltd.evilcorp.core.model.FtAutoAccept
 import ltd.evilcorp.core.model.TimeFormatPreference
 import ltd.evilcorp.core.tox.save.ProxyType
-import ltd.evilcorp.atox.ui.settings.components.SettingsRootContent
-import ltd.evilcorp.atox.ui.settings.components.SoundSettingsScreen
-import ltd.evilcorp.atox.ui.settings.components.SoundPickerTarget
-import ltd.evilcorp.atox.ui.settings.components.BackupSettingsScreen
-import ltd.evilcorp.atox.ui.settings.components.RestoreBackupConfirmDialog
-import ltd.evilcorp.atox.ui.settings.components.AccentColorDialog
+import ltd.evilcorp.atox.ui.settings.common.SettingsRootContent
+import ltd.evilcorp.atox.ui.settings.common.SettingsSearchPopup
+import ltd.evilcorp.atox.ui.settings.common.SettingsDestination
+import ltd.evilcorp.atox.ui.settings.common.SettingsSearchIndex
+import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsViewModel
+import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsScreen
+import ltd.evilcorp.atox.ui.settings.backup.RestoreBackupConfirmDialog
+import ltd.evilcorp.atox.ui.settings.backup.GoogleAccountDialog
+import ltd.evilcorp.atox.ui.settings.backup.BackupUiEvent
+import ltd.evilcorp.atox.ui.settings.appearance.LanguageSelectionScreen
+import ltd.evilcorp.atox.ui.settings.appearance.ThemeSelectionScreen
+import ltd.evilcorp.atox.ui.settings.appearance.AccentColorDialog
+import ltd.evilcorp.atox.ui.settings.appearance.DateFormatSettingsDialog
+import ltd.evilcorp.atox.ui.settings.appearance.TimeFormatSettingsDialog
+import ltd.evilcorp.atox.ui.settings.sound.SoundSettingsScreen
+import ltd.evilcorp.atox.ui.settings.sound.SoundPickerTarget
+import ltd.evilcorp.atox.ui.settings.connection.ProxySettingsDialog
+import ltd.evilcorp.atox.ui.settings.connection.BootstrapSettingsDialog
+import ltd.evilcorp.atox.ui.settings.chat.FtAutoAcceptSettingsDialog
 import ltd.evilcorp.atox.ui.settings.screens.SettingsAppearanceScreen
 import ltd.evilcorp.atox.ui.settings.screens.SettingsChatScreen
 import ltd.evilcorp.atox.ui.settings.screens.SettingsConnectionScreen
-
-private enum class SettingsDestination {
-    Root,
-    Appearance,
-    Chat,
-    Sounds,
-    Connection,
-    Backup,
-    Language,
-    Theme,
-}
-
-private data class SearchableSetting(
-    val title: String,
-    val subtitle: String,
-    val destination: SettingsDestination,
-    val category: String,
-    val onTrigger: (() -> Unit)? = null
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -344,49 +338,7 @@ fun SettingsScreen(
     }
 
     val searchItems = remember(languages, currentLanguageCode, appThemeMode) {
-        listOf(
-            SearchableSetting(
-                title = context.getString(R.string.language),
-                subtitle = languages.find { it.first == currentLanguageCode }?.second ?: "English",
-                destination = SettingsDestination.Language,
-                category = context.getString(R.string.appearance_and_design)
-            ),
-            SearchableSetting(
-                title = context.getString(R.string.pref_heading_theme),
-                subtitle = when (appThemeMode) {
-                    AppCompatDelegate.MODE_NIGHT_YES -> context.getString(R.string.pref_theme_dark)
-                    AppCompatDelegate.MODE_NIGHT_NO -> context.getString(R.string.pref_theme_light)
-                    else -> context.getString(R.string.pref_theme_follow_system)
-                },
-                destination = SettingsDestination.Theme,
-                category = context.getString(R.string.appearance_and_design)
-            ),
-            SearchableSetting(
-                title = context.getString(R.string.settings_sounds_group),
-                subtitle = context.getString(R.string.settings_sounds_summary),
-                destination = SettingsDestination.Sounds,
-                category = context.getString(R.string.settings_sounds_group)
-            ),
-            SearchableSetting(
-                title = context.getString(R.string.backup_title),
-                subtitle = context.getString(R.string.backup_settings_subtitle),
-                destination = SettingsDestination.Backup,
-                category = context.getString(R.string.settings_privacy_group)
-            ),
-            SearchableSetting(
-                title = context.getString(R.string.settings_clear_cache_title),
-                subtitle = context.getString(R.string.settings_clear_cache_title),
-                destination = SettingsDestination.Root,
-                category = context.getString(R.string.settings_storage_group)
-            ),
-            SearchableSetting(
-                title = context.getString(R.string.settings_proxy_type),
-                subtitle = context.getString(R.string.settings_proxy_type),
-                destination = SettingsDestination.Root,
-                category = context.getString(R.string.settings_proxy_group),
-                onTrigger = { viewModel.setShowProxyDialog(true) }
-            )
-        )
+        SettingsSearchIndex.buildSearchIndex(context, languages, currentLanguageCode, appThemeMode, viewModel)
     }
 
     val title = when (destination) {
@@ -637,11 +589,10 @@ fun SettingsScreen(
                 )
             }
             SettingsDestination.Language -> {
-                SelectionScreen(
+                LanguageSelectionScreen(
                     paddingValues = paddingValues,
-                    items = languages,
-                    selectedKey = currentLanguageCode,
-                    onSelect = { localeTag ->
+                    currentLanguageCode = currentLanguageCode,
+                    onLanguageSelect = { localeTag ->
                         performHaptic()
                         destination = SettingsDestination.Appearance
                         onLocaleTagChanged(localeTag)
@@ -649,16 +600,10 @@ fun SettingsScreen(
                 )
             }
             SettingsDestination.Theme -> {
-                val themes = listOf(
-                    AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM to stringResource(R.string.pref_theme_follow_system),
-                    AppCompatDelegate.MODE_NIGHT_NO to stringResource(R.string.pref_theme_light),
-                    AppCompatDelegate.MODE_NIGHT_YES to stringResource(R.string.pref_theme_dark)
-                )
-                SelectionScreen(
+                ThemeSelectionScreen(
                     paddingValues = paddingValues,
-                    items = themes,
-                    selectedKey = appThemeMode,
-                    onSelect = { themeMode ->
+                    appThemeMode = appThemeMode,
+                    onThemeSelect = { themeMode ->
                         performHaptic()
                         destination = SettingsDestination.Appearance
                         onThemeChanged(themeMode)
@@ -748,305 +693,58 @@ fun SettingsScreen(
     }
 
     if (isSearchActive) {
-        Popup(
+        SettingsSearchPopup(
+            searchQuery = searchQuery,
+            onSearchQueryChange = { searchQuery = it },
+            searchItems = searchItems,
             onDismissRequest = {
                 searchQuery = ""
                 isSearchActive = false
             },
-            properties = PopupProperties(
-                focusable = true,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = false,
-                usePlatformDefaultWidth = false
-            )
-        ) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
-            ) {
-                Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = {
-                                searchQuery = ""
-                                isSearchActive = false
-                            }
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text(stringResource(R.string.search_settings)) },
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                        
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    }
-                    
-                    HorizontalDivider()
-                    
-                    val filteredItems = remember(searchQuery, searchItems) {
-                        if (searchQuery.isBlank()) {
-                            emptyList()
-                        } else {
-                            searchItems.filter {
-                                it.title.contains(searchQuery, ignoreCase = true) ||
-                                it.subtitle.contains(searchQuery, ignoreCase = true) ||
-                                it.category.contains(searchQuery, ignoreCase = true)
-                            }
-                        }
-                    }
-                    
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (filteredItems.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(32.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = if (searchQuery.isBlank()) {
-                                            stringResource(R.string.search_settings)
-                                        } else {
-                                            stringResource(R.string.search_no_results)
-                                        },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        } else {
-                            items(filteredItems) { item ->
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            performHaptic()
-                                            searchQuery = ""
-                                            isSearchActive = false
-                                            if (item.onTrigger != null) {
-                                                item.onTrigger.invoke()
-                                            } else {
-                                                destination = item.destination
-                                            }
-                                        }
-                                        .padding(16.dp)
-                                ) {
-                                    Text(
-                                        text = item.title,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = item.subtitle,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = item.category,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            }
-                        }
-                    }
+            performHaptic = performHaptic,
+            onItemClick = { item ->
+                if (item.onTrigger != null) {
+                    item.onTrigger.invoke()
+                } else {
+                    destination = item.destination
                 }
             }
-        }
+        )
     }
 
     // Dialog 3: Proxy type selection
     if (showProxyDialog) {
-        val proxyTypes = listOf(
-            ProxyType.None to stringResource(R.string.pref_proxy_type_none),
-            ProxyType.HTTP to stringResource(R.string.pref_proxy_type_http),
-            ProxyType.SOCKS5 to stringResource(R.string.pref_proxy_type_socks5)
-        )
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { viewModel.setShowProxyDialog(false) },
-            title = { Text(stringResource(R.string.settings_proxy_type), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    proxyTypes.forEach { item ->
-                        val isSelected = item.first == proxyType
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    settings.proxyType = item.first
-                                    viewModel.setShowProxyDialog(false)
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = item.second,
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                            }
-                        }
-                    }
-                }
+        ProxySettingsDialog(
+            currentProxyType = proxyType,
+            onSelectProxyType = {
+                settings.proxyType = it
+                viewModel.setShowProxyDialog(false)
             },
-            confirmButton = {
-                TextButton(onClick = { viewModel.setShowProxyDialog(false) }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
+            onDismiss = { viewModel.setShowProxyDialog(false) }
         )
     }
 
     // Dialog 4: File auto-accept selection
     if (showFtAcceptDialog) {
-        val ftTypes = listOf(
-            FtAutoAccept.None to stringResource(R.string.pref_ft_auto_accept_none),
-            FtAutoAccept.Images to stringResource(R.string.pref_ft_auto_accept_images),
-            FtAutoAccept.All to stringResource(R.string.pref_ft_auto_accept_all)
-        )
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { viewModel.setShowFtAcceptDialog(false) },
-            title = { Text(stringResource(R.string.pref_heading_ft_auto_accept), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ftTypes.forEach { item ->
-                        val isSelected = item.first == ftAutoAccept
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    settings.ftAutoAccept = item.first
-                                    viewModel.setShowFtAcceptDialog(false)
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = item.second,
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                            }
-                        }
-                    }
-                }
+        FtAutoAcceptSettingsDialog(
+            currentFtAutoAccept = ftAutoAccept,
+            onSelectFtAutoAccept = {
+                settings.ftAutoAccept = it
+                viewModel.setShowFtAcceptDialog(false)
             },
-            confirmButton = {
-                TextButton(onClick = { viewModel.setShowFtAcceptDialog(false) }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
+            onDismiss = { viewModel.setShowFtAcceptDialog(false) }
         )
     }
 
     // Dialog 5: Bootstrap node source selection
     if (showBootstrapDialog) {
-        val bootstrapTypes = listOf(
-            BootstrapNodeSource.BuiltIn to stringResource(R.string.settings_nodes_builtin),
-            BootstrapNodeSource.UserProvided to stringResource(R.string.settings_nodes_user)
-        )
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { viewModel.setShowBootstrapDialog(false) },
-            title = { Text(stringResource(R.string.settings_nodes_list), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    bootstrapTypes.forEach { item ->
-                        val isSelected = item.first == bootstrapNodeSource
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    settings.bootstrapNodeSource = item.first
-                                    viewModel.setShowBootstrapDialog(false)
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = item.second,
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                            }
-                        }
-                    }
-                }
+        BootstrapSettingsDialog(
+            currentSource = bootstrapNodeSource,
+            onSelectSource = {
+                viewModel.setBootstrapNodeSource(it)
+                viewModel.setShowBootstrapDialog(false)
             },
-            confirmButton = {
-                TextButton(onClick = { viewModel.setShowBootstrapDialog(false) }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
+            onDismiss = { viewModel.setShowBootstrapDialog(false) }
         )
     }
 
@@ -1063,114 +761,26 @@ fun SettingsScreen(
     }
 
     if (showDateFormatDialog) {
-        val dateFormats = listOf(
-            DateFormatPreference.System to stringResource(R.string.settings_date_format_system),
-            DateFormatPreference.DMY to stringResource(R.string.settings_date_format_dmy),
-            DateFormatPreference.DMYDots to stringResource(R.string.settings_date_format_dmy_dots),
-            DateFormatPreference.MDY to stringResource(R.string.settings_date_format_mdy),
-            DateFormatPreference.YMD to stringResource(R.string.settings_date_format_ymd)
-        )
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showDateFormatDialog = false },
-            title = { Text(stringResource(R.string.settings_date_format_title), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    dateFormats.forEach { item ->
-                        val isSelected = item.first == dateFormatPreference
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    performHaptic()
-                                    settings.dateFormatPreference = item.first
-                                    showDateFormatDialog = false
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = item.second,
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+        DateFormatSettingsDialog(
+            currentFormat = dateFormatPreference,
+            onSelectFormat = {
+                settings.dateFormatPreference = it
+                showDateFormatDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = { showDateFormatDialog = false }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
+            onDismiss = { showDateFormatDialog = false },
+            performHaptic = performHaptic
         )
     }
 
     if (showTimeFormatDialog) {
-        val timeFormats = listOf(
-            TimeFormatPreference.System to stringResource(R.string.settings_time_format_system),
-            TimeFormatPreference.Hours24 to stringResource(R.string.settings_time_format_24h),
-            TimeFormatPreference.Hours12 to stringResource(R.string.settings_time_format_12h)
-        )
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showTimeFormatDialog = false },
-            title = { Text(stringResource(R.string.settings_time_format_title), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    timeFormats.forEach { item ->
-                        val isSelected = item.first == timeFormatPreference
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    performHaptic()
-                                    settings.timeFormatPreference = item.first
-                                    showTimeFormatDialog = false
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = item.second,
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+        TimeFormatSettingsDialog(
+            currentFormat = timeFormatPreference,
+            onSelectFormat = {
+                settings.timeFormatPreference = it
+                showTimeFormatDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = { showTimeFormatDialog = false }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
+            onDismiss = { showTimeFormatDialog = false },
+            performHaptic = performHaptic
         )
     }
 
@@ -1191,235 +801,38 @@ fun SettingsScreen(
     }
 
     if (showGoogleAccountDialog) {
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showGoogleAccountDialog = false },
-            title = { Text(stringResource(R.string.backup_google_account)) },
-            text = {
-                OutlinedTextField(
-                    value = googleAccountInput,
-                    onValueChange = { googleAccountInput = it },
-                    label = { Text("Email") },
-                    singleLine = true,
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            try {
-                                val intent = android.accounts.AccountManager.newChooseAccountIntent(
-                                    null, null, arrayOf("com.google"), null, null, null, null
-                                )
-                                accountPickerLauncher.launch(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Choose account"
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    settings.backupGoogleAccount = googleAccountInput
-                    showGoogleAccountDialog = false
-                }) {
-                    Text(stringResource(R.string.confirm))
+        GoogleAccountDialog(
+            googleAccountInput = googleAccountInput,
+            onGoogleAccountInputChange = { googleAccountInput = it },
+            onChooseAccountClick = {
+                try {
+                     val intent = android.accounts.AccountManager.newChooseAccountIntent(
+                         null, null, arrayOf("com.google"), null, null, null, null
+                     )
+                     accountPickerLauncher.launch(intent)
+                } catch (e: Exception) {
+                     e.printStackTrace()
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showGoogleAccountDialog = false }) {
-                    Text(stringResource(R.string.reject))
-                }
-            }
-        )
-    }
-
-}
-
-@Composable
-private fun <T> SelectionScreen(
-    paddingValues: PaddingValues,
-    items: List<Pair<T, String>>,
-    selectedKey: T,
-    onSelect: (T) -> Unit,
-) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(paddingValues)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),
-    ) {
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-            ) {
-                Column {
-                    items.forEachIndexed { index, item ->
-                        SelectionRow(
-                            title = item.second,
-                            selected = item.first == selectedKey,
-                            onClick = { onSelect(item.first) },
-                        )
-                        if (index != items.lastIndex) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SelectionRow(
-    title: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        RadioButton(
-            selected = selected,
-            onClick = null,
+            onConfirm = {
+                settings.backupGoogleAccount = googleAccountInput
+                showGoogleAccountDialog = false
+            },
+            onDismiss = { showGoogleAccountDialog = false }
         )
     }
 }
 
-@Composable
-fun SettingsGroup(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-        )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth(), content = content)
-        }
-    }
-}
-
-@Composable
-fun SettingsClickableRow(
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .clickable(onClick = onClick)
-        ) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        IconButton(onClick = onClick) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "Open",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun SoundUriRow(
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-) = SettingsClickableRow(title, subtitle, onClick)
-
-@Composable
-private fun BackupModuleCard(
-    title: String,
-    description: String,
-    checked: Boolean,
-    enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Switch(
-                checked = checked,
-                enabled = enabled,
-                onCheckedChange = onCheckedChange,
-            )
-        }
-    }
-}
-
-private fun soundTitle(context: android.content.Context, uriString: String, type: Int): String {
-    val uri = uriString.takeIf { it.isNotBlank() }?.let(Uri::parse)
-        ?: RingtoneManager.getDefaultUri(type)
-    return RingtoneManager.getRingtone(context, uri)?.getTitle(context)
-        ?: context.getString(R.string.settings_call_sound_default)
+private fun formatSize(context: android.content.Context, bytes: Long): String {
+    if (bytes <= 0) return "0 ${context.getString(R.string.size_bytes)}"
+    val units = arrayOf(
+        context.getString(R.string.size_bytes),
+        context.getString(R.string.size_kb),
+        context.getString(R.string.size_mb),
+        context.getString(R.string.size_gb)
+    )
+    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
+    return String.format("%.2f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
 }
 
 private fun launchRingtonePicker(
@@ -1440,153 +853,4 @@ private fun launchRingtonePicker(
             )
         }
     )
-}
-
-@Composable
-fun SettingsSwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-        ) {
-            Text(
-                text = title, 
-                style = MaterialTheme.typography.bodyLarge, 
-                fontWeight = FontWeight.Medium
-            )
-            if (subtitle.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
-    }
-}
-
-@Composable
-fun SettingsSliderRow(
-    title: String,
-    subtitle: String,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int,
-    onValueChangeFinished: () -> Unit = {},
-    onValueChange: (Float) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            onValueChangeFinished = onValueChangeFinished,
-            valueRange = valueRange,
-            steps = steps,
-        )
-    }
-}
-
-@Composable
-fun AccentColorSelector(
-    currentSeed: Int,
-    onSeedSelected: (Int) -> Unit
-) {
-    val isDarkTheme = LocalAToxThemeIsDark.current
-
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text(
-            text = stringResource(R.string.settings_accent_dialog_title),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            AccentPresets.forEach { preset ->
-                val isSelected = preset.seed.value.toInt() == currentSeed
-                val previewColor = remember(preset.seed, isDarkTheme) {
-                    accentPreviewColor(preset.seed.toArgb(), isDarkTheme)
-                }
-                val previewContentColor = remember(preset.seed, isDarkTheme) {
-                    accentPreviewContentColor(preset.seed.toArgb(), isDarkTheme)
-                }
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .then(
-                            if (isSelected) {
-                                Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .padding(4.dp)
-                        .clip(CircleShape)
-                        .background(previewColor)
-                        .clickable {
-                            onSeedSelected(preset.seed.value.toInt())
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isSelected) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Selected",
-                            tint = avatarContentColor(previewColor),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-        }
-     }
-}
-
-private fun formatSize(context: android.content.Context, bytes: Long): String {
-    if (bytes <= 0) return "0 ${context.getString(R.string.size_bytes)}"
-    val units = arrayOf(
-        context.getString(R.string.size_bytes),
-        context.getString(R.string.size_kb),
-        context.getString(R.string.size_mb),
-        context.getString(R.string.size_gb)
-    )
-    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
-    return String.format("%.2f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
 }

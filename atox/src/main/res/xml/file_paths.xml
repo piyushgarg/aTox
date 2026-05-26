@@ -4,4 +4,5 @@
     <cache-path name="shared_images" path="shared_images/"/>
     <cache-path name="outgoing" path="outgoing/"/>
     <cache-path name="shared" path="shared/"/>
+    <cache-path name="cache_root" path="."/>
 </paths>

@@ -2,9 +2,29 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>MagicNumber:CallManager.kt$CallManager$100</ID>
-    <ID>MagicNumber:CallManager.kt$CallManager$100f</ID>
     <ID>MagicNumber:CallManager.kt$CallManager$500</ID>
     <ID>MagicNumber:CallManager.kt$CallManager$900</ID>
+    <ID>MagicNumber:CallSignalPlayer.kt$CallSignalPlayer$100</ID>
+    <ID>MagicNumber:CallSignalPlayer.kt$CallSignalPlayer$100f</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$0xFF</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$10</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$100</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$15000L</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$16</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$2</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$3</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$30</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$3000</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$30000L</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$4</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$45000</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$5</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$5000L</ID>
+    <ID>MagicNumber:GroupManager.kt$GroupManager$64</ID>
+    <ID>MaxLineLength:GroupManager.kt$GroupManager$Log.d("GroupManager", "Group ${group.chatId} database status connected: ${group.connected}, current status state: $currentStatus, groupNumber: ${group.groupNumber}")</ID>
+    <ID>UnusedPrivateProperty:CallAudioRecorder.kt$private const val TAG = "CallAudioRecorder"</ID>
+    <ID>UnusedPrivateProperty:GroupManager.kt$GroupManager$private val chatManager: ChatManager</ID>
+    <ID>UseCheckOrError:FileTransferManager.kt$FileTransferManager$throw IllegalStateException("Failed to create ${ft.fileName} in $directoryUri")</ID>
+    <ID>UseCheckOrError:FileTransferManager.kt$FileTransferManager$throw IllegalStateException("Failed to open $targetUri for writing")</ID>
   </CurrentIssues>
 </SmellBaseline>

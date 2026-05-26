@@ -80,10 +80,10 @@ import ltd.evilcorp.core.model.isStarted
 import ltd.evilcorp.core.model.isRejected
 import ltd.evilcorp.core.model.MessageType
 import kotlinx.coroutines.delay
-import ltd.evilcorp.atox.ui.chat.components.ChatInputBar
-import ltd.evilcorp.atox.ui.chat.components.MessageBubble
+import ltd.evilcorp.atox.ui.common.chat.ChatInputBar
+import ltd.evilcorp.atox.ui.common.chat.MessageBubble
 import ltd.evilcorp.atox.ui.chat.components.TypingBubble
-import ltd.evilcorp.atox.ui.chat.components.DateSeparator
+import ltd.evilcorp.atox.ui.common.chat.DateSeparator
 
 private const val CHAT_ENTER_CONTENT_DELAY_MS = 320L
 

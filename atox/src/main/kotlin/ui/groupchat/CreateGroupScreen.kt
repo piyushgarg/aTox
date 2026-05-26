@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.atox.R
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 import ltd.evilcorp.core.model.GroupPrivacyState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +56,11 @@ fun CreateGroupScreen(
     val haptic = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     val performHaptic = {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -97,7 +105,9 @@ fun CreateGroupScreen(
                         onValueChange = { groupName = it },
                         label = { Text(stringResource(R.string.group_name)) },
                         placeholder = { Text(stringResource(R.string.group_name_placeholder)) },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
                         singleLine = true,
                         enabled = !isCreating,
                         shape = MaterialTheme.shapes.medium,
@@ -209,7 +219,7 @@ fun CreateGroupScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(
+                    AtoxLoadingButton(
                         onClick = {
                             if (groupName.isNotBlank() && !isCreating) {
                                 performHaptic()
@@ -218,26 +228,13 @@ fun CreateGroupScreen(
                                 }
                             }
                         },
+                        text = stringResource(R.string.create),
+                        isLoading = isCreating,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        enabled = groupName.isNotBlank() && !isCreating
-                    ) {
-                        if (isCreating) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.5.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(R.string.create),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                        enabled = groupName.isNotBlank()
+                    )
                 }
             }
         }

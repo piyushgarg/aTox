@@ -18,7 +18,7 @@ import ltd.evilcorp.atox.ui.createprofile.CreateProfileViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.settings.SettingsViewModel
-import ltd.evilcorp.atox.ui.settings.BackupSettingsViewModel
+import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsViewModel
 import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
 import ltd.evilcorp.atox.ui.navigation.AuthViewModel
 import ltd.evilcorp.atox.ui.friendrequest.FriendRequestsViewModel

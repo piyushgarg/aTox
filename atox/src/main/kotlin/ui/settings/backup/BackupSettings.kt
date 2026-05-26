@@ -2,7 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package ltd.evilcorp.atox.ui.settings.components
+package ltd.evilcorp.atox.ui.settings.backup
+
+import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
+import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
+import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
 
 import android.content.Context
 import android.content.Intent
@@ -352,110 +356,15 @@ fun BackupSettingsScreen(
     }
 
     if (showBackupFrequencyDialog) {
-        val frequencies = listOf(
-            BackupFrequency.Off,
-            BackupFrequency.Daily,
-            BackupFrequency.Weekly,
-            BackupFrequency.Monthly,
-        )
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        BackupFrequencyDialog(
+            backupFrequency = backupFrequency,
             onDismissRequest = { showBackupFrequencyDialog = false },
-            title = { Text(stringResource(R.string.backup_frequency_title), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    frequencies.forEach { frequency ->
-                        val isSelected = frequency == backupFrequency
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    onBackupFrequencyChanged(frequency)
-                                    showBackupFrequencyDialog = false
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = backupFrequencyTitle(frequency),
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showBackupFrequencyDialog = false }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
+            onBackupFrequencyChanged = onBackupFrequencyChanged
         )
     }
 }
 
-@Composable
-private fun BackupModuleCard(
-    title: String,
-    description: String,
-    checked: Boolean,
-    enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Switch(
-                checked = checked,
-                enabled = enabled,
-                onCheckedChange = onCheckedChange,
-            )
-        }
-    }
-}
 
-@Composable
-private fun backupFrequencyTitle(frequency: BackupFrequency): String = when (frequency) {
-    BackupFrequency.Off -> stringResource(R.string.backup_frequency_off)
-    BackupFrequency.Daily -> stringResource(R.string.backup_frequency_daily)
-    BackupFrequency.Weekly -> stringResource(R.string.backup_frequency_weekly)
-    BackupFrequency.Monthly -> stringResource(R.string.backup_frequency_monthly)
-}
 
 @Composable
 private fun backupDestinationTitle(destination: BackupDestination): String = when (destination) {

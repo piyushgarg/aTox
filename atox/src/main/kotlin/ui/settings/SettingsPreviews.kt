@@ -5,7 +5,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import ltd.evilcorp.atox.ui.settings.components.*
+import ltd.evilcorp.atox.ui.settings.common.SettingsRootContent
+import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsScreen
+import ltd.evilcorp.atox.ui.settings.appearance.LanguageSelectionScreen
+import ltd.evilcorp.atox.ui.settings.appearance.ThemeSelectionScreen
+import ltd.evilcorp.atox.ui.settings.sound.SoundSettingsScreen
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 import ltd.evilcorp.core.model.BackupDestination
 import ltd.evilcorp.core.model.BackupFrequency
