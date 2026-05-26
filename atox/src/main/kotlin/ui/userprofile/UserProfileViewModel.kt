@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.FlowPreview
 
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import ltd.evilcorp.core.model.User
@@ -39,6 +40,7 @@ sealed interface AvatarCropUiState {
     object Failure : AvatarCropUiState
 }
 
+@HiltViewModel
 class UserProfileViewModel @Inject constructor(
     private val context: Context,
     private val userManager: UserManager,

@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.db.Database
 import ltd.evilcorp.core.model.User
@@ -39,6 +40,7 @@ sealed interface CreateProfileUiState {
     data class Error(val error: CreateProfileError) : CreateProfileUiState
 }
 
+@HiltViewModel
 class CreateProfileViewModel @Inject constructor(
     private val backupProcessor: ProfileBackupProcessor,
     private val database: Database,

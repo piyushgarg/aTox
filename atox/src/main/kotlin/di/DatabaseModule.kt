@@ -20,7 +20,11 @@ import ltd.evilcorp.core.db.GroupPeerDao
 import ltd.evilcorp.core.db.MessageDao
 import ltd.evilcorp.core.db.UserDao
 
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+
 @Module
+@InstallIn(SingletonComponent::class)
 class DatabaseModule {
     @Singleton
     @Provides
@@ -31,6 +35,7 @@ class DatabaseModule {
 }
 
 @Module
+@InstallIn(SingletonComponent::class)
 class DaoModule {
     @Singleton
     @Provides
@@ -66,6 +71,7 @@ class DaoModule {
 }
 
 @Module
+@InstallIn(SingletonComponent::class)
 interface RepositoryModule {
     @dagger.Binds
     fun bindContactRepository(impl: ltd.evilcorp.core.repository.ContactRepository): ltd.evilcorp.domain.repository.IContactRepository

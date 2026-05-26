@@ -21,6 +21,9 @@ import ltd.evilcorp.domain.feature.ContactManager
 import ltd.evilcorp.domain.feature.NotificationManager
 import ltd.evilcorp.domain.feature.ProximityManager
 
+import dagger.hilt.android.lifecycle.HiltViewModel
+
+@HiltViewModel
 class CallViewModel @Inject constructor(
     private val callManager: CallManager,
     private val notificationManager: NotificationManager,

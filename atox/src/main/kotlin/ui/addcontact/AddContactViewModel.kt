@@ -32,6 +32,9 @@ import ltd.evilcorp.core.tox.save.ToxSaveStatus
 
 import ltd.evilcorp.domain.usecase.AddContactUseCase
 
+import dagger.hilt.android.lifecycle.HiltViewModel
+
+@HiltViewModel
 class AddContactViewModel @Inject constructor(
     private val addContactUseCase: AddContactUseCase,
     private val contactManager: ContactManager,

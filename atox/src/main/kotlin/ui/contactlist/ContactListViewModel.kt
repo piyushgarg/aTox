@@ -48,6 +48,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 
+import dagger.hilt.android.lifecycle.HiltViewModel
+
+@HiltViewModel
 class ContactListViewModel @Inject constructor(
     private val callManager: CallManager,
     private val chatManager: ChatManager,

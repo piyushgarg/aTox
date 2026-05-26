@@ -38,6 +38,9 @@ import ltd.evilcorp.domain.feature.FileTransferManager
 import java.io.File
 import java.util.Date
 
+import dagger.hilt.android.lifecycle.HiltViewModel
+
+@HiltViewModel
 class GroupChatViewModel @Inject constructor(
     private val groupManager: GroupManager,
     private val contactRepository: ContactRepository,

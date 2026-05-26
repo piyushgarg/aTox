@@ -15,7 +15,7 @@ coroutines = "1.10.2"
 #   No direct method <init>(Lltd/evilcorp/atox/di/AndroidModule;Lltd/evilcorp/atox/di/AppModule;Lltd/evilcorp/atox/di/DatabaseModule;Lltd/evilcorp/atox/di/DaoModule;Landroid/content/Context;Lltd/evilcorp/atox/di/DaggerAppComponent-IA;)V
 #   in class Lltd/evilcorp/atox/di/DaggerAppComponent$AppComponentImpl; or its super classes (declaration of 'ltd.evilcorp.atox.di.DaggerAppComponent$AppComponentImpl'
 #   appears in /data/app/~~thc_LJkWCWx8397z9eqxhg==/ltd.evilcorp.atox.debug-Msb0l4sq9lyyE79UBO_1Tg==/base.apk!classes11.dex)
-dagger = "2.55"
+dagger = "2.59.2"
 espresso = "3.7.0"
 lifecycle = "2.9.3"
 navigation = "2.9.4"
@@ -32,6 +32,7 @@ kotlinKsp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidApplication = { id = "com.android.application", version.ref = "android-plugin" }
 androidLibrary = { id = "com.android.library", version.ref = "android-plugin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "dagger" }
 
 [libraries]
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
@@ -70,6 +71,8 @@ androidx-compose-runtime-livedata = "androidx.compose.runtime:runtime-livedata:1
 google-android-material = "com.google.android.material:material:1.13.0"
 google-dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
 google-dagger-core = { module = "com.google.dagger:dagger", version.ref = "dagger" }
+google-hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "dagger" }
+google-hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "dagger" }
 
 javax-inject = "javax.inject:javax.inject:1"
 

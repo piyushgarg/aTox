@@ -11,6 +11,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -57,6 +58,7 @@ enum class CallAvailability {
     Active,
 }
 
+@HiltViewModel
 class ChatViewModel @Inject constructor(
     private val callManager: CallManager,
     private val chatManager: ChatManager,

@@ -16,6 +16,9 @@ import ltd.evilcorp.core.model.GroupPrivacyState
 import ltd.evilcorp.domain.feature.GroupManager
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 
+import dagger.hilt.android.lifecycle.HiltViewModel
+
+@HiltViewModel
 class GroupListViewModel @Inject constructor(
     private val scope: CoroutineScope,
     private val groupManager: GroupManager,

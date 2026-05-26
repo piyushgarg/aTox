@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.androidApplication)
+    alias(libs.plugins.hilt)
     alias(libs.plugins.kotlinKsp)
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
 }
@@ -85,6 +86,8 @@ dependencies {
 
     implementation(libs.google.dagger.core)
     ksp(libs.google.dagger.compiler)
+    implementation(libs.google.hilt.android)
+    ksp(libs.google.hilt.compiler)
 
     implementation(libs.nayuki.qrcodegen)
 

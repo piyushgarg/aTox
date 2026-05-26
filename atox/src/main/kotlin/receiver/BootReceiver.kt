@@ -16,6 +16,7 @@ import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
@@ -23,6 +24,7 @@ import ltd.evilcorp.core.tox.save.ToxSaveStatus
 private const val ENCRYPTED = "aTox profile encrypted"
 private const val TAG = "BootReceiver"
 
+@AndroidEntryPoint
 class BootReceiver : BroadcastReceiver() {
     @Inject
     lateinit var toxStarter: ToxStarter
@@ -35,7 +37,6 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            (context.applicationContext as App).component.inject(this)
             if (!settings.runAtStartup) {
                 Log.w(TAG, "Boot completed broadcast received but startup is disabled in settings. Skipping.")
                 return

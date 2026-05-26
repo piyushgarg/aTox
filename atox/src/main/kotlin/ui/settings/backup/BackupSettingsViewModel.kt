@@ -7,6 +7,7 @@ package ltd.evilcorp.atox.ui.settings.backup
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,7 @@ sealed interface BackupUiEvent {
     data class ShowToast(val messageResId: Int) : BackupUiEvent
 }
 
+@HiltViewModel
 class BackupSettingsViewModel @Inject constructor(
     private val fileProcessor: ISettingsFileProcessor,
     private val toxStarter: ToxStarter,

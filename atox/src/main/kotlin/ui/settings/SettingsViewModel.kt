@@ -7,6 +7,7 @@ package ltd.evilcorp.atox.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -33,6 +34,7 @@ sealed interface SettingsUiEvent {
     data class ShowToast(val messageResId: Int) : SettingsUiEvent
 }
 
+@HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settings: Settings,
     private val toxStarter: ToxStarter,

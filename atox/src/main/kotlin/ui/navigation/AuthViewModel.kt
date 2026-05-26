@@ -2,6 +2,7 @@ package ltd.evilcorp.atox.ui.navigation
 
 import androidx.lifecycle.ViewModel
 import javax.inject.Inject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 import ltd.evilcorp.domain.tox.ITox
@@ -24,6 +25,7 @@ sealed interface UnlockUiState {
     object Success : UnlockUiState
 }
 
+@HiltViewModel
 class AuthViewModel @Inject constructor(
     private val tox: ITox,
     private val toxStarter: ToxStarter,

@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.stateIn
 import ltd.evilcorp.core.model.FriendRequest
 import ltd.evilcorp.domain.feature.FriendRequestManager
 
+import dagger.hilt.android.lifecycle.HiltViewModel
+
+@HiltViewModel
 class FriendRequestsViewModel @Inject constructor(
     private val friendRequestManager: FriendRequestManager,
 ) : ViewModel() {

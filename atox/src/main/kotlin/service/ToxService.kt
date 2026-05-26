@@ -21,6 +21,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.LifecycleService
 import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.model.ConnectionStatus
 import ltd.evilcorp.domain.tox.ITox
@@ -29,6 +30,7 @@ import ltd.evilcorp.core.tox.save.ToxSaveStatus
 private const val TAG = "ToxService"
 private const val NOTIFICATION_ID = 1984
 
+@AndroidEntryPoint
 class ToxService : LifecycleService() {
     private val channelId = "ToxService"
     private var connectionStatus: ConnectionStatus? = null
@@ -79,8 +81,6 @@ class ToxService : LifecycleService() {
     }
 
     override fun onCreate() {
-        (application as App).component.inject(this)
-
         super.onCreate()
 
         if (!tox.started) {

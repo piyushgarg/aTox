@@ -18,6 +18,7 @@ import androidx.core.app.RemoteInput
 import androidx.core.content.IntentCompat
 
 import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
@@ -28,7 +29,6 @@ import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.UserStatus
-
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.ChatManager
@@ -49,6 +49,7 @@ enum class Action {
 
 private const val TAG = "ActionReceiver"
 
+@AndroidEntryPoint
 class ActionReceiver : BroadcastReceiver() {
     @Inject
     lateinit var callManager: CallManager
@@ -75,8 +76,6 @@ class ActionReceiver : BroadcastReceiver() {
     lateinit var permissionManager: PermissionManager
 
     override fun onReceive(context: Context, intent: Intent) {
-        (context.applicationContext as App).component.inject(this)
-
         scope.launch {
             val pk = intent.getStringExtra(KEY_CONTACT_PK)?.let { PublicKey(it) }
             if (pk == null) {

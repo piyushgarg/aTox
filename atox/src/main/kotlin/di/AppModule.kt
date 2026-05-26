@@ -19,7 +19,11 @@ import ltd.evilcorp.core.tox.save.AndroidSaveManager
 import ltd.evilcorp.core.tox.save.SaveManager
 import ltd.evilcorp.domain.backup.BackupDataProvider
 
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+
 @Module
+@InstallIn(SingletonComponent::class)
 class AppModule {
     @Provides
     fun provideBootstrapNodeRegistry(nodeRegistry: DefaultBootstrapNodeRegistry): BootstrapNodeRegistry = nodeRegistry

@@ -29,7 +29,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import ltd.evilcorp.atox.appearance.AppearanceManager
 import ltd.evilcorp.atox.service.AutoAway
-import ltd.evilcorp.atox.di.ViewModelFactory
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.NotificationHelper
@@ -55,12 +54,13 @@ sealed class SharedContent : java.io.Serializable {
     data class MultipleFiles(val uris: List<Uri>) : SharedContent()
 }
 
+@dagger.hilt.android.AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     companion object {
         val sharedContentState = mutableStateOf<SharedContent?>(null)
     }
-    @Inject
-    lateinit var vmFactory: ViewModelFactory
+
+    val vmFactory by lazy { defaultViewModelProviderFactory }
 
     @Inject
     lateinit var autoAway: AutoAway
@@ -91,8 +91,6 @@ class MainActivity : AppCompatActivity() {
     private val callScreenMinimized = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        (application as App).component.inject(this)
-
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
