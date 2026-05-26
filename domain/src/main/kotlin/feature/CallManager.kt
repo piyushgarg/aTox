@@ -5,12 +5,9 @@
 package ltd.evilcorp.domain.feature
 
 import android.content.Context
-import android.media.AudioManager
-import android.media.AudioDeviceInfo
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
-import androidx.core.content.ContextCompat
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -26,11 +23,11 @@ import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.Sender
-import ltd.evilcorp.core.repository.ContactRepository
-import ltd.evilcorp.core.repository.MessageRepository
+import ltd.evilcorp.domain.repository.IContactRepository
+import ltd.evilcorp.domain.repository.IMessageRepository
 import ltd.evilcorp.domain.media.CallSignalPlayer
 import ltd.evilcorp.domain.av.CallAudioRecorder
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 sealed class CallState {
     object Idle : CallState()
@@ -46,13 +43,14 @@ private const val TAG = "CallManager"
 
 @Singleton
 class CallManager @Inject constructor(
-    private val tox: Tox,
+    private val tox: ITox,
     private val scope: CoroutineScope,
     private val context: Context,
-    private val contactRepository: ContactRepository,
-    private val messageRepository: MessageRepository,
+    private val contactRepository: IContactRepository,
+    private val messageRepository: IMessageRepository,
     private val signalPlayer: CallSignalPlayer,
-    private val audioRecorder: CallAudioRecorder
+    private val audioRecorder: CallAudioRecorder,
+    private val audioRoutingManager: IAudioRoutingManager,
 ) {
     private val _inCall = MutableStateFlow<CallState>(CallState.Idle)
     val inCall: StateFlow<CallState> get() = _inCall
@@ -62,60 +60,25 @@ class CallManager @Inject constructor(
     private val _speakerphoneOn = MutableStateFlow(false)
     val speakerphoneOnState: StateFlow<Boolean> get() = _speakerphoneOn
 
-    private val audioManager = ContextCompat.getSystemService(context, AudioManager::class.java)
     private var transitionJob: Job? = null
     private var microphoneDesired = true
-    private var focusRequest: android.media.AudioFocusRequest? = null
 
-    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-        when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+    private fun requestAudioFocus(): Boolean {
+        return audioRoutingManager.requestCallAudioFocus(
+            onFocusLoss = {
                 audioRecorder.stopAudioCapture()
-            }
-            AudioManager.AUDIOFOCUS_GAIN -> {
+            },
+            onFocusGain = {
                 val target = currentTarget()
                 if (target != null && _inCall.value is CallState.Active && microphoneDesired) {
                     startAudioCapture(target)
                 }
             }
-        }
-    }
-
-    private fun requestAudioFocus(): Boolean {
-        if (audioManager == null) return false
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val playbackAttributes = android.media.AudioAttributes.Builder()
-                .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build()
-            val request = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                .setAudioAttributes(playbackAttributes)
-                .setAcceptsDelayedFocusGain(false)
-                .setOnAudioFocusChangeListener(audioFocusListener)
-                .build()
-            focusRequest = request
-            audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(
-                audioFocusListener,
-                AudioManager.STREAM_VOICE_CALL,
-                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
-            ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        }
+        )
     }
 
     private fun abandonAudioFocus() {
-        if (audioManager == null) return
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-            focusRequest = null
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(audioFocusListener)
-        }
+        audioRoutingManager.abandonCallAudioFocus()
     }
 
     suspend fun startOutgoingCall(publicKey: PublicKey): Boolean {
@@ -130,7 +93,7 @@ class CallManager @Inject constructor(
             microphoneDesired = true
             requestAudioFocus()
             tox.startCall(publicKey)
-            audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
+            audioRoutingManager.setCommunicationMode(true)
             setState(CallState.OutgoingRequesting(publicKey, SystemClock.elapsedRealtime()))
             signalPlayer.playRingback(scope) {
                 val state = _inCall.value
@@ -182,7 +145,7 @@ class CallManager @Inject constructor(
             signalPlayer.stopSignals()
             requestAudioFocus()
             tox.answerCall(publicKey)
-            audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
+            audioRoutingManager.setCommunicationMode(true)
             setState(CallState.Connecting(publicKey, incoming.startedAt, outgoing = false))
             onCallConnected(publicKey)
             true
@@ -289,21 +252,7 @@ class CallManager @Inject constructor(
     }
 
     private fun setSpeakerphoneRoute(on: Boolean) {
-        val am = audioManager ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (on) {
-                val speakerDevice = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-                    ?.find { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-                if (speakerDevice != null) {
-                    am.setCommunicationDevice(speakerDevice)
-                }
-            } else {
-                am.clearCommunicationDevice()
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            am.isSpeakerphoneOn = on
-        }
+        audioRoutingManager.setSpeakerphoneRoute(on)
     }
 
     private fun finishSession(publicKey: PublicKey, localHangup: Boolean, record: CallHistory?) {
@@ -331,7 +280,7 @@ class CallManager @Inject constructor(
         abandonAudioFocus()
         _speakerphoneOn.value = false
         setSpeakerphoneRoute(false)
-        audioManager?.mode = AudioManager.MODE_NORMAL
+        audioRoutingManager.setCommunicationMode(false)
         setState(CallState.Idle)
     }
 

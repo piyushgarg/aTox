@@ -70,4 +70,13 @@ class AppModule {
 
     @Provides
     fun provideToxStarter(starter: ltd.evilcorp.atox.tox.ToxStarter): ltd.evilcorp.domain.tox.IToxStarter = starter
+
+    @Provides
+    fun provideTox(impl: ltd.evilcorp.core.tox.Tox): ltd.evilcorp.domain.tox.ITox = impl
+
+    @Provides
+    fun provideGroupFileTransferEmulator(impl: ltd.evilcorp.core.emulator.GroupFileTransferEmulatorImpl): ltd.evilcorp.domain.feature.IGroupFileTransferEmulator = impl
+
+    @Provides
+    fun provideAudioRoutingManager(manager: ltd.evilcorp.atox.media.AudioRoutingManager): ltd.evilcorp.domain.feature.IAudioRoutingManager = manager
 }

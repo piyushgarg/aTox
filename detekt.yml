@@ -29,6 +29,16 @@ style:
     ignorePropertyDeclaration: true
   MaxLineLength:
     maxLineLength: 160
+  ForbiddenImport:
+    active: true
+    includes: ['**/domain/src/**/*.kt']
+    imports:
+      - value: 'ltd.evilcorp.core.tox.runtime.*'
+        reason: 'Domain layer must not depend on concrete Tox JNI runtime.'
+      - value: 'ltd.evilcorp.core.db.*'
+        reason: 'Domain layer must not depend on Room Database implementation.'
+      - value: 'ltd.evilcorp.core.repository.*'
+        reason: 'Domain layer must not depend on concrete Repositories. Use interfaces instead.'
 
 performance:
   SpreadOperator:

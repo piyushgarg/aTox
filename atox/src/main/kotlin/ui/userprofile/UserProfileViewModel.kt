@@ -21,14 +21,15 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.FlowPreview
-import ltd.evilcorp.domain.model.toDb
+
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import ltd.evilcorp.core.model.User
 import ltd.evilcorp.core.model.UserStatus
 import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 import ltd.evilcorp.domain.feature.FileTransferManager
+import ltd.evilcorp.domain.usecase.SaveAvatarUseCase
 import java.io.File
 
 sealed interface AvatarCropUiState {
@@ -41,13 +42,14 @@ sealed interface AvatarCropUiState {
 class UserProfileViewModel @Inject constructor(
     private val context: Context,
     private val userManager: UserManager,
-    private val tox: Tox,
-    private val fileTransferManager: FileTransferManager
+    private val tox: ITox,
+    private val fileTransferManager: FileTransferManager,
+    private val saveAvatarUseCase: SaveAvatarUseCase,
 ) : ViewModel() {
     val publicKey by lazy { tox.publicKey }
     val toxId by lazy { tox.toxId }
     val user: StateFlow<User?> = userManager.get(publicKey)
-        .map { it?.toDb() }
+        
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -138,8 +140,39 @@ class UserProfileViewModel @Inject constructor(
             val success = withContext(Dispatchers.IO) {
                 try {
                     val cropped = AvatarCropUtils.cropAvatar(originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth)
-                    val destFile = File(context.filesDir, "self_avatar.png")
-                    val saved = AvatarCropUtils.saveAvatar(cropped, destFile)
+                    
+                    // Compress bitmap to bytes to pass to use case
+                    var quality = 90
+                    var bytes: ByteArray? = null
+                    val maxBytes = 64 * 1024
+                    
+                    try {
+                        while (quality > 10) {
+                            java.io.ByteArrayOutputStream().use { bos ->
+                                cropped.compress(Bitmap.CompressFormat.JPEG, quality, bos)
+                                val currentBytes = bos.toByteArray()
+                                if (currentBytes.size <= maxBytes) {
+                                    bytes = currentBytes
+                                    break
+                                }
+                            }
+                            quality -= 10
+                        }
+                        if (bytes == null) {
+                            java.io.ByteArrayOutputStream().use { bos ->
+                                cropped.compress(Bitmap.CompressFormat.JPEG, 10, bos)
+                                val currentBytes = bos.toByteArray()
+                                if (currentBytes.size <= maxBytes) {
+                                    bytes = currentBytes
+                                }
+                            }
+                        }
+                    } finally {
+                        cropped.recycle()
+                    }
+                    
+                    val saveBytes = bytes ?: return@withContext false
+                    val saved = saveAvatarUseCase.execute(saveBytes)
                     if (saved) {
                         loadAvatar()
                     }

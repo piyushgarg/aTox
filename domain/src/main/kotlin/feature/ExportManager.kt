@@ -11,11 +11,11 @@ import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import ltd.evilcorp.core.repository.MessageRepository
+import ltd.evilcorp.domain.repository.IMessageRepository
 import org.json.JSONArray
 import org.json.JSONObject
 
-class ExportManager @Inject constructor(private val messageRepository: MessageRepository) {
+class ExportManager @Inject constructor(private val messageRepository: IMessageRepository) {
     fun generateExportMessagesJString(publicKey: String): String {
         val messages = runBlocking { messageRepository.get(publicKey).first() }
         val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())

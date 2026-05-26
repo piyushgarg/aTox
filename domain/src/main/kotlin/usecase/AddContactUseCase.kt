@@ -7,13 +7,13 @@ import javax.inject.Inject
 import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.Sender
-import ltd.evilcorp.core.repository.MessageRepository
+import ltd.evilcorp.domain.repository.IMessageRepository
 import ltd.evilcorp.core.tox.ToxID
 import ltd.evilcorp.domain.feature.ContactManager
 
 class AddContactUseCase @Inject constructor(
     private val contactManager: ContactManager,
-    private val messageRepository: MessageRepository,
+    private val messageRepository: IMessageRepository,
 ) {
     suspend fun execute(toxId: ToxID, message: String) = withContext(Dispatchers.IO) {
         contactManager.add(toxId, message).join()

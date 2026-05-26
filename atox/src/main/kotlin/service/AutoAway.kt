@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.core.model.UserStatus
 import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 private const val TAG = "AutoAway"
 private const val MILLIS_PER_SECOND = 1000L
@@ -24,7 +24,7 @@ class AutoAway @Inject constructor(
     private val scope: CoroutineScope,
     private val settings: Settings,
     private val userManager: UserManager,
-    private val tox: Tox,
+    private val tox: ITox,
 ) {
     private var awayTimer = Timer()
     private var isAutoAway = false

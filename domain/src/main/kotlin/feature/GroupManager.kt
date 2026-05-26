@@ -25,12 +25,12 @@ import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.Sender
 import ltd.evilcorp.core.model.Message
-import ltd.evilcorp.core.repository.ContactRepository
-import ltd.evilcorp.core.repository.GroupRepository
-import ltd.evilcorp.core.repository.MessageRepository
+import ltd.evilcorp.domain.repository.IContactRepository
+import ltd.evilcorp.domain.repository.IGroupRepository
+import ltd.evilcorp.domain.repository.IMessageRepository
 import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
 import ltd.evilcorp.core.tox.enums.ToxMessageType
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 enum class GroupConnectionStatus {
     Disconnected,
@@ -61,11 +61,11 @@ data class GroupInvite(
 @Singleton
 class GroupManager @Inject constructor(
     private val scope: CoroutineScope,
-    private val groupRepository: GroupRepository,
-    private val contactRepository: ContactRepository,
+    private val groupRepository: IGroupRepository,
+    private val contactRepository: IContactRepository,
     private val chatManager: ChatManager,
-    private val messageRepository: MessageRepository,
-    private val tox: Tox,
+    private val messageRepository: IMessageRepository,
+    private val tox: ITox,
 ) {
     var activeGroup = ""
         set(value) {
@@ -316,12 +316,12 @@ class GroupManager @Inject constructor(
         return groupNumber
     }
 
-    fun joinGroup(
+    suspend fun joinGroup(
         friendNo: Int,
         inviteData: ByteArray,
         selfName: String,
         password: String? = null,
-    ): Int {
+    ): Int = withContext(Dispatchers.IO) {
         val groupNumber = tox.groupJoin(
             friendNo,
             inviteData,
@@ -333,11 +333,7 @@ class GroupManager @Inject constructor(
             var chatIdBytes = tox.groupGetChatId(groupNumber)
             var attempts = 0
             while (chatIdBytes == null && attempts < 100) {
-                try {
-                    Thread.sleep(10)
-                } catch (e: InterruptedException) {
-                    break
-                }
+                delay(10)
                 chatIdBytes = tox.groupGetChatId(groupNumber)
                 attempts++
             }
@@ -372,10 +368,10 @@ class GroupManager @Inject constructor(
             groupRepository.addPeer(ourPeer)
         }
 
-        return groupNumber
+        groupNumber
     }
 
-    fun joinGroupWithBytes(
+    suspend fun joinGroupWithBytes(
         friendPublicKey: String,
         inviteDataHex: String,
         selfName: String,
@@ -480,65 +476,55 @@ class GroupManager @Inject constructor(
         groupRepository.setDraftMessage(chatId, draft)
     }
 
-    fun getChatId(chatId: String): String? {
-        var result: String? = null
-        runBlocking {
-            result = groupRepository.get(chatId).firstOrNull()?.chatId
-        }
-        return result
+    suspend fun getChatId(chatId: String): String? = withContext(Dispatchers.IO) {
+        groupRepository.get(chatId).firstOrNull()?.chatId
     }
 
-    fun getChatIdByGroupNumber(groupNumber: Int): String? {
-        var result: String? = null
-        runBlocking {
-            result = groupRepository.findChatIdByGroupNumber(groupNumber)
-        }
-        return result
+    suspend fun getChatIdByGroupNumber(groupNumber: Int): String? = withContext(Dispatchers.IO) {
+        groupRepository.findChatIdByGroupNumber(groupNumber)
     }
 
-    fun inviteFriend(chatId: String, friendPublicKey: String): Boolean {
-        var result = false
-        runBlocking {
-            val group = groupRepository.get(chatId).firstOrNull()
-            if (group != null && group.groupNumber >= 0) {
-                val pk = PublicKey(friendPublicKey)
-                val friendNumber = tox.getFriendNumber(pk)
-                
-                // Всегда отображаем красивую интерактивную карточку-приглашение в чате у себя (у отправителя)
-                val inviteText = "[GROUP_INVITE:${group.name}|${group.chatId}]"
-                messageRepository.add(
-                    Message(
-                        publicKey = friendPublicKey.lowercase(),
-                        message = inviteText,
-                        sender = Sender.Sent,
-                        type = MessageType.Normal,
-                        correlationId = 0,
-                        timestamp = java.util.Date().time
-                    )
+    suspend fun inviteFriend(chatId: String, friendPublicKey: String): Boolean = withContext(Dispatchers.IO) {
+        val group = groupRepository.get(chatId).firstOrNull()
+        if (group != null && group.groupNumber >= 0) {
+            val pk = PublicKey(friendPublicKey)
+            val friendNumber = tox.getFriendNumber(pk)
+            
+            // Всегда отображаем красивую интерактивную карточку-приглашение в чате у себя (у отправителя)
+            val inviteText = "[GROUP_INVITE:${group.name}|${group.chatId}]"
+            messageRepository.add(
+                Message(
+                    publicKey = friendPublicKey.lowercase(),
+                    message = inviteText,
+                    sender = Sender.Sent,
+                    type = MessageType.Normal,
+                    correlationId = 0,
+                    timestamp = java.util.Date().time
                 )
-                
-                if (friendNumber >= 0) {
-                    val contact = contactRepository.get(friendPublicKey).firstOrNull()
-                    val isOnline = contact?.connectionStatus != ConnectionStatus.None
-                    if (isOnline) {
-                        tox.groupInviteSend(group.groupNumber, friendNumber)
-                    }
+            )
+            
+            if (friendNumber >= 0) {
+                val contact = contactRepository.get(friendPublicKey).firstOrNull()
+                val isOnline = contact?.connectionStatus != ConnectionStatus.None
+                if (isOnline) {
+                    tox.groupInviteSend(group.groupNumber, friendNumber)
                 }
-                result = true
             }
+            true
+        } else {
+            false
         }
-        return result
     }
 
-    fun joinByChatId(chatIdHex: String, selfName: String, password: String? = null): Int {
-        if (chatIdHex.length != 64) return -3
-        if (groupRepository.exists(chatIdHex)) return -2
+    suspend fun joinByChatId(chatIdHex: String, selfName: String, password: String? = null): Int = withContext(Dispatchers.IO) {
+        if (chatIdHex.length != 64) return@withContext -3
+        if (groupRepository.exists(chatIdHex)) return@withContext -2
 
         val chatIdBytes: ByteArray
         try {
             chatIdBytes = chatIdHex.hexToByteArray()
         } catch (e: Exception) {
-            return -4
+            return@withContext -4
         }
 
         val groupNumber = tox.groupJoinDirect(
@@ -588,7 +574,7 @@ class GroupManager @Inject constructor(
             groupRepository.addPeer(ourPeer)
         }
 
-        return groupNumber
+        groupNumber
     }
 
     private fun String.hexToByteArray(): ByteArray {

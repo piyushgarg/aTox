@@ -31,6 +31,7 @@ private const val SLOW_ITERATION_LIMIT_MS = 10
 private const val TOX_SALT_LENGTH = 32
 private const val STOP_DELAY_MS = 10L
 private const val BOOTSTRAP_NODES_COUNT = 4
+private const val RECOVERY_DELAY_MS = 1000L
 
 /**
  * Главный исполнительный слой (Tox Runtime).
@@ -495,8 +496,13 @@ class ToxRuntime @Inject constructor(
     private fun iterateForeverAv() = scope.launch {
         toxAvRunning = true
         while (running) {
-            toxWrapper.iterateAv()
-            delay(toxWrapper.iterationIntervalAv())
+            try {
+                toxWrapper.iterateAv()
+                delay(toxWrapper.iterationIntervalAv().coerceAtLeast(0L))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in ToxAv iteration loop: $e")
+                delay(RECOVERY_DELAY_MS)
+            }
         }
         toxAvRunning = false
     }
@@ -505,23 +511,28 @@ class ToxRuntime @Inject constructor(
     private fun iterateForever() = scope.launch {
         running = true
         while (running || toxAvRunning) {
-            if (isBootstrapNeeded) {
-                try {
-                    bootstrap()
-                    isBootstrapNeeded = false
-                } catch (e: Exception) {
-                    Log.e(TAG, e.toString())
+            try {
+                if (isBootstrapNeeded) {
+                    try {
+                        bootstrap()
+                        isBootstrapNeeded = false
+                    } catch (e: Exception) {
+                        Log.e(TAG, e.toString())
+                    }
                 }
-            }
 
-            val before = System.currentTimeMillis()
-            toxWrapper.iterate()
-            val timeTaken = System.currentTimeMillis() - before
-            val iterationInterval = toxWrapper.iterationInterval()
-            if (timeTaken > SLOW_ITERATION_LIMIT_MS && timeTaken > iterationInterval) {
-                Log.w(TAG, "Tox thread overran: $timeTaken/$iterationInterval.")
+                val before = System.currentTimeMillis()
+                toxWrapper.iterate()
+                val timeTaken = System.currentTimeMillis() - before
+                val iterationInterval = toxWrapper.iterationInterval()
+                if (timeTaken > SLOW_ITERATION_LIMIT_MS && timeTaken > iterationInterval) {
+                    Log.w(TAG, "Tox thread overran: $timeTaken/$iterationInterval.")
+                }
+                delay((iterationInterval - timeTaken).coerceAtLeast(0L))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in Tox iteration loop: $e")
+                delay(RECOVERY_DELAY_MS)
             }
-            delay(iterationInterval - timeTaken)
         }
         started = false
     }

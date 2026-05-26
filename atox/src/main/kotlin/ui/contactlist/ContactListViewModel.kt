@@ -34,9 +34,9 @@ import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.core.tox.save.ProxyType
 import ltd.evilcorp.core.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.save.testToxSave
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
-import ltd.evilcorp.domain.usecase.DeleteProfileUseCase
+import ltd.evilcorp.atox.usecase.DeleteProfileUseCase
 import ltd.evilcorp.domain.usecase.DeleteContactUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,7 +45,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
-import ltd.evilcorp.domain.model.toDb
+import kotlinx.coroutines.flow.distinctUntilChanged
+
 
 class ContactListViewModel @Inject constructor(
     private val callManager: CallManager,
@@ -54,7 +55,7 @@ class ContactListViewModel @Inject constructor(
     private val fileTransferManager: FileTransferManager,
     private val groupManager: GroupManager,
     private val notificationHelper: NotificationHelper,
-    private val tox: Tox,
+    private val tox: ITox,
     private val settings: Settings,
     private val deleteProfileUseCase: DeleteProfileUseCase,
     private val deleteContactUseCase: DeleteContactUseCase,
@@ -64,7 +65,6 @@ class ContactListViewModel @Inject constructor(
 
     val user: StateFlow<User?> by lazy {
         userManager.get(publicKey)
-            .map { it?.toDb() }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -138,16 +138,20 @@ class ContactListViewModel @Inject constructor(
     }
 
     val contacts: StateFlow<List<Contact>> = contactManager.getAll()
-        .map { list -> list.map { it.toDb() } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    private val debouncedSearchQuery = _searchQuery
+        .debounce(300L)
+        .distinctUntilChanged()
+
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
     val visibleContacts: StateFlow<List<Contact>> = contactManager.getAll()
-        .map { list -> list.map { it.toDb() } }
-        .combine(_searchQuery) { contactsList, query ->
+        .combine(debouncedSearchQuery) { contactsList, query ->
             ltd.evilcorp.atox.ui.contactlist.components.visibleChatContacts(contactsList, query)
         }
         .flowOn(Dispatchers.Default)

@@ -6,7 +6,7 @@ package ltd.evilcorp.atox.tox
 
 import android.util.Log
 import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 import java.util.Timer
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,7 +17,7 @@ private const val BOOTSTRAP_INTERVAL_MS = 60_000L
 
 @Singleton
 class ToxBootstrapper @Inject constructor(
-    private val tox: Tox
+    private val tox: ITox
 ) {
     private var bootstrapTimer = Timer()
 

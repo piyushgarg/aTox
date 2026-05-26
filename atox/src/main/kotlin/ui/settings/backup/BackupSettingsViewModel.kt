@@ -21,7 +21,7 @@ import ltd.evilcorp.core.tox.save.ToxSaveStatus
 import ltd.evilcorp.domain.backup.BackupDataProvider
 import ltd.evilcorp.domain.backup.BackupUseCase
 import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 import ltd.evilcorp.domain.feature.ISettingsFileProcessor
 
@@ -32,7 +32,7 @@ sealed interface BackupUiEvent {
 class BackupSettingsViewModel @Inject constructor(
     private val fileProcessor: ISettingsFileProcessor,
     private val toxStarter: ToxStarter,
-    private val tox: Tox,
+    private val tox: ITox,
     private val backupUseCase: BackupUseCase,
     private val database: Database,
     private val userManager: UserManager,

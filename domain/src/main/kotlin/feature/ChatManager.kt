@@ -12,15 +12,15 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import ltd.evilcorp.core.repository.ContactRepository
-import ltd.evilcorp.core.repository.MessageRepository
+import ltd.evilcorp.domain.repository.IContactRepository
+import ltd.evilcorp.domain.repository.IMessageRepository
 import ltd.evilcorp.core.model.ConnectionStatus
 import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.Sender
 import ltd.evilcorp.core.tox.MAX_MESSAGE_LENGTH
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 private fun String.chunked(chunkSizeInBytes: Int): MutableList<String> {
     val encoder = StandardCharsets.UTF_8.newEncoder()
@@ -43,9 +43,9 @@ private fun String.chunked(chunkSizeInBytes: Int): MutableList<String> {
 @Singleton
 class ChatManager @Inject constructor(
     private val scope: CoroutineScope,
-    private val contactRepository: ContactRepository,
-    private val messageRepository: MessageRepository,
-    private val tox: Tox,
+    private val contactRepository: IContactRepository,
+    private val messageRepository: IMessageRepository,
+    private val tox: ITox,
 ) {
     var activeChat = ""
         set(value) {

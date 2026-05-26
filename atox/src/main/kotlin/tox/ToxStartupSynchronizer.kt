@@ -7,13 +7,13 @@ import ltd.evilcorp.core.model.ConnectionStatus
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.repository.UserRepository
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 class ToxStartupSynchronizer @Inject constructor(
     private val scope: CoroutineScope,
     private val contactRepository: ContactRepository,
     private val userRepository: UserRepository,
-    private val tox: Tox,
+    private val tox: ITox,
 ) {
     fun synchronizeAfterStart() {
         scope.launch {

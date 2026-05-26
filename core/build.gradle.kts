@@ -161,6 +161,7 @@ tasks.named("preBuild") {
 }
 
 dependencies {
+    implementation(project(":domain"))
     implementation(libs.javax.inject)
     api(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.datastore.preferences)

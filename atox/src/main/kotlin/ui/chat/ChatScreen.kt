@@ -84,6 +84,10 @@ import ltd.evilcorp.atox.ui.common.chat.ChatInputBar
 import ltd.evilcorp.atox.ui.common.chat.MessageBubble
 import ltd.evilcorp.atox.ui.chat.components.TypingBubble
 import ltd.evilcorp.atox.ui.common.chat.DateSeparator
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 
 private const val CHAT_ENTER_CONTENT_DELAY_MS = 320L
 
@@ -114,6 +118,7 @@ fun ChatScreen(
     onSendVoice: (Uri) -> Unit = {},
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
+    isTypingFlow: StateFlow<Boolean> = remember(contact?.typing) { MutableStateFlow(contact?.typing == true) },
 ) {
     val messages = messages ?: emptyList()
     var showConversationContent by remember(contact?.publicKey) { mutableStateOf(true) }
@@ -331,9 +336,14 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 12.dp)
                 ) {
-                    if (showConversationContent && contact?.typing == true) {
-                        item(key = "typing_bubble") {
-                            TypingBubble()
+                    item(key = "typing_bubble") {
+                        val isTyping by isTypingFlow.collectAsState(initial = false)
+                        Box(modifier = Modifier.animateContentSize()) {
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = showConversationContent && isTyping
+                            ) {
+                                TypingBubble()
+                            }
                         }
                     }
                     if (!showConversationContent) {

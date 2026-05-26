@@ -34,6 +34,7 @@ import ltd.evilcorp.core.repository.GroupRepository
 import ltd.evilcorp.core.repository.FileTransferRepository
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.domain.feature.GroupManager
+import ltd.evilcorp.domain.feature.IGroupFileTransferEmulator
 import java.io.File
 import java.util.Date
 
@@ -45,6 +46,7 @@ class GroupChatViewModel @Inject constructor(
     private val systemSoundPlayer: SystemSoundPlayer,
     private val groupRepository: GroupRepository,
     private val fileTransferRepository: FileTransferRepository,
+    private val fileTransferEmulator: IGroupFileTransferEmulator,
 ) : ViewModel(), ltd.evilcorp.atox.ui.chat.IChatController {
     private var chatId = ""
     private var metadataSyncJob: kotlinx.coroutines.Job? = null
@@ -217,87 +219,30 @@ class GroupChatViewModel @Inject constructor(
     fun acceptFt(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             fileTransferRepository.get(id).take(1).collect { ft ->
-                fileTransferRepository.updateProgress(id, 0L)
-                
-                val totalSize = ft.fileSize
-                val speedBytesPerSec = 700 * 1024 // ~700 KB/s
-                val estimatedDurationMs = (totalSize.toFloat() / speedBytesPerSec * 1000).toLong()
-                // Ограничиваем максимальное время эмуляции 25 секундами для удобства UX
-                val totalDurationMs = maxOf(1000L, minOf(25000L, estimatedDurationMs))
-                val stepDelay = 250L
-                val steps = (totalDurationMs / stepDelay).toInt().coerceAtLeast(5)
-                val stepSize = totalSize / steps
-                
-                for (i in 1..steps) {
-                    delay(stepDelay)
-                    val currentProgress = if (i == steps) totalSize else i * stepSize
-                    fileTransferRepository.updateProgress(id, currentProgress)
-                }
+                val bytes = fileTransferEmulator.emulateDownload(
+                    id = id,
+                    fileName = ft.fileName,
+                    fileSize = ft.fileSize,
+                    onProgress = { currentProgress ->
+                        fileTransferRepository.updateProgress(id, currentProgress)
+                    }
+                )
                 
                 val cacheFile = File(context.cacheDir, ft.fileName)
-                if (!cacheFile.exists()) {
-                    val ext = ft.fileName.substringAfterLast('.', "").lowercase()
-                    val isImage = ext in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
-                    val isVoice = ft.fileName.startsWith("voice_message_")
-                    
-                    if (isVoice) {
-                        try {
-                            val defaultUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
-                            if (defaultUri != null) {
-                                context.contentResolver.openInputStream(defaultUri)?.use { input ->
-                                    cacheFile.outputStream().use { output ->
-                                        input.copyTo(output)
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
+                if (!cacheFile.exists() && bytes != null) {
+                    try {
+                        cacheFile.outputStream().use { out ->
+                            out.write(bytes)
                         }
-                    } else if (isImage) {
-                        try {
-                            val width = 512
-                            val height = 512
-                            val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
-                            val canvas = android.graphics.Canvas(bitmap)
-                            
-                            val paint = android.graphics.Paint()
-                            val shader = android.graphics.LinearGradient(
-                                0f, 0f, width.toFloat(), height.toFloat(),
-                                android.graphics.Color.parseColor("#8A2BE2"),
-                                android.graphics.Color.parseColor("#FF69B4"),
-                                android.graphics.Shader.TileMode.CLAMP
-                            )
-                            paint.shader = shader
-                            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
-                            
-                            val textPaint = android.graphics.Paint().apply {
-                                color = android.graphics.Color.WHITE
-                                textSize = 40f
-                                isAntiAlias = true
-                                textAlign = android.graphics.Paint.Align.CENTER
-                            }
-                            canvas.drawText("aTox Image Transfer", width / 2f, height / 2f - 20f, textPaint)
-                            
-                            val subPaint = android.graphics.Paint().apply {
-                                color = android.graphics.Color.argb(180, 255, 255, 255)
-                                textSize = 24f
-                                isAntiAlias = true
-                                textAlign = android.graphics.Paint.Align.CENTER
-                            }
-                            canvas.drawText(ft.fileName, width / 2f, height / 2f + 40f, subPaint)
-                            
-                            cacheFile.outputStream().use { out ->
-                                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                    
-                    if (!cacheFile.exists() || cacheFile.length() == 0L) {
-                        cacheFile.writeText("Mock received file content")
+                    } catch (e: Exception) {
+                        Log.e("GroupChatViewModel", "Failed to write emulated file to cache", e)
                     }
                 }
+                
+                if (!cacheFile.exists() || cacheFile.length() == 0L) {
+                    cacheFile.writeText("Mock received file content")
+                }
+                
                 val cachedUri = Uri.fromFile(cacheFile)
                 fileTransferRepository.setDestination(id, cachedUri.toString())
                 
@@ -406,9 +351,13 @@ class GroupChatViewModel @Inject constructor(
         }
     }
 
-    fun getChatId(): String? = groupManager.getChatId(chatId)
+    fun getChatId(): String? = chatId
 
-    fun inviteFriend(friendPublicKey: String): Boolean = groupManager.inviteFriend(chatId, friendPublicKey)
+    fun inviteFriend(friendPublicKey: String) {
+        viewModelScope.launch {
+            groupManager.inviteFriend(chatId, friendPublicKey)
+        }
+    }
 
     override fun acceptFileTransfer(id: Int) {
         acceptFt(id)

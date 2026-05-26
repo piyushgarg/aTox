@@ -23,7 +23,7 @@ import androidx.lifecycle.LifecycleService
 import javax.inject.Inject
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 
 private const val TAG = "ToxService"
@@ -35,7 +35,7 @@ class ToxService : LifecycleService() {
     private val notifier by lazy { NotificationManagerCompat.from(this) }
 
     @Inject
-    lateinit var tox: Tox
+    lateinit var tox: ITox
 
     @Inject
     lateinit var toxStarter: ToxStarter

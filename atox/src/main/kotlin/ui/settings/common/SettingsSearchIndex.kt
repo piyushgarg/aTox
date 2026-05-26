@@ -18,6 +18,7 @@ internal enum class SettingsDestination {
     Backup,
     Language,
     Theme,
+    Search,
 }
 
 internal data class SearchableSetting(

@@ -20,7 +20,7 @@ import ltd.evilcorp.core.model.FINGERPRINT_LEN
 import ltd.evilcorp.core.tox.enums.ToxFileControl
 import ltd.evilcorp.domain.feature.ChatManager
 import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 private const val TAG = "FileTransferEventHandler"
 
@@ -40,7 +40,7 @@ class FileTransferEventHandler @Inject constructor(
     private val fileTransferManager: FileTransferManager,
     private val chatManager: ChatManager,
     private val notificationHelper: NotificationHelper,
-    private val tox: Tox,
+    private val tox: ITox,
     private val settings: Settings,
 ) {
     private suspend fun tryGetContact(pk: String, tag: String) = contactRepository.get(pk).firstOrNull().let {

@@ -31,7 +31,7 @@ import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.domain.feature.GroupInvite
 import ltd.evilcorp.domain.feature.GroupManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 private const val TAG = "GroupEventHandler"
 
@@ -44,7 +44,7 @@ class GroupEventHandler @Inject constructor(
     private val groupManager: GroupManager,
     private val notificationHelper: NotificationHelper,
     private val systemSoundPlayer: SystemSoundPlayer,
-    private val tox: Tox,
+    private val tox: ITox,
     private val settings: Settings,
     private val fileTransferRepository: FileTransferRepository,
 ) {

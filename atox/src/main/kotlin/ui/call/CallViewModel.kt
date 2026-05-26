@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.PublicKey
-import ltd.evilcorp.domain.model.toDb
+
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.ContactManager
@@ -39,7 +39,7 @@ class CallViewModel @Inject constructor(
     val contact: StateFlow<Contact?> = activePublicKey
         .filterNotNull()
         .flatMapLatest { pk -> contactManager.get(pk) }
-        .map { it?.toDb() }
+        
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -92,7 +92,7 @@ class CallViewModel @Inject constructor(
             }
 
             callManager.startSendingAudio()
-            notificationManager.showOngoingCallNotification(contactManager.get(publicKey).first()?.toDb() ?: Contact(publicKey.string()))
+            notificationManager.showOngoingCallNotification(contactManager.get(publicKey).first() ?: Contact(publicKey.string()))
         }
     }
 

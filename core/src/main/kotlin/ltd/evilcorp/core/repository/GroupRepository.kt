@@ -14,69 +14,70 @@ import ltd.evilcorp.core.model.GroupPrivacyState
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.Sender
 import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.repository.IGroupRepository
 
 @Singleton
 class GroupRepository @Inject constructor(
     private val groupDao: GroupDao,
     private val groupMessageDao: GroupMessageDao,
     private val groupPeerDao: GroupPeerDao,
-) {
-    fun get(chatId: String): Flow<Group?> = groupDao.load(chatId)
-    fun getDirect(chatId: String): Group? = groupDao.loadDirect(chatId)
-    fun getAll(): Flow<List<Group>> = groupDao.loadAll()
-    fun exists(chatId: String): Boolean = groupDao.exists(chatId) > 0
+) : IGroupRepository {
+    override fun get(chatId: String): Flow<Group?> = groupDao.load(chatId)
+    override fun getDirect(chatId: String): Group? = groupDao.loadDirect(chatId)
+    override fun getAll(): Flow<List<Group>> = groupDao.loadAll()
+    override fun exists(chatId: String): Boolean = groupDao.exists(chatId) > 0
 
-    fun add(group: Group) = groupDao.save(group)
-    fun update(group: Group) = groupDao.update(group)
-    fun delete(group: Group) = groupDao.delete(group)
-    fun deleteByChatId(chatId: String) = groupDao.deleteByChatId(chatId)
+    override fun add(group: Group) = groupDao.save(group)
+    override fun update(group: Group) = groupDao.update(group)
+    override fun delete(group: Group) = groupDao.delete(group)
+    override fun deleteByChatId(chatId: String) = groupDao.deleteByChatId(chatId)
 
-    fun setName(chatId: String, name: String) = groupDao.setName(chatId, name)
-    fun setTopic(chatId: String, topic: String) = groupDao.setTopic(chatId, topic)
-    fun setPasswordProtected(chatId: String, protected: Boolean) = groupDao.setPasswordProtected(chatId, protected)
-    fun setPrivacyState(chatId: String, privacyState: GroupPrivacyState) = groupDao.setPrivacyState(chatId, privacyState)
-    fun setPeerCount(chatId: String, peerCount: Int) = groupDao.setPeerCount(chatId, peerCount)
-    fun setSelfPeerId(chatId: String, peerId: Int) = groupDao.setSelfPeerId(chatId, peerId)
-    fun setSelfRole(chatId: String, role: String) = groupDao.setSelfRole(chatId, role)
-    fun setLastMessage(chatId: String, lastMessage: Long) = groupDao.setLastMessage(chatId, lastMessage)
-    fun setHasUnreadMessages(chatId: String, hasUnread: Boolean) = groupDao.setHasUnreadMessages(chatId, hasUnread)
-    fun setDraftMessage(chatId: String, draft: String) = groupDao.setDraftMessage(chatId, draft)
-    fun setConnected(chatId: String, connected: Boolean) = groupDao.setConnected(chatId, connected)
-    fun setGroupNumber(chatId: String, groupNumber: Int) = groupDao.setGroupNumber(chatId, groupNumber)
-    fun findChatIdByGroupNumber(groupNumber: Int): String? = groupDao.findChatIdByGroupNumber(groupNumber)
+    override fun setName(chatId: String, name: String) = groupDao.setName(chatId, name)
+    override fun setTopic(chatId: String, topic: String) = groupDao.setTopic(chatId, topic)
+    override fun setPasswordProtected(chatId: String, protected: Boolean) = groupDao.setPasswordProtected(chatId, protected)
+    override fun setPrivacyState(chatId: String, privacyState: GroupPrivacyState) = groupDao.setPrivacyState(chatId, privacyState)
+    override fun setPeerCount(chatId: String, peerCount: Int) = groupDao.setPeerCount(chatId, peerCount)
+    override fun setSelfPeerId(chatId: String, peerId: Int) = groupDao.setSelfPeerId(chatId, peerId)
+    override fun setSelfRole(chatId: String, role: String) = groupDao.setSelfRole(chatId, role)
+    override fun setLastMessage(chatId: String, lastMessage: Long) = groupDao.setLastMessage(chatId, lastMessage)
+    override fun setHasUnreadMessages(chatId: String, hasUnread: Boolean) = groupDao.setHasUnreadMessages(chatId, hasUnread)
+    override fun setDraftMessage(chatId: String, draft: String) = groupDao.setDraftMessage(chatId, draft)
+    override fun setConnected(chatId: String, connected: Boolean) = groupDao.setConnected(chatId, connected)
+    override fun setGroupNumber(chatId: String, groupNumber: Int) = groupDao.setGroupNumber(chatId, groupNumber)
+    override fun findChatIdByGroupNumber(groupNumber: Int): String? = groupDao.findChatIdByGroupNumber(groupNumber)
 
-    fun addMessage(message: GroupMessage) {
+    override fun addMessage(message: GroupMessage) {
         groupMessageDao.save(message)
         groupDao.setLastMessage(message.groupChatId, Date().time)
     }
 
-    fun getMessages(groupChatId: String): Flow<List<GroupMessage>> = groupMessageDao.load(groupChatId)
-    fun getPendingMessages(groupChatId: String): List<GroupMessage> = groupMessageDao.loadPending(groupChatId)
-    fun getUnsentMessages(groupChatId: String): List<GroupMessage> = groupMessageDao.loadUnsent(groupChatId)
-    fun setCorrelationId(id: Long, correlationId: Int) = groupMessageDao.setCorrelationId(id, correlationId)
-    fun deleteMessages(groupChatId: String) = groupMessageDao.delete(groupChatId)
-    fun deleteMessage(id: Long) = groupMessageDao.deleteMessage(id)
-    fun setReceipt(groupChatId: String, correlationId: Int, timestamp: Long) =
+    override fun getMessages(groupChatId: String): Flow<List<GroupMessage>> = groupMessageDao.load(groupChatId)
+    override fun getPendingMessages(groupChatId: String): List<GroupMessage> = groupMessageDao.loadPending(groupChatId)
+    override fun getUnsentMessages(groupChatId: String): List<GroupMessage> = groupMessageDao.loadUnsent(groupChatId)
+    override fun setCorrelationId(id: Long, correlationId: Int) = groupMessageDao.setCorrelationId(id, correlationId)
+    override fun deleteMessages(groupChatId: String) = groupMessageDao.delete(groupChatId)
+    override fun deleteMessage(id: Long) = groupMessageDao.deleteMessage(id)
+    override fun setReceipt(groupChatId: String, correlationId: Int, timestamp: Long) =
         groupMessageDao.setReceipt(groupChatId, correlationId, timestamp)
 
-    fun existsByCorrelationId(groupChatId: String, correlationId: Int): Boolean =
+    override fun existsByCorrelationId(groupChatId: String, correlationId: Int): Boolean =
         groupMessageDao.existsByCorrelationId(groupChatId, correlationId) > 0
 
-    fun addPeer(peer: GroupPeer) = groupPeerDao.save(peer)
-    fun updatePeer(peer: GroupPeer) = groupPeerDao.update(peer)
-    fun deletePeer(peer: GroupPeer) = groupPeerDao.delete(peer)
-    fun deletePeerById(groupChatId: String, peerId: Int) = groupPeerDao.deleteByPeerId(groupChatId, peerId)
-    fun deleteAllPeers(groupChatId: String) = groupPeerDao.deleteAllForGroup(groupChatId)
+    override fun addPeer(peer: GroupPeer) = groupPeerDao.save(peer)
+    override fun updatePeer(peer: GroupPeer) = groupPeerDao.update(peer)
+    override fun deletePeer(peer: GroupPeer) = groupPeerDao.delete(peer)
+    override fun deletePeerById(groupChatId: String, peerId: Int) = groupPeerDao.deleteByPeerId(groupChatId, peerId)
+    override fun deleteAllPeers(groupChatId: String) = groupPeerDao.deleteAllForGroup(groupChatId)
 
-    fun getPeers(groupChatId: String): Flow<List<GroupPeer>> = groupPeerDao.loadAllForGroup(groupChatId)
-    fun getPeer(groupChatId: String, peerId: Int): Flow<GroupPeer?> = groupPeerDao.load(groupChatId, peerId)
-    fun getPeerNameDirect(groupChatId: String, peerId: Int): String? = groupPeerDao.getPeerNameDirect(groupChatId, peerId)
-    fun peerExistsDirect(groupChatId: String, peerId: Int): Boolean = groupPeerDao.peerExistsDirect(groupChatId, peerId) > 0
-    fun peerExistsByPublicKey(groupChatId: String, publicKey: String): Boolean = groupPeerDao.peerExistsByPublicKeyDirect(groupChatId, publicKey) > 0
-    fun deletePeerByPublicKey(groupChatId: String, publicKey: String) = groupPeerDao.deleteByPublicKey(groupChatId, publicKey)
-    fun setPeerName(groupChatId: String, peerId: Int, name: String) = groupPeerDao.setName(groupChatId, peerId, name)
-    fun setPeerRole(groupChatId: String, peerId: Int, role: String) = groupPeerDao.setRole(groupChatId, peerId, role)
-    fun setPeerStatus(groupChatId: String, peerId: Int, status: UserStatus) = groupPeerDao.setStatus(groupChatId, peerId, status)
-    fun peerCount(groupChatId: String): Flow<Int> = groupPeerDao.countForGroup(groupChatId)
-    suspend fun peerCountDirect(groupChatId: String): Int = groupPeerDao.countForGroupDirect(groupChatId)
+    override fun getPeers(groupChatId: String): Flow<List<GroupPeer>> = groupPeerDao.loadAllForGroup(groupChatId)
+    override fun getPeer(groupChatId: String, peerId: Int): Flow<GroupPeer?> = groupPeerDao.load(groupChatId, peerId)
+    override fun getPeerNameDirect(groupChatId: String, peerId: Int): String? = groupPeerDao.getPeerNameDirect(groupChatId, peerId)
+    override fun peerExistsDirect(groupChatId: String, peerId: Int): Boolean = groupPeerDao.peerExistsDirect(groupChatId, peerId) > 0
+    override fun peerExistsByPublicKey(groupChatId: String, publicKey: String): Boolean = groupPeerDao.peerExistsByPublicKeyDirect(groupChatId, publicKey) > 0
+    override fun deletePeerByPublicKey(groupChatId: String, publicKey: String) = groupPeerDao.deleteByPublicKey(groupChatId, publicKey)
+    override fun setPeerName(groupChatId: String, peerId: Int, name: String) = groupPeerDao.setName(groupChatId, peerId, name)
+    override fun setPeerRole(groupChatId: String, peerId: Int, role: String) = groupPeerDao.setRole(groupChatId, peerId, role)
+    override fun setPeerStatus(groupChatId: String, peerId: Int, status: UserStatus) = groupPeerDao.setStatus(groupChatId, peerId, status)
+    override fun peerCount(groupChatId: String): Flow<Int> = groupPeerDao.countForGroup(groupChatId)
+    override suspend fun peerCountDirect(groupChatId: String): Int = groupPeerDao.countForGroupDirect(groupChatId)
 }

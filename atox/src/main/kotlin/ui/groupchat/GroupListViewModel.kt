@@ -76,9 +76,9 @@ class GroupListViewModel @Inject constructor(
         }
     }
 
-    fun getChatId(groupChatId: String): String? = groupManager.getChatId(groupChatId)
+    suspend fun getChatId(groupChatId: String): String? = groupManager.getChatId(groupChatId)
 
-    fun getChatIdByGroupNumber(groupNumber: Int): String? = groupManager.getChatIdByGroupNumber(groupNumber)
+    suspend fun getChatIdByGroupNumber(groupNumber: Int): String? = groupManager.getChatIdByGroupNumber(groupNumber)
 
     suspend fun joinGroupWithBytes(friendPublicKey: String, inviteDataHex: String, password: String?): Int =
         withContext(Dispatchers.IO) {
@@ -86,7 +86,7 @@ class GroupListViewModel @Inject constructor(
             groupManager.joinGroupWithBytes(friendPublicKey, inviteDataHex, selfName, password)
         }
 
-    fun inviteFriend(chatId: String, friendPublicKey: String): Boolean =
+    suspend fun inviteFriend(chatId: String, friendPublicKey: String): Boolean =
         groupManager.inviteFriend(chatId, friendPublicKey)
 
     fun getPendingInvite(): ltd.evilcorp.domain.feature.GroupInvite? =

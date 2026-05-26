@@ -88,8 +88,6 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material.icons.filled.Search
@@ -164,7 +162,6 @@ fun SettingsScreen(
 
     var destination by remember { mutableStateOf(SettingsDestination.Root) }
     var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
 
     val appThemeMode = appearance.themeMode
     val dynamicColor = appearance.dynamicColorEnabled
@@ -350,6 +347,7 @@ fun SettingsScreen(
         SettingsDestination.Backup -> stringResource(R.string.backup_title)
         SettingsDestination.Language -> stringResource(R.string.select_language)
         SettingsDestination.Theme -> stringResource(R.string.settings_app_theme_dialog_title)
+        SettingsDestination.Search -> stringResource(R.string.search_settings)
     }
 
     LaunchedEffect(destination, title, showBackButton) {
@@ -361,6 +359,7 @@ fun SettingsScreen(
                         performHaptic()
                         destination = when (destination) {
                             SettingsDestination.Language, SettingsDestination.Theme -> SettingsDestination.Appearance
+                            SettingsDestination.Search -> SettingsDestination.Root
                             else -> SettingsDestination.Root
                         }
                     }
@@ -370,7 +369,7 @@ fun SettingsScreen(
                 if (destination == SettingsDestination.Root) {
                     {
                         performHaptic()
-                        isSearchActive = true
+                        destination = SettingsDestination.Search
                     }
                 } else null
             )
@@ -405,7 +404,7 @@ fun SettingsScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            if (showBackButton) {
+            if (showBackButton && destination != SettingsDestination.Search) {
                 TopAppBar(
                     title = { Text(title, fontWeight = FontWeight.SemiBold) },
                     navigationIcon = {
@@ -414,6 +413,7 @@ fun SettingsScreen(
                                 performHaptic()
                                 destination = when (destination) {
                                     SettingsDestination.Language, SettingsDestination.Theme -> SettingsDestination.Appearance
+                                    SettingsDestination.Search -> SettingsDestination.Root
                                     else -> SettingsDestination.Root
                                 }
                             }) {
@@ -610,6 +610,26 @@ fun SettingsScreen(
                     }
                 )
             }
+            SettingsDestination.Search -> {
+                SettingsSearchPopup(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { searchQuery = it },
+                    searchItems = searchItems,
+                    onDismissRequest = {
+                        performHaptic()
+                        searchQuery = ""
+                        destination = SettingsDestination.Root
+                    },
+                    performHaptic = performHaptic,
+                    onItemClick = { item ->
+                        if (item.onTrigger != null) {
+                            item.onTrigger.invoke()
+                        } else {
+                            destination = item.destination
+                        }
+                    }
+                )
+            }
             SettingsDestination.Sounds -> {
                 SoundSettingsScreen(
                     paddingValues = paddingValues,
@@ -692,25 +712,7 @@ fun SettingsScreen(
         }
     }
 
-    if (isSearchActive) {
-        SettingsSearchPopup(
-            searchQuery = searchQuery,
-            onSearchQueryChange = { searchQuery = it },
-            searchItems = searchItems,
-            onDismissRequest = {
-                searchQuery = ""
-                isSearchActive = false
-            },
-            performHaptic = performHaptic,
-            onItemClick = { item ->
-                if (item.onTrigger != null) {
-                    item.onTrigger.invoke()
-                } else {
-                    destination = item.destination
-                }
-            }
-        )
-    }
+
 
     // Dialog 3: Proxy type selection
     if (showProxyDialog) {

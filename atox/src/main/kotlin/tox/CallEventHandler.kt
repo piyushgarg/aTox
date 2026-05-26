@@ -15,7 +15,7 @@ import ltd.evilcorp.core.model.FINGERPRINT_LEN
 import ltd.evilcorp.core.tox.enums.ToxavFriendCallState
 import ltd.evilcorp.domain.av.AudioPlayer
 import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 private const val TAG = "CallEventHandler"
 
@@ -26,7 +26,7 @@ class CallEventHandler @Inject constructor(
     private val contactRepository: ContactRepository,
     private val callManager: CallManager,
     private val notificationHelper: NotificationHelper,
-    private val tox: Tox,
+    private val tox: ITox,
 ) {
     private var audioPlayer: AudioPlayer? = null
 

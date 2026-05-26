@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import javax.inject.Inject
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +25,7 @@ sealed interface UnlockUiState {
 }
 
 class AuthViewModel @Inject constructor(
-    private val tox: Tox,
+    private val tox: ITox,
     private val toxStarter: ToxStarter,
 ) : ViewModel() {
     val publicKey by lazy { tox.publicKey }

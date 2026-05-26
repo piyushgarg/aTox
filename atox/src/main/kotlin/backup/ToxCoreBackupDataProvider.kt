@@ -4,10 +4,10 @@ import javax.inject.Inject
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.core.tox.save.SaveManager
 import ltd.evilcorp.domain.backup.BackupDataProvider
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 class ToxCoreBackupDataProvider @Inject constructor(
-    private val tox: Tox,
+    private val tox: ITox,
     private val saveManager: SaveManager,
 ) : BackupDataProvider {
     override val id: String = "tox_core"

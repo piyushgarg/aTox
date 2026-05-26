@@ -6,30 +6,31 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import ltd.evilcorp.core.db.MessageDao
 import ltd.evilcorp.core.model.Message
+import ltd.evilcorp.domain.repository.IMessageRepository
 
 @Singleton
 class MessageRepository @Inject internal constructor(
     private val messageDao: MessageDao,
     private val contactRepository: ContactRepository,
-) {
-    fun add(message: Message) {
+) : IMessageRepository {
+    override fun add(message: Message) {
         messageDao.save(message)
         contactRepository.setLastMessage(message.publicKey, Date().time)
     }
 
-    fun get(conversation: String): Flow<List<Message>> = messageDao.load(conversation)
+    override fun get(conversation: String): Flow<List<Message>> = messageDao.load(conversation)
 
-    fun getPending(conversation: String): List<Message> = messageDao.loadPending(conversation)
+    override fun getPending(conversation: String): List<Message> = messageDao.loadPending(conversation)
 
-    fun setCorrelationId(id: Long, correlationId: Int) = messageDao.setCorrelationId(id, correlationId)
+    override fun setCorrelationId(id: Long, correlationId: Int) = messageDao.setCorrelationId(id, correlationId)
 
-    fun delete(conversation: String) = messageDao.delete(conversation)
+    override fun delete(conversation: String) = messageDao.delete(conversation)
 
-    fun deleteMessage(id: Long) = messageDao.deleteMessage(id)
+    override fun deleteMessage(id: Long) = messageDao.deleteMessage(id)
 
-    fun setReceipt(conversation: String, correlationId: Int, timestamp: Long) =
+    override fun setReceipt(conversation: String, correlationId: Int, timestamp: Long) =
         messageDao.setReceipt(conversation, correlationId, timestamp)
 
-    fun exists(conversation: String, message: String): Boolean =
+    override fun exists(conversation: String, message: String): Boolean =
         messageDao.exists(conversation, message)
 }

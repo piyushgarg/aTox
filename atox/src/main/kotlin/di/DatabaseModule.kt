@@ -68,12 +68,27 @@ class DaoModule {
 @Module
 interface RepositoryModule {
     @dagger.Binds
-    fun bindContactRepository(impl: ltd.evilcorp.atox.repository.ContactRepositoryAdapter): ltd.evilcorp.domain.repository.IContactRepository
+    fun bindContactRepository(impl: ltd.evilcorp.core.repository.ContactRepository): ltd.evilcorp.domain.repository.IContactRepository
 
     @dagger.Binds
-    fun bindUserRepository(impl: ltd.evilcorp.atox.repository.UserRepositoryAdapter): ltd.evilcorp.domain.repository.IUserRepository
+    fun bindUserRepository(impl: ltd.evilcorp.core.repository.UserRepository): ltd.evilcorp.domain.repository.IUserRepository
 
     @dagger.Binds
-    fun bindChatRepository(impl: ltd.evilcorp.atox.repository.ChatRepositoryAdapter): ltd.evilcorp.domain.repository.IChatRepository
+    fun bindMessageRepository(impl: ltd.evilcorp.core.repository.MessageRepository): ltd.evilcorp.domain.repository.IMessageRepository
+
+    @dagger.Binds
+    fun bindFileTransferRepository(impl: ltd.evilcorp.core.repository.FileTransferRepository): ltd.evilcorp.domain.repository.IFileTransferRepository
+
+    @dagger.Binds
+    fun bindUserSettingsRepository(impl: ltd.evilcorp.core.repository.UserSettingsRepository): ltd.evilcorp.domain.repository.IUserSettingsRepository
+
+    @dagger.Binds
+    fun bindFriendRequestRepository(impl: ltd.evilcorp.core.repository.FriendRequestRepository): ltd.evilcorp.domain.repository.IFriendRequestRepository
+
+    @dagger.Binds
+    fun bindGroupRepository(impl: ltd.evilcorp.core.repository.GroupRepository): ltd.evilcorp.domain.repository.IGroupRepository
+
+    @dagger.Binds
+    fun bindAvatarStorage(impl: ltd.evilcorp.core.repository.AvatarStorageImpl): ltd.evilcorp.domain.repository.IAvatarStorage
 }
 

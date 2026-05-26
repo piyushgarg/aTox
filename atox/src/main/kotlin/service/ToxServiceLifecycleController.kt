@@ -23,7 +23,7 @@ import ltd.evilcorp.core.repository.UserRepository
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.FriendRequestManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -32,7 +32,7 @@ private const val TAG = "ToxServiceLC"
 @Singleton
 class ToxServiceLifecycleController @Inject constructor(
     private val context: Context,
-    private val tox: Tox,
+    private val tox: ITox,
     private val userRepository: UserRepository,
     private val friendRequestManager: FriendRequestManager,
     private val callManager: CallManager,

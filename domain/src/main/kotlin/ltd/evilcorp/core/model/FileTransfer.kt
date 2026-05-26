@@ -43,8 +43,7 @@ data class FileTransfer(
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = "id")
     var id: Int = 0,
-) {
-}
+)
 
 fun FileTransfer.isComplete() = progress >= fileSize
 fun FileTransfer.isStarted() = progress >= FT_STARTED

@@ -102,6 +102,7 @@ fun NavGraphBuilder.chatGraph(
             onSaveFt = viewModel::exportFt,
             onOpenFile = onOpenFile,
             systemSoundPlayer = systemSoundPlayer,
+            isTypingFlow = viewModel.isTyping,
             replyingToMessage = replyingToMessage,
             onCancelReply = { viewModel.setReplyingTo(null) },
             onReplyClick = { msg -> viewModel.setReplyingTo(msg) },

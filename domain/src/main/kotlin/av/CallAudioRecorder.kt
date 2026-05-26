@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ltd.evilcorp.core.model.PublicKey
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,7 +23,7 @@ private const val AUDIO_SEND_INTERVAL_MS = 20
 
 @Singleton
 class CallAudioRecorder @Inject constructor(
-    private val tox: Tox
+    private val tox: ITox
 ) {
     private val _sendingAudio = MutableStateFlow(false)
     val sendingAudio: StateFlow<Boolean> get() = _sendingAudio

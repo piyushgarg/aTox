@@ -1,5 +1,6 @@
 [versions]
 detekt = "1.23.8"
+archunit = "1.3.0"
 
 sdk-min = "23"
 sdk-target = "35"
@@ -33,6 +34,7 @@ androidLibrary = { id = "com.android.library", version.ref = "android-plugin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 
 [libraries]
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 androidx-activity = "androidx.activity:activity:1.10.1" # >=1.11.0 needs compileSdk 36.
 androidx-activity-compose = "androidx.activity:activity-compose:1.10.1"
 androidx-appcompat = "androidx.appcompat:appcompat:1.7.1"

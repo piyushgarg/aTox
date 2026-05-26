@@ -14,7 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import ltd.evilcorp.core.repository.UserSettingsRepository
+import ltd.evilcorp.domain.repository.IUserSettingsRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,7 +25,7 @@ private const val RINGBACK_TONE_INTERVAL_MS = 2_000L
 @Singleton
 class CallSignalPlayer @Inject constructor(
     private val context: Context,
-    private val userSettingsRepository: UserSettingsRepository
+    private val userSettingsRepository: IUserSettingsRepository
 ) {
     private var ringtone: android.media.Ringtone? = null
     private var toneGenerator: ToneGenerator? = null

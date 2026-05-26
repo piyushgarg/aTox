@@ -41,7 +41,7 @@ import ltd.evilcorp.core.model.FileTransfer
 import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
-import ltd.evilcorp.domain.model.toDb
+
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.ChatManager
@@ -91,11 +91,21 @@ class ChatViewModel @Inject constructor(
     val contact: StateFlow<Contact?> = activePublicKey
         .filterNotNull()
         .flatMapLatest { pk -> contactManager.get(pk) }
-        .map { it?.toDb() }
+        
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
+        )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val isTyping: StateFlow<Boolean> = contact
+        .map { it?.typing == true }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
         )
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
@@ -154,7 +164,7 @@ class ChatViewModel @Inject constructor(
     fun startCall() = viewModelScope.launch {
         if (callManager.startOutgoingCall(publicKey)) {
             callManager.startSendingAudio()
-            notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).take(1).first()?.toDb() ?: Contact(publicKey.string()))
+            notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).take(1).first() ?: Contact(publicKey.string()))
         }
     }
 

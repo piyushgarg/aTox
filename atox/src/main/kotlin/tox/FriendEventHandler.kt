@@ -23,7 +23,7 @@ import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.domain.feature.ChatManager
 import ltd.evilcorp.domain.feature.FileTransferManager
 import ltd.evilcorp.domain.feature.GroupManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 private const val MAX_ACTIVE_FRIEND_REQUESTS = 32
 private const val TAG = "FriendEventHandler"
@@ -41,7 +41,7 @@ class FriendEventHandler @Inject constructor(
     private val notificationHelper: NotificationHelper,
     private val systemSoundPlayer: SystemSoundPlayer,
     private val groupManager: GroupManager,
-    private val tox: Tox,
+    private val tox: ITox,
     @Suppress("UNUSED_PARAMETER") private val settings: Settings,
 ) {
     private var maxFriendRequestsWarningActive = false

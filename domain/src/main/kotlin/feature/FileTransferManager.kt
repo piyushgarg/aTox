@@ -8,7 +8,7 @@ import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import ltd.evilcorp.core.repository.UserSettingsRepository
+import ltd.evilcorp.domain.repository.IUserSettingsRepository
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.MediaStore
@@ -31,9 +31,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import ltd.evilcorp.core.repository.ContactRepository
-import ltd.evilcorp.core.repository.FileTransferRepository
-import ltd.evilcorp.core.repository.MessageRepository
+import ltd.evilcorp.domain.repository.IContactRepository
+import ltd.evilcorp.domain.repository.IFileTransferRepository
+import ltd.evilcorp.domain.repository.IMessageRepository
 import ltd.evilcorp.core.model.FT_NOT_STARTED
 import ltd.evilcorp.core.model.FT_REJECTED
 import ltd.evilcorp.core.model.FT_STARTED
@@ -47,7 +47,7 @@ import ltd.evilcorp.core.model.isComplete
 import ltd.evilcorp.core.model.isStarted
 import ltd.evilcorp.core.model.isRejected
 import ltd.evilcorp.core.tox.MAX_AVATAR_SIZE
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 private const val TAG = "FileTransferManager"
 
@@ -65,11 +65,11 @@ class FileTransferManager @Inject constructor(
     private val scope: CoroutineScope,
     private val context: Context,
     private val resolver: ContentResolver,
-    private val contactRepository: ContactRepository,
-    private val messageRepository: MessageRepository,
-    private val fileTransferRepository: FileTransferRepository,
-    private val tox: Tox,
-    private val userSettingsRepository: UserSettingsRepository,
+    private val contactRepository: IContactRepository,
+    private val messageRepository: IMessageRepository,
+    private val fileTransferRepository: IFileTransferRepository,
+    private val tox: ITox,
+    private val userSettingsRepository: IUserSettingsRepository,
 ) {
     private val fileTransfers: MutableList<FileTransfer> = mutableListOf()
     private val outgoingFiles = mutableMapOf<Pair<String, Int>, OutgoingFile>()

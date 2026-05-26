@@ -28,12 +28,12 @@ import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.UserStatus
-import ltd.evilcorp.domain.model.toDb
+
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.ChatManager
 import ltd.evilcorp.domain.feature.ContactManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 const val KEY_TEXT_REPLY = "key_text_reply"
 const val KEY_CONTACT_PK = "key_contact_pk"
@@ -66,7 +66,7 @@ class ActionReceiver : BroadcastReceiver() {
     lateinit var notificationHelper: NotificationHelper
 
     @Inject
-    lateinit var tox: Tox
+    lateinit var tox: ITox
 
     @Inject
     lateinit var scope: CoroutineScope
@@ -121,7 +121,7 @@ class ActionReceiver : BroadcastReceiver() {
     private suspend fun acceptCall(context: Context, pk: PublicKey) {
         val contact = contactManager.get(pk).firstOrNull().let {
             if (it != null) {
-                it.toDb()
+                it
             } else {
                 Log.e(TAG, "Unable to get contact ${pk.fingerprint()} for call notification")
                 Contact(publicKey = pk.string(), name = pk.fingerprint())

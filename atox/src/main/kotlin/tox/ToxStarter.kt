@@ -18,7 +18,7 @@ import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.core.tox.save.SaveManager
 import ltd.evilcorp.core.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.save.testToxSave
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.core.tox.Tox
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.save.ToxSaveStatus

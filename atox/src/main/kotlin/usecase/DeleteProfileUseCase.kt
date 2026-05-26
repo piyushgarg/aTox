@@ -1,4 +1,4 @@
-package ltd.evilcorp.domain.usecase
+package ltd.evilcorp.atox.usecase
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -6,11 +6,11 @@ import javax.inject.Inject
 import ltd.evilcorp.core.db.Database
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.tox.save.SaveManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 import ltd.evilcorp.domain.tox.IToxStarter
 
 class DeleteProfileUseCase @Inject constructor(
-    private val tox: Tox,
+    private val tox: ITox,
     private val toxStarter: IToxStarter,
     private val saveManager: SaveManager,
     private val database: Database,

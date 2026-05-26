@@ -4,19 +4,19 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import ltd.evilcorp.domain.repository.IUserRepository
-import ltd.evilcorp.domain.model.DomainUser
+import ltd.evilcorp.core.model.User
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.UserStatus
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 
 class UserManager @Inject constructor(
     private val scope: CoroutineScope,
     private val userRepository: IUserRepository,
-    private val tox: Tox,
+    private val tox: ITox,
 ) {
     fun get(publicKey: PublicKey) = userRepository.get(publicKey.string())
 
-    fun create(user: DomainUser) = scope.launch {
+    fun create(user: User) = scope.launch {
         userRepository.add(user)
         tox.setName(user.name)
         tox.setStatusMessage(user.statusMessage)
@@ -26,7 +26,7 @@ class UserManager @Inject constructor(
         if (!userRepository.exists(publicKey.string())) {
             val name = tox.getName()
             val statusMessage = tox.getStatusMessage()
-            val user = DomainUser(publicKey.string(), name, statusMessage)
+            val user = User(publicKey.string(), name, statusMessage)
             userRepository.add(user)
         }
     }

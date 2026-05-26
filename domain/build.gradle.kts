@@ -26,13 +26,14 @@ android {
 }
 
 dependencies {
-    implementation(project(":core"))
+    implementation(libs.androidx.room.runtime)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.javax.inject)
     api(libs.kotlinx.coroutines.core)
 
     testImplementation(kotlin("test-junit"))
+    testImplementation(libs.archunit.junit5)
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.junit.ext)

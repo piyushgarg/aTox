@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import ltd.evilcorp.domain.model.toDb
+
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.repository.MessageRepository
@@ -26,7 +26,7 @@ import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.Sender
 import ltd.evilcorp.domain.feature.ContactManager
-import ltd.evilcorp.domain.tox.Tox
+import ltd.evilcorp.domain.tox.ITox
 import ltd.evilcorp.core.tox.ToxID
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 
@@ -35,12 +35,12 @@ import ltd.evilcorp.domain.usecase.AddContactUseCase
 class AddContactViewModel @Inject constructor(
     private val addContactUseCase: AddContactUseCase,
     private val contactManager: ContactManager,
-    private val tox: Tox,
+    private val tox: ITox,
     private val toxStarter: ToxStarter,
 ) : ViewModel() {
     val toxId by lazy { tox.toxId }
     val contacts: StateFlow<List<Contact>> = contactManager.getAll()
-        .map { list -> list.map { it.toDb() } }
+        .map { list -> list }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
