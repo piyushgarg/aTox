@@ -113,6 +113,9 @@ fun NavGraphBuilder.mainTabGraph(
                         launchSingleTop = true
                     }
                 },
+                onCreateGroupClick = {
+                    mainNavController.navigate(AppRoutes.CreateGroup)
+                },
                 onContactInteraction = {},
                 isSearching = isSearchingState.value,
                 onSearchingChanged = { isSearchingState.value = it }

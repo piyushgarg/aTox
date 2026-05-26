@@ -2,17 +2,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package ltd.evilcorp.atox.ui.settings.sound
-
-import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
-import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
-import ltd.evilcorp.atox.ui.settings.common.SettingsSliderRow
+package ltd.evilcorp.atox.ui.settings.screens
 
 import android.content.Context
 import android.media.RingtoneManager
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -22,16 +21,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
+import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
+import ltd.evilcorp.atox.ui.settings.common.SettingsSliderRow
 
-enum class SoundPickerTarget {
-    Sent,
-    Call,
-    Notification,
-    ActiveChat,
-}
-
+@Suppress("FunctionNaming")
 @Composable
-fun SoundSettingsScreen(
+fun NotificationSettingsScreen(
     paddingValues: PaddingValues,
     sentMessageSoundVolume: Int,
     callSoundVolume: Int,
@@ -43,12 +39,13 @@ fun SoundSettingsScreen(
     activeChatSoundUri: String,
     onVolumeChanged: (SoundPickerTarget, Int) -> Unit,
     onSoundPickerClick: (SoundPickerTarget, String, Int) -> Unit,
-    performHaptic: () -> Unit
+    performHaptic: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
 
     LazyColumn(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
@@ -165,4 +162,11 @@ private fun soundTitle(context: Context, uriString: String, type: Int): String {
     } catch (e: Exception) {
         context.getString(R.string.settings_call_sound_default)
     }
+}
+
+enum class SoundPickerTarget {
+    Sent,
+    Call,
+    Notification,
+    ActiveChat,
 }

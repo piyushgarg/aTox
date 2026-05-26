@@ -11,16 +11,19 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +46,7 @@ import ltd.evilcorp.domain.model.TimeFormatPreference
 import ltd.evilcorp.domain.feature.GroupInvite
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.SecureFlagPolicy
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -69,6 +73,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.remember
 
+@Suppress("FunctionNaming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatsRouteScreen(
@@ -87,6 +92,7 @@ fun ChatsRouteScreen(
     onAcceptGroupInvite: () -> Unit,
     onRejectGroupInvite: () -> Unit,
     onAddContactClick: () -> Unit,
+    onCreateGroupClick: () -> Unit,
     onContactInteraction: () -> Unit,
     isSearching: Boolean = false,
     onSearchingChanged: (Boolean) -> Unit = {},
@@ -95,89 +101,145 @@ fun ChatsRouteScreen(
     val listState = rememberSaveable(saver = LazyListState.Saver) {
         LazyListState()
     }
+    var isFabMenuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-            ) {
-                ltd.evilcorp.atox.ui.common.AtoxSearchBar(
-                    query = searchQuery,
-                    onQueryChange = onSearchQueryChanged,
-                    onSearch = {},
-                    active = isSearching,
-                    onActiveChange = onSearchingChanged,
-                    placeholder = stringResource(R.string.contact_list_search_placeholder),
-                    trailingIcon = {
-                        IconButton(onClick = onAddContactClick) {
+            if (isSearching) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                ) {
+                    ltd.evilcorp.atox.ui.common.AtoxSearchBar(
+                        query = searchQuery,
+                        onQueryChange = onSearchQueryChanged,
+                        onSearch = {},
+                        active = true,
+                        onActiveChange = onSearchingChanged,
+                        placeholder = stringResource(R.string.contact_list_search_placeholder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val filteredContacts = remember(searchQuery, contacts) {
+                            if (searchQuery.isBlank()) emptyList()
+                            else contacts.filter {
+                                it.name.contains(searchQuery, ignoreCase = true) ||
+                                it.publicKey.contains(searchQuery, ignoreCase = true)
+                            }
+                        }
+                        
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                items = filteredContacts,
+                                key = { contact -> contact.publicKey }
+                            ) { contact ->
+                                ListItem(
+                                    headlineContent = {
+                                        Text(
+                                            text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            text = contact.publicKey,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    },
+                                    leadingContent = {
+                                        ContactAvatar(
+                                            name = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                                            publicKey = contact.publicKey,
+                                            avatarUri = contact.avatarUri,
+                                            size = 40.dp,
+                                            fontSize = 16.sp
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onSearchingChanged(false)
+                                            onSearchQueryChanged("")
+                                            onContactClick(contact)
+                                        }
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    actions = {
+                        IconButton(onClick = { onSearchingChanged(true) }) {
                             Icon(
-                                imageVector = Icons.Default.PersonAdd,
-                                contentDescription = "Add Contact"
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search"
                             )
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = if (isSearching) 0.dp else 16.dp,
-                            vertical = if (isSearching) 0.dp else 8.dp
-                        )
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
+                )
+            }
+        },
+        floatingActionButton = {
+            Box(contentAlignment = Alignment.BottomEnd) {
+                FloatingActionButton(
+                    onClick = { isFabMenuExpanded = !isFabMenuExpanded },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ) {
-                    val filteredContacts = remember(searchQuery, contacts) {
-                        if (searchQuery.isBlank()) emptyList()
-                        else contacts.filter {
-                            it.name.contains(searchQuery, ignoreCase = true) ||
-                            it.publicKey.contains(searchQuery, ignoreCase = true)
-                        }
-                    }
-                    
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(
-                            items = filteredContacts,
-                            key = { contact -> contact.publicKey }
-                        ) { contact ->
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        text = contact.publicKey,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                leadingContent = {
-                                    ContactAvatar(
-                                        name = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        publicKey = contact.publicKey,
-                                        avatarUri = contact.avatarUri,
-                                        size = 40.dp,
-                                        fontSize = 16.sp
-                                    )
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onSearchingChanged(false)
-                                        onSearchQueryChanged("")
-                                        onContactClick(contact)
-                                    }
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = isFabMenuExpanded,
+                    onDismissRequest = { isFabMenuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.add_contact)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.PersonAdd,
+                                contentDescription = null
                             )
+                        },
+                        onClick = {
+                            isFabMenuExpanded = false
+                            onAddContactClick()
                         }
-                    }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.create_group)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Group,
+                                contentDescription = null
+                            )
+                        },
+                        onClick = {
+                            isFabMenuExpanded = false
+                            onCreateGroupClick()
+                        }
+                    )
                 }
             }
         }

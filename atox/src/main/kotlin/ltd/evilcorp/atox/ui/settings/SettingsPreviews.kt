@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
 package ltd.evilcorp.atox.ui.settings
 
 import androidx.compose.foundation.layout.PaddingValues
@@ -6,10 +10,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.ui.settings.common.SettingsRootContent
-import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsScreen
-import ltd.evilcorp.atox.ui.settings.appearance.LanguageSelectionScreen
-import ltd.evilcorp.atox.ui.settings.appearance.ThemeSelectionScreen
-import ltd.evilcorp.atox.ui.settings.sound.SoundSettingsScreen
+import ltd.evilcorp.atox.ui.settings.screens.BackupSettingsScreen
+import ltd.evilcorp.atox.ui.settings.screens.LanguageSettingsScreen
+import ltd.evilcorp.atox.ui.settings.screens.ThemeSettingsScreen
+import ltd.evilcorp.atox.ui.settings.screens.NotificationSettingsScreen
+import ltd.evilcorp.atox.ui.settings.screens.SoundPickerTarget
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 import ltd.evilcorp.domain.model.BackupDestination
 import ltd.evilcorp.domain.model.BackupFrequency
@@ -40,7 +45,7 @@ fun SettingsRootContentPreview() {
 @Composable
 fun SoundSettingsScreenPreview() {
     AToxTheme {
-        SoundSettingsScreen(
+        NotificationSettingsScreen(
             paddingValues = PaddingValues(16.dp),
             sentMessageSoundVolume = 80,
             callSoundVolume = 90,
@@ -98,7 +103,7 @@ fun BackupSettingsScreenPreview() {
 @Composable
 fun LanguageSelectionScreenPreview() {
     AToxTheme {
-        LanguageSelectionScreen(
+        LanguageSettingsScreen(
             paddingValues = PaddingValues(16.dp),
             currentLanguageCode = "en",
             onLanguageSelect = {}
@@ -110,7 +115,7 @@ fun LanguageSelectionScreenPreview() {
 @Composable
 fun ThemeSelectionScreenPreview() {
     AToxTheme {
-        ThemeSelectionScreen(
+        ThemeSettingsScreen(
             paddingValues = PaddingValues(16.dp),
             appThemeMode = androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM,
             onThemeSelect = {}

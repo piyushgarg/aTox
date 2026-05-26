@@ -123,7 +123,12 @@ fun SettingsChatScreen(
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             onDismissRequest = { showConfirmDialog = false },
             title = { Text(stringResource(R.string.settings_clear_cache_title), fontWeight = FontWeight.Bold) },
-            text = { Text("Вы уверены, что хотите удалить кэш файлов? Все скачанные медиафайлы останутся на устройстве, но будут удалены из кэша приложения.") },
+            text = {
+                Text(
+                    "Are you sure you want to clear the file cache? " +
+                    "All downloaded media files will remain on your device, but they will be removed from the app's cache."
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {

@@ -162,12 +162,6 @@ fun MainTabsScreen(
                                 label = { Text(stringResource(R.string.groups)) }
                             )
                             NavigationBarItem(
-                                selected = currentRoute == AppRoutes.AddContactTab,
-                                onClick = { selectTab(AppRoutes.AddContactTab) },
-                                icon = { Icon(Icons.Default.PersonAdd, contentDescription = "Add Contact") },
-                                label = { Text(stringResource(R.string.add_contact_tab)) }
-                            )
-                            NavigationBarItem(
                                 selected = currentRoute == AppRoutes.Profile,
                                 onClick = { selectTab(AppRoutes.Profile) },
                                 icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },

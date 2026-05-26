@@ -105,7 +105,7 @@ class GroupChatViewModel @Inject constructor(
         activeGroupChatId.value = chatId
         groupManager.activeGroup = chatId
 
-        // Запускаем фоновую синхронизацию метаданных и ключей пиров (аватарок)
+        // Start background synchronization of metadata and peer keys (avatars)
         metadataSyncJob?.cancel()
         metadataSyncJob = viewModelScope.launch(Dispatchers.IO) {
             while (true) {

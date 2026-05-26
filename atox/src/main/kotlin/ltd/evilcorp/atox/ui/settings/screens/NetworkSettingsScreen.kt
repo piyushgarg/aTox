@@ -36,8 +36,9 @@ import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
 import ltd.evilcorp.domain.model.BootstrapNodeSource
 import ltd.evilcorp.domain.model.ProxyType
 
+@Suppress("FunctionNaming", "MagicNumber")
 @Composable
-fun SettingsConnectionScreen(
+fun NetworkSettingsScreen(
     paddingValues: PaddingValues,
     udpEnabled: Boolean,
     runAtStartup: Boolean,
