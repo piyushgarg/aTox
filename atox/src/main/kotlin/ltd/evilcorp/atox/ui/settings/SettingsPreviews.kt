@@ -17,7 +17,7 @@ import ltd.evilcorp.domain.model.BootstrapNodeSource
 import ltd.evilcorp.domain.model.DateFormatPreference
 import ltd.evilcorp.domain.model.FtAutoAccept
 import ltd.evilcorp.domain.model.TimeFormatPreference
-import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.domain.model.ProxyType
 
 @Preview(name = "Main Settings List Preview", showSystemUi = true)
 @Composable

@@ -83,4 +83,10 @@ class AppModule {
 
     @Provides
     fun provideFileTransferPlatformHelper(impl: ltd.evilcorp.core.repository.FileTransferPlatformHelperImpl): ltd.evilcorp.domain.feature.IFileTransferPlatformHelper = impl
+
+    @Provides
+    fun provideToxSaveTester(tester: ltd.evilcorp.core.tox.save.ToxSaveTesterImpl): ltd.evilcorp.domain.tox.save.IToxSaveTester = tester
+
+    @Provides
+    fun provideProfileDeleter(deleter: ltd.evilcorp.core.repository.ProfileDeleterImpl): ltd.evilcorp.domain.usecase.IProfileDeleter = deleter
 }

@@ -1,6 +1,6 @@
 package ltd.evilcorp.domain.model
 
-import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.domain.model.ProxyType
 
 const val DEFAULT_THEME_MODE = -1
 const val DEFAULT_ACCENT_COLOR_SEED = 0xFF3F51B5.toInt()

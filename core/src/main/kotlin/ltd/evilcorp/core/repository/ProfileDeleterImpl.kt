@@ -1,24 +1,24 @@
-package ltd.evilcorp.atox.usecase
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+package ltd.evilcorp.core.repository
+
 import javax.inject.Inject
 import ltd.evilcorp.core.db.Database
-import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.core.tox.save.SaveManager
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.tox.IToxStarter
+import ltd.evilcorp.domain.usecase.IProfileDeleter
 
-class DeleteProfileUseCase @Inject constructor(
-    private val tox: ITox,
+class ProfileDeleterImpl @Inject constructor(
     private val toxStarter: IToxStarter,
     private val saveManager: SaveManager,
     private val database: Database,
-) {
-    suspend fun execute() = withContext(Dispatchers.IO) {
-        val pk = tox.publicKey
+) : IProfileDeleter {
+    override suspend fun deleteProfile(publicKey: PublicKey) {
         toxStarter.stopTox()
-        saveManager.delete(pk)
+        saveManager.delete(publicKey)
         saveManager.list().forEach {
             try {
                 saveManager.delete(PublicKey(it))

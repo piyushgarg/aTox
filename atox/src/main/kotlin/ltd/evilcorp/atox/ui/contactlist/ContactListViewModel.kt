@@ -31,12 +31,12 @@ import ltd.evilcorp.domain.feature.FriendRequestManager
 import ltd.evilcorp.domain.feature.GroupManager
 import ltd.evilcorp.domain.feature.GroupInvite
 import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.core.tox.save.ProxyType
-import ltd.evilcorp.core.tox.save.SaveOptions
+import ltd.evilcorp.domain.model.ProxyType
+import ltd.evilcorp.domain.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.domain.tox.ITox
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
-import ltd.evilcorp.atox.usecase.DeleteProfileUseCase
+import ltd.evilcorp.domain.usecase.DeleteProfileUseCase
 import ltd.evilcorp.domain.usecase.DeleteContactUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

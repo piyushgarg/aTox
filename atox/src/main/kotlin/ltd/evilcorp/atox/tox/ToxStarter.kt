@@ -16,7 +16,7 @@ import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.feature.FileTransferManager
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.core.tox.save.SaveManager
-import ltd.evilcorp.core.tox.save.SaveOptions
+import ltd.evilcorp.domain.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.core.tox.Tox
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener

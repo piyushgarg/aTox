@@ -24,7 +24,7 @@ import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
 import ltd.evilcorp.core.tox.enums.ToxGroupRole
 import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.core.tox.save.SaveManager
-import ltd.evilcorp.core.tox.save.SaveOptions
+import ltd.evilcorp.domain.tox.save.SaveOptions
 
 private const val TAG = "ToxRuntime"
 private const val SLOW_ITERATION_LIMIT_MS = 10

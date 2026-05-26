@@ -1,6 +1,7 @@
 package ltd.evilcorp.core.tox.save
 
 import ltd.evilcorp.core.tox.NativeTox
+import ltd.evilcorp.domain.tox.save.SaveOptions
 
 /**
  * Перечисление возможных статусов загрузки и проверки бинарного файла сохранения Tox (save data).

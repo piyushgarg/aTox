@@ -16,7 +16,7 @@ import ltd.evilcorp.core.tox.enums.ToxFileControl
 import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
 import ltd.evilcorp.core.tox.enums.ToxGroupRole
-import ltd.evilcorp.core.tox.save.SaveOptions
+import ltd.evilcorp.domain.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.toToxtype
 import ltd.evilcorp.core.tox.toToxType
 

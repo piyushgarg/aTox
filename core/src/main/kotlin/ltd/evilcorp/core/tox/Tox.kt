@@ -6,7 +6,7 @@ package ltd.evilcorp.core.tox
 
 import javax.inject.Inject
 import javax.inject.Singleton
-import ltd.evilcorp.core.tox.save.SaveOptions
+import ltd.evilcorp.domain.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.runtime.ToxRuntime

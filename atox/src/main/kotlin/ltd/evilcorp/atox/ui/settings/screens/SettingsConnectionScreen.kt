@@ -34,7 +34,7 @@ import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
 import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
 import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
 import ltd.evilcorp.domain.model.BootstrapNodeSource
-import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.domain.model.ProxyType
 
 @Composable
 fun SettingsConnectionScreen(

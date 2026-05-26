@@ -13,7 +13,7 @@ import ltd.evilcorp.domain.model.FtAutoAccept
 import ltd.evilcorp.domain.model.AppSound
 import ltd.evilcorp.domain.model.TimeFormatPreference
 import ltd.evilcorp.atox.receiver.BootReceiver
-import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.domain.model.ProxyType
 import ltd.evilcorp.domain.model.UserSettings
 import ltd.evilcorp.core.repository.UserSettingsRepository
 

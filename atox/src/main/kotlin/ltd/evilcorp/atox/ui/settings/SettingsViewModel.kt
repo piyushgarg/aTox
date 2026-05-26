@@ -22,11 +22,11 @@ import ltd.evilcorp.domain.model.BootstrapNodeSource
 import ltd.evilcorp.domain.model.BackupFrequency
 import ltd.evilcorp.domain.model.BackupDestination
 import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeRegistry
-import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.domain.model.ProxyType
 import ltd.evilcorp.domain.tox.ITox
 import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.atox.usecase.CheckProxyUseCase
-import ltd.evilcorp.atox.usecase.ProxyStatus
+import ltd.evilcorp.domain.usecase.CheckProxyUseCase
+import ltd.evilcorp.domain.model.ProxyStatus
 
 private const val TOX_SHUTDOWN_POLL_DELAY_MS = 200L
 

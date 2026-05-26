@@ -107,7 +107,7 @@ import ltd.evilcorp.domain.model.BootstrapNodeSource
 import ltd.evilcorp.domain.model.DateFormatPreference
 import ltd.evilcorp.domain.model.FtAutoAccept
 import ltd.evilcorp.domain.model.TimeFormatPreference
-import ltd.evilcorp.core.tox.save.ProxyType
+import ltd.evilcorp.domain.model.ProxyType
 import ltd.evilcorp.atox.ui.settings.common.SettingsRootContent
 import ltd.evilcorp.atox.ui.settings.common.SettingsSearchPopup
 import ltd.evilcorp.atox.ui.settings.common.SettingsDestination
