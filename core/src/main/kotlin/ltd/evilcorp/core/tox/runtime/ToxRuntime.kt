@@ -219,6 +219,16 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
+     * Добавляет друга в список без отправки запроса (по publicKey).
+     * Используется для временного добавления участников группы для bootstrap-поиска.
+     */
+    fun addFriendNoRequest(publicKey: PublicKey): Int {
+        val result = toxWrapper.addFriendNoRequest(publicKey)
+        if (result >= 0) save()
+        return result
+    }
+
+    /**
      * Удаляет друга из списка контактов.
      */
     fun deleteContact(publicKey: PublicKey) {
@@ -454,6 +464,12 @@ class ToxRuntime @Inject constructor(
      */
     fun groupReconnect(groupNumber: Int): Boolean =
         toxWrapper.groupReconnect(groupNumber)
+
+    /**
+     * Возвращает массив groupNumber всех активных NGC-групп в текущей сессии.
+     */
+    fun groupGetChatlist(): IntArray =
+        toxWrapper.groupGetChatlist()
 
     /**
      * Создает групповую аудио-конференцию.

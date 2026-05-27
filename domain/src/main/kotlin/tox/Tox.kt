@@ -80,6 +80,9 @@ class Tox @Inject constructor(
         runtime.addContact(toxId, message)
     }
 
+    fun addFriendNoRequest(publicKey: PublicKey): Int =
+        runtime.addFriendNoRequest(publicKey)
+
     fun deleteContact(publicKey: PublicKey) {
         runtime.deleteContact(publicKey)
     }
@@ -165,4 +168,7 @@ class Tox @Inject constructor(
 
     fun groupReconnect(groupNumber: Int): Boolean =
         runtime.groupReconnect(groupNumber)
+
+    fun groupGetChatlist(): IntArray =
+        runtime.groupGetChatlist()
 }

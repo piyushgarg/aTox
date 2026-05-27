@@ -256,6 +256,24 @@ class ToxWrapper(
     }
 
     /**
+     * Добавляет друга в список без отправки запроса (по publicKey).
+     * Используется для временного добавления участников группы для bootstrap-поиска.
+     * @return friendNumber, либо -1 при ошибке.
+     */
+    fun addFriendNoRequest(pk: PublicKey): Int = synchronized(this) {
+        try {
+            val result = nativeTox.toxAddFriendNorequest(toxPtr, pk.bytes())
+            if (result >= 0) {
+                updateContactMapping()
+            }
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception while adding friend norequest $pk: $e")
+            -1
+        }
+    }
+
+    /**
      * Возобновляет или одобряет входящий файловый трансфер.
      */
     fun startFileTransfer(pk: PublicKey, fileNumber: Int) = synchronized(this) {
@@ -579,6 +597,13 @@ class ToxWrapper(
      */
     fun groupReconnect(groupNumber: Int): Boolean = synchronized(this) {
         nativeTox.toxGroupReconnect(toxPtr, groupNumber)
+    }
+
+    /**
+     * Возвращает массив groupNumber всех активных NGC-групп в текущей сессии.
+     */
+    fun groupGetChatlist(): IntArray = synchronized(this) {
+        nativeTox.toxGroupGetChatlist(toxPtr)
     }
 
     /**
