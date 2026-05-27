@@ -12,6 +12,8 @@ import ltd.evilcorp.domain.model.Contact
 
 
 
+import ltd.evilcorp.domain.model.ReplyParser
+
 internal sealed interface Size
 
 @JvmInline
@@ -32,11 +34,5 @@ internal fun contactListSorter(contact: Contact) = when {
 }
 
 fun stripReplyPrefix(text: String): String {
-    if (text.startsWith("[reply:")) {
-        val index = text.indexOf("] ")
-        if (index != -1) {
-            return text.substring(index + 2)
-        }
-    }
-    return text
+    return ReplyParser.stripReplyPrefix(text)
 }

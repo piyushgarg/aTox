@@ -22,10 +22,10 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.LifecycleService
 import javax.inject.Inject
 import dagger.hilt.android.AndroidEntryPoint
-import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.usecase.InitializeToxUseCase
 
 private const val TAG = "ToxService"
 private const val NOTIFICATION_ID = 1984
@@ -40,7 +40,7 @@ class ToxService : LifecycleService() {
     lateinit var tox: ITox
 
     @Inject
-    lateinit var toxStarter: ToxStarter
+    lateinit var initializeToxUseCase: InitializeToxUseCase
 
     @Inject
     lateinit var permissionManager: PermissionManager
@@ -84,7 +84,7 @@ class ToxService : LifecycleService() {
         super.onCreate()
 
         if (!tox.started) {
-            if (toxStarter.tryLoadTox(null) != ToxSaveStatus.Ok) {
+            if (initializeToxUseCase.execute(null) != ToxSaveStatus.Ok) {
                 Log.e(TAG, "Tox service started without a Tox save")
                 stopSelf()
             }
@@ -100,18 +100,48 @@ class ToxService : LifecycleService() {
             startForeground(
                 NOTIFICATION_ID,
                 notificationFor(connectionStatus),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
             )
         } else {
             startForeground(NOTIFICATION_ID, notificationFor(connectionStatus))
         }
 
-        lifecycleController.start(this) { newStatus ->
-            connectionStatus = newStatus
-            if (permissionManager.canPostNotifications()) {
-                notifier.notify(NOTIFICATION_ID, notificationFor(connectionStatus))
+        lifecycleController.start(
+            lifecycleOwner = this,
+            onConnectionStatusChanged = { newStatus ->
+                connectionStatus = newStatus
+                if (permissionManager.canPostNotifications()) {
+                    notifier.notify(NOTIFICATION_ID, notificationFor(connectionStatus))
+                }
+            },
+            onCallStateChanged = { inCall ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val foregroundType = if (inCall) {
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                    } else {
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                    }
+                    try {
+                        startForeground(
+                            NOTIFICATION_ID,
+                            notificationFor(connectionStatus),
+                            foregroundType
+                        )
+                    } catch (e: SecurityException) {
+                        Log.e(TAG, "Failed to start foreground service with type microphone", e)
+                        try {
+                            startForeground(
+                                NOTIFICATION_ID,
+                                notificationFor(connectionStatus),
+                                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                            )
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Failed to start fallback dataSync foreground service", ex)
+                        }
+                    }
+                }
             }
-        }
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

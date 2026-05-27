@@ -23,6 +23,7 @@ import ltd.evilcorp.domain.model.DateFormatPreference
 import ltd.evilcorp.domain.model.FtAutoAccept
 import ltd.evilcorp.domain.model.TimeFormatPreference
 import ltd.evilcorp.domain.model.ProxyType
+import ltd.evilcorp.domain.backup.BackupDataProvider
 
 @Preview(name = "Main Settings List Preview", showSystemUi = true)
 @Composable

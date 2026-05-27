@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import ltd.evilcorp.atox.ui.common.AtoxItemCard
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,21 +38,8 @@ fun GroupItemCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    AtoxItemCard(
+        avatar = {
             Box(
                 modifier = Modifier.size(48.dp)
             ) {
@@ -97,37 +85,34 @@ fun GroupItemCard(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+        },
+        title = {
+            Text(
+                text = group.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        subtitle = {
+            val topic = group.topic
+            if (!topic.isNullOrEmpty()) {
                 Text(
-                    text = group.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = topic,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                val topic = group.topic
-                if (!topic.isNullOrEmpty()) {
-                    Text(
-                        text = topic,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.group_peer_count, group.peerCount),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            } else {
+                Text(
+                    text = stringResource(R.string.group_peer_count, group.peerCount),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
+        },
+        meta = {
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Center
@@ -150,13 +135,8 @@ fun GroupItemCard(
                     color = statusColor
                 )
             }
-        }
-
-        HorizontalDivider(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(start = 76.dp),
-            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)
-        )
-    }
+        },
+        onClick = onClick,
+        onLongClick = onLongClick
+    )
 }

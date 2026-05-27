@@ -1,31 +1,32 @@
 package ltd.evilcorp.atox.ui.chat
 
+import android.util.LruCache
 import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.model.FileTransfer
-import java.util.concurrent.ConcurrentHashMap
 
 object ChatHistoryCache {
-    private val cache = ConcurrentHashMap<String, List<Message>>()
-    private val transferCache = ConcurrentHashMap<String, List<FileTransfer>>()
+    private const val MAX_CACHED_CHATS = 20
+    private val cache = LruCache<String, List<Message>>(MAX_CACHED_CHATS)
+    private val transferCache = LruCache<String, List<FileTransfer>>(MAX_CACHED_CHATS)
 
     fun put(publicKey: String, messages: List<Message>) {
-        cache[publicKey] = messages
+        cache.put(publicKey, messages)
     }
 
     fun get(publicKey: String): List<Message> {
-        return cache[publicKey] ?: emptyList()
+        return cache.get(publicKey) ?: emptyList()
     }
 
     fun putTransfers(publicKey: String, transfers: List<FileTransfer>) {
-        transferCache[publicKey] = transfers
+        transferCache.put(publicKey, transfers)
     }
 
     fun getTransfers(publicKey: String): List<FileTransfer> {
-        return transferCache[publicKey] ?: emptyList()
+        return transferCache.get(publicKey) ?: emptyList()
     }
 
     fun clear() {
-        cache.clear()
-        transferCache.clear()
+        cache.evictAll()
+        transferCache.evictAll()
     }
 }

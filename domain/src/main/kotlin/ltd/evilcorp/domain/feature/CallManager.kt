@@ -4,10 +4,6 @@
 
 package ltd.evilcorp.domain.feature
 
-import android.content.Context
-import android.os.Build
-import android.os.SystemClock
-import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -24,10 +20,11 @@ import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.Sender
 import ltd.evilcorp.domain.repository.IContactRepository
-import ltd.evilcorp.domain.repository.IMessageRepository
-import ltd.evilcorp.domain.media.CallSignalPlayer
-import ltd.evilcorp.domain.av.CallAudioRecorder
+import ltd.evilcorp.domain.media.ICallSignalPlayer
+import ltd.evilcorp.domain.av.IAudioRecorder
 import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.usecase.LogCallUseCase
+import ltd.evilcorp.domain.usecase.CallHistoryType
 
 sealed class CallState {
     object Idle : CallState()
@@ -46,9 +43,9 @@ class CallManager @Inject constructor(
     private val tox: ITox,
     private val scope: CoroutineScope,
     private val contactRepository: IContactRepository,
-    private val messageRepository: IMessageRepository,
-    private val signalPlayer: CallSignalPlayer,
-    private val audioRecorder: CallAudioRecorder,
+    private val logCallUseCase: LogCallUseCase,
+    private val signalPlayer: ICallSignalPlayer,
+    private val audioRecorder: IAudioRecorder,
     private val audioRoutingManager: IAudioRoutingManager,
 ) {
     private val _inCall = MutableStateFlow<CallState>(CallState.Idle)
@@ -59,8 +56,10 @@ class CallManager @Inject constructor(
     private val _speakerphoneOn = MutableStateFlow(false)
     val speakerphoneOnState: StateFlow<Boolean> get() = _speakerphoneOn
 
+    private val _microphoneEnabled = MutableStateFlow(true)
+    val microphoneEnabled: StateFlow<Boolean> get() = _microphoneEnabled
+
     private var transitionJob: Job? = null
-    private var microphoneDesired = true
 
     private fun requestAudioFocus(): Boolean {
         return audioRoutingManager.requestCallAudioFocus(
@@ -69,7 +68,7 @@ class CallManager @Inject constructor(
             },
             onFocusGain = {
                 val target = currentTarget()
-                if (target != null && _inCall.value is CallState.Active && microphoneDesired) {
+                if (target != null && _inCall.value is CallState.Active && _microphoneEnabled.value) {
                     startAudioCapture(target)
                 }
             }
@@ -89,11 +88,11 @@ class CallManager @Inject constructor(
         }
 
         return try {
-            microphoneDesired = true
+            _microphoneEnabled.value = true
             requestAudioFocus()
             tox.startCall(publicKey)
             audioRoutingManager.setCommunicationMode(true)
-            setState(CallState.OutgoingRequesting(publicKey, SystemClock.elapsedRealtime()))
+            setState(CallState.OutgoingRequesting(publicKey, System.currentTimeMillis()))
             signalPlayer.playRingback(scope) {
                 val state = _inCall.value
                 state is CallState.OutgoingRequesting ||
@@ -104,16 +103,16 @@ class CallManager @Inject constructor(
             transitionJob = scope.launch {
                 delay(500)
                 if (_inCall.value is CallState.OutgoingRequesting) {
-                    setState(CallState.OutgoingWaiting(publicKey, SystemClock.elapsedRealtime()))
+                    setState(CallState.OutgoingWaiting(publicKey, System.currentTimeMillis()))
                 }
                 delay(900)
                 if (_inCall.value is CallState.OutgoingWaiting) {
-                    setState(CallState.OutgoingRinging(publicKey, SystemClock.elapsedRealtime()))
+                    setState(CallState.OutgoingRinging(publicKey, System.currentTimeMillis()))
                 }
             }
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting outgoing call", e)
+            Log.e(TAG, "Error starting outgoing call: $e")
             cleanupSession()
             false
         }
@@ -126,15 +125,15 @@ class CallManager @Inject constructor(
             }
             return
         }
-        microphoneDesired = true
-        setState(CallState.IncomingRinging(from, SystemClock.elapsedRealtime()))
+        _microphoneEnabled.value = true
+        setState(CallState.IncomingRinging(from, System.currentTimeMillis()))
         signalPlayer.playIncomingRingtone(scope)
     }
 
     fun removePendingCall(publicKey: PublicKey) {
         val incoming = _inCall.value as? CallState.IncomingRinging ?: return
         if (incoming.contact.publicKey != publicKey.string()) return
-        finishSession(publicKey, localHangup = true, record = CallHistory.Missed)
+        finishSession(publicKey, localHangup = true, record = CallHistoryType.Missed)
     }
 
     suspend fun acceptIncomingCall(publicKey: PublicKey): Boolean {
@@ -149,7 +148,7 @@ class CallManager @Inject constructor(
             onCallConnected(publicKey)
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error answering incoming call", e)
+            Log.e(TAG, "Error answering incoming call: $e")
             cleanupSession()
             false
         }
@@ -173,13 +172,13 @@ class CallManager @Inject constructor(
         val nextState = when (current) {
             is CallState.Connecting ->
                 if (current.publicKey == publicKey) {
-                    CallState.Active(publicKey, current.startedAt, SystemClock.elapsedRealtime(), current.outgoing)
+                    CallState.Active(publicKey, current.startedAt, System.currentTimeMillis(), current.outgoing)
                 } else {
                     null
                 }
             is CallState.IncomingRinging ->
                 if (current.contact.publicKey == publicKey.string()) {
-                    CallState.Active(publicKey, current.startedAt, SystemClock.elapsedRealtime(), outgoing = false)
+                    CallState.Active(publicKey, current.startedAt, System.currentTimeMillis(), outgoing = false)
                 } else {
                     null
                 }
@@ -188,7 +187,7 @@ class CallManager @Inject constructor(
 
         signalPlayer.stopSignals()
         setState(nextState)
-        if (microphoneDesired) {
+        if (_microphoneEnabled.value) {
             startAudioCapture(publicKey)
         }
     }
@@ -196,15 +195,15 @@ class CallManager @Inject constructor(
     fun endCall(publicKey: PublicKey) {
         val record = when (val current = _inCall.value) {
             is CallState.IncomingRinging ->
-                if (current.contact.publicKey == publicKey.string()) CallHistory.Missed else null
+                if (current.contact.publicKey == publicKey.string()) CallHistoryType.Missed else null
             is CallState.OutgoingRequesting -> null
-            is CallState.OutgoingWaiting -> CallHistory.Cancelled
-            is CallState.OutgoingRinging -> CallHistory.Cancelled
+            is CallState.OutgoingWaiting -> CallHistoryType.Cancelled
+            is CallState.OutgoingRinging -> CallHistoryType.Cancelled
             is CallState.Connecting -> if (current.publicKey == publicKey) {
-                if (current.outgoing) CallHistory.Cancelled else CallHistory.Incoming
+                if (current.outgoing) CallHistoryType.Cancelled else CallHistoryType.Incoming
             } else null
             is CallState.Active -> if (current.publicKey == publicKey) {
-                if (current.outgoing) CallHistory.Outgoing else CallHistory.Incoming
+                if (current.outgoing) CallHistoryType.Outgoing else CallHistoryType.Incoming
             } else null
             CallState.Idle -> null
         }
@@ -214,15 +213,15 @@ class CallManager @Inject constructor(
     fun terminate(publicKey: PublicKey) {
         val record = when (val current = _inCall.value) {
             is CallState.IncomingRinging ->
-                if (current.contact.publicKey == publicKey.string()) CallHistory.Missed else null
+                if (current.contact.publicKey == publicKey.string()) CallHistoryType.Missed else null
             is CallState.OutgoingRequesting -> null
-            is CallState.OutgoingWaiting -> CallHistory.Cancelled
-            is CallState.OutgoingRinging -> CallHistory.Cancelled
+            is CallState.OutgoingWaiting -> CallHistoryType.Cancelled
+            is CallState.OutgoingRinging -> CallHistoryType.Cancelled
             is CallState.Connecting -> if (current.publicKey == publicKey) {
-                if (current.outgoing) CallHistory.Cancelled else CallHistory.Incoming
+                if (current.outgoing) CallHistoryType.Cancelled else CallHistoryType.Incoming
             } else null
             is CallState.Active -> if (current.publicKey == publicKey) {
-                if (current.outgoing) CallHistory.Outgoing else CallHistory.Incoming
+                if (current.outgoing) CallHistoryType.Outgoing else CallHistoryType.Incoming
             } else null
             CallState.Idle -> null
         }
@@ -230,7 +229,7 @@ class CallManager @Inject constructor(
     }
 
     fun startSendingAudio(): Boolean {
-        microphoneDesired = true
+        _microphoneEnabled.value = true
         val target = currentTarget() ?: return false
         if (_inCall.value is CallState.Active) {
             startAudioCapture(target)
@@ -239,7 +238,7 @@ class CallManager @Inject constructor(
     }
 
     fun stopSendingAudio() {
-        microphoneDesired = false
+        _microphoneEnabled.value = false
         audioRecorder.stopAudioCapture()
     }
 
@@ -254,13 +253,13 @@ class CallManager @Inject constructor(
         audioRoutingManager.setSpeakerphoneRoute(on)
     }
 
-    private fun finishSession(publicKey: PublicKey, localHangup: Boolean, record: CallHistory?) {
+    private fun finishSession(publicKey: PublicKey, localHangup: Boolean, record: CallHistoryType?) {
         scope.launch {
             if (localHangup) {
                 runCatching { tox.endCall(publicKey) }
             }
             if (record != null) {
-                logCall(publicKey, record)
+                logCallUseCase.execute(publicKey.string(), record)
             }
             cleanupSession()
         }
@@ -273,7 +272,7 @@ class CallManager @Inject constructor(
     private fun cleanupSession() {
         transitionJob?.cancel()
         transitionJob = null
-        microphoneDesired = true
+        _microphoneEnabled.value = true
         audioRecorder.stopAudioCapture()
         signalPlayer.stopSignals()
         abandonAudioFocus()
@@ -301,43 +300,15 @@ class CallManager @Inject constructor(
 
     private fun restartAudioCaptureForRouteChange() {
         val target = currentTarget() ?: return
-        if (_inCall.value !is CallState.Active || !microphoneDesired || !audioRecorder.sendingAudio.value) return
+        if (_inCall.value !is CallState.Active || !_microphoneEnabled.value || !audioRecorder.sendingAudio.value) return
 
         audioRecorder.stopAudioCapture()
         scope.launch {
             audioRecorder.joinRecording()
-            if (_inCall.value is CallState.Active && microphoneDesired && currentTarget() == target) {
+            if (_inCall.value is CallState.Active && _microphoneEnabled.value && currentTarget() == target) {
                 startAudioCapture(target)
             }
         }
     }
-
-    private fun logCall(publicKey: PublicKey, event: CallHistory) {
-        val tag = when (event) {
-            CallHistory.Outgoing -> "[CALL_HISTORY_OUTGOING]"
-            CallHistory.Incoming -> "[CALL_HISTORY_INCOMING]"
-            CallHistory.Missed -> "[CALL_HISTORY_MISSED]"
-            CallHistory.Cancelled -> "[CALL_HISTORY_CANCELLED]"
-        }
-        val sender = when (event) {
-            CallHistory.Outgoing, CallHistory.Cancelled -> Sender.Sent
-            CallHistory.Incoming, CallHistory.Missed -> Sender.Received
-        }
-        messageRepository.add(
-            Message(
-                publicKey = publicKey.string(),
-                message = tag,
-                sender = sender,
-                type = MessageType.Action,
-                correlationId = Int.MIN_VALUE,
-            ),
-        )
-    }
-
-    private enum class CallHistory {
-        Outgoing,
-        Incoming,
-        Missed,
-        Cancelled,
-    }
 }
+

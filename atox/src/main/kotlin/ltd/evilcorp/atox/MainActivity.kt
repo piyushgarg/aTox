@@ -17,6 +17,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.core.view.WindowCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
@@ -27,13 +29,14 @@ import ltd.evilcorp.domain.feature.GroupManager
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import ltd.evilcorp.atox.ui.appearance.AppearanceManager
+import ltd.evilcorp.atox.appearance.AppearanceManager
 import ltd.evilcorp.atox.infrastructure.service.AutoAway
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
 import ltd.evilcorp.atox.ui.navigation.AToxNavGraph
+import ltd.evilcorp.atox.ui.navigation.ToxLinkManager
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 import ltd.evilcorp.domain.model.FileTransfer
 import ltd.evilcorp.domain.model.FINGERPRINT_LEN
@@ -41,6 +44,9 @@ import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.tox.TOX_ID_LENGTH
 import java.io.File
+
+import ltd.evilcorp.atox.infrastructure.sharing.SharedContentManager
+import androidx.compose.ui.graphics.toArgb
 
 private const val TAG = "MainActivity"
 private const val SCHEME = "tox:"
@@ -57,7 +63,7 @@ sealed class SharedContent : java.io.Serializable {
 @dagger.hilt.android.AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     companion object {
-        val sharedContentState = mutableStateOf<SharedContent?>(null)
+        // Removed static sharedContentState
     }
 
 
@@ -85,17 +91,26 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var groupManager: GroupManager
 
+    @Inject
+    lateinit var sharedContentManager: SharedContentManager
+
+    @Inject
+    lateinit var toxLinkManager: ToxLinkManager
+
     private var groupInviteDialog: android.app.AlertDialog? = null
-    private val initialToxIdToLink = mutableStateOf<String?>(null)
     private val callScreenMinimized = mutableStateOf(false)
 
+    @Suppress("LongMethod")
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        ltd.evilcorp.atox.ui.navigation.AppBarStateHolder.clear()
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
         updateSecureWindow(settings.disableScreenshots)
 
         setContent {
+            val windowSizeClass = calculateWindowSizeClass(this)
             val appearance by appearanceManager.appearance.collectAsState()
             val isDarkTheme = when (appearance.themeMode) {
                 AppCompatDelegate.MODE_NIGHT_YES -> true
@@ -104,24 +119,39 @@ class MainActivity : AppCompatActivity() {
                     android.content.res.Configuration.UI_MODE_NIGHT_YES
             }
 
-            LaunchedEffect(appearance, isDarkTheme) {
-                syncSystemBars(isDarkTheme)
-            }
-
             AToxTheme(
                 darkTheme = isDarkTheme,
                 dynamicColor = appearance.dynamicColorEnabled,
                 accentColorSeedArgb = appearance.accentColorSeed
             ) {
+                val surfaceContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                LaunchedEffect(isDarkTheme, surfaceContainerColor) {
+                    val navBarColor = surfaceContainerColor.toArgb()
+                    window.navigationBarColor = navBarColor
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        window.isNavigationBarContrastEnforced = false
+                    }
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                    window.attributes = window.attributes.apply {
+                        dimAmount = 0f
+                    }
+                    window.decorView.alpha = 1f
+                    WindowCompat.getInsetsController(window, window.decorView).apply {
+                        isAppearanceLightStatusBars = !isDarkTheme
+                        isAppearanceLightNavigationBars = !isDarkTheme
+                    }
+                }
+
                 AToxNavGraph(
                     appearance = appearance,
                     settings = settings,
+                    windowSizeClass = windowSizeClass,
 
                     callManager = callManager,
                     notificationHelper = notificationHelper,
                     permissionManager = permissionManager,
                     systemSoundPlayer = systemSoundPlayer,
-                    initialToxIdToLink = initialToxIdToLink,
+                    toxLinkManager = toxLinkManager,
                     callScreenMinimized = callScreenMinimized,
                     onOpenFile = ::openFile,
                     onQuitApp = ::finish,
@@ -141,18 +171,6 @@ class MainActivity : AppCompatActivity() {
 
         if (savedInstanceState == null) {
             handleIntent(intent)
-        }
-    }
-
-    private fun syncSystemBars(isDarkTheme: Boolean) {
-        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-        window.attributes = window.attributes.apply {
-            dimAmount = 0f
-        }
-        window.decorView.alpha = 1f
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = !isDarkTheme
-            isAppearanceLightNavigationBars = !isDarkTheme
         }
     }
 
@@ -200,7 +218,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val toxId = data.drop(SCHEME.length)
-        initialToxIdToLink.value = toxId
+        toxLinkManager.setPendingToxId(toxId)
     }
 
     private fun handleShareIntent(intent: Intent) {
@@ -211,7 +229,7 @@ class MainActivity : AppCompatActivity() {
                 if (type.startsWith("text/")) {
                     val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
                     if (!sharedText.isNullOrEmpty()) {
-                        sharedContentState.value = SharedContent.Text(sharedText)
+                        sharedContentManager.setSharedContent(SharedContent.Text(sharedText))
                         Log.i(TAG, "Parsed shared text: $sharedText")
                     }
                 } else {
@@ -222,7 +240,7 @@ class MainActivity : AppCompatActivity() {
                         intent.getParcelableExtra(Intent.EXTRA_STREAM)
                     }
                     if (streamUri != null) {
-                        sharedContentState.value = SharedContent.File(streamUri, type)
+                        sharedContentManager.setSharedContent(SharedContent.File(streamUri, type))
                         Log.i(TAG, "Parsed shared file URI: $streamUri")
                     }
                 }
@@ -234,7 +252,7 @@ class MainActivity : AppCompatActivity() {
                     intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
                 }
                 if (streamUris != null) {
-                    sharedContentState.value = SharedContent.MultipleFiles(streamUris.filterNotNull())
+                    sharedContentManager.setSharedContent(SharedContent.MultipleFiles(streamUris.filterNotNull()))
                     Log.i(TAG, "Parsed shared multiple URIs: $streamUris")
                 }
             }

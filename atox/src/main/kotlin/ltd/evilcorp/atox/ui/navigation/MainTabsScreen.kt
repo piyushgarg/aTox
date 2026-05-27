@@ -32,6 +32,8 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -158,27 +160,19 @@ fun AToxBottomBar(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(animationSpec = tween(300)) + 
-                slideInVertically(
-                    initialOffsetY = { it },
-                    animationSpec = tween(300, easing = AToxMotion.EmphasizedDecelerate)
-                ),
-        exit = fadeOut(animationSpec = tween(200)) + 
-               slideOutVertically(
-                   targetOffsetY = { it },
-                   animationSpec = tween(200, easing = AToxMotion.EmphasizedAccelerate)
-               ),
+        enter = AToxMotion.bottomBarEnter(),
+        exit = AToxMotion.bottomBarExit(),
         modifier = modifier
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
         ) {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 tonalElevation = 8.dp,
-                windowInsets = WindowInsets(0)
+                windowInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
             ) {
                 val chatsRouteName = AppRoutes.Chats::class.qualifiedName!!
                 val groupsRouteName = AppRoutes.Groups::class.qualifiedName!!
@@ -238,16 +232,8 @@ fun AToxFAB(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(animationSpec = tween(300)) + 
-                slideInVertically(
-                    initialOffsetY = { it / 2 },
-                    animationSpec = tween(300, easing = AToxMotion.EmphasizedDecelerate)
-                ),
-        exit = fadeOut(animationSpec = tween(200)) + 
-               slideOutVertically(
-                   targetOffsetY = { it / 2 },
-                   animationSpec = tween(200, easing = AToxMotion.EmphasizedAccelerate)
-               ),
+        enter = AToxMotion.fabEnter(),
+        exit = AToxMotion.fabExit(),
         modifier = modifier
     ) {
         Box(contentAlignment = Alignment.BottomEnd) {
@@ -260,7 +246,7 @@ fun AToxFAB(
                 },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = FloatingActionButtonDefaults.shape
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,

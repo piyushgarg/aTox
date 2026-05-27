@@ -1,9 +1,5 @@
 package ltd.evilcorp.domain.model
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
 // These enums are 1:1 mappings of the Tox protocol connection/user status values.
 enum class ConnectionStatus {
     None,
@@ -17,39 +13,28 @@ enum class UserStatus {
     Busy,
 }
 
-@Entity(tableName = "contacts")
+@Stable
 data class Contact(
-    @PrimaryKey
-    @ColumnInfo(name = "public_key")
     val publicKey: String,
-
-    @ColumnInfo(name = "name")
     var name: String = "",
-
-    @ColumnInfo(name = "status_message")
     var statusMessage: String = "...",
-
-    @ColumnInfo(name = "last_message")
     var lastMessage: Long = 0,
-
-    @ColumnInfo(name = "status")
     var status: UserStatus = UserStatus.None,
-
-    @ColumnInfo(name = "connection_status")
     var connectionStatus: ConnectionStatus = ConnectionStatus.None,
-
-    @ColumnInfo(name = "typing")
     var typing: Boolean = false,
-
-    @ColumnInfo(name = "avatar_uri")
     var avatarUri: String = "",
-
-    @ColumnInfo(name = "has_unread_messages")
     var hasUnreadMessages: Boolean = false,
-
-    @ColumnInfo(name = "draft_message")
     var draftMessage: String = "",
-
-    @ColumnInfo(name = "last_online")
     var lastOnline: Long = 0,
 )
+
+val Contact.initials: String
+    get() {
+        val displayName = name.ifEmpty { "Contact" }
+        val segments = displayName.split(" ").filter { it.isNotBlank() }
+        return when {
+            segments.isEmpty() -> "C"
+            segments.size == 1 -> segments.first().take(1)
+            else -> segments.first().take(1) + segments[1].take(1)
+        }
+    }

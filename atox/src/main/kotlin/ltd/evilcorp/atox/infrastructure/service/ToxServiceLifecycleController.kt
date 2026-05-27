@@ -19,7 +19,7 @@ import ltd.evilcorp.atox.infrastructure.tox.ToxBootstrapper
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
 import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.core.repository.UserRepository
+import ltd.evilcorp.domain.repository.IUserRepository
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.feature.CallState
 import ltd.evilcorp.domain.feature.FriendRequestManager
@@ -33,7 +33,7 @@ private const val TAG = "ToxServiceLC"
 class ToxServiceLifecycleController @Inject constructor(
     private val context: Context,
     private val tox: ITox,
-    private val userRepository: UserRepository,
+    private val userRepository: IUserRepository,
     private val friendRequestManager: FriendRequestManager,
     private val callManager: CallManager,
     private val proximityScreenOff: ProximityScreenOff,
@@ -43,7 +43,11 @@ class ToxServiceLifecycleController @Inject constructor(
     private val notifier = NotificationManagerCompat.from(context)
     private val knownFriendRequests = mutableSetOf<FriendRequest>()
 
-    fun start(lifecycleOwner: LifecycleOwner, onConnectionStatusChanged: (ConnectionStatus) -> Unit) {
+    fun start(
+        lifecycleOwner: LifecycleOwner,
+        onConnectionStatusChanged: (ConnectionStatus) -> Unit,
+        onCallStateChanged: (Boolean) -> Unit
+    ) {
         val scope = lifecycleOwner.lifecycleScope
         val lifecycle = lifecycleOwner.lifecycle
 
@@ -78,6 +82,7 @@ class ToxServiceLifecycleController @Inject constructor(
 
         scope.launch {
             callManager.inCall.collect {
+                onCallStateChanged(it !is CallState.Idle)
                 if (it is CallState.Active) {
                     if (!callManager.speakerphoneOnState.value) {
                         proximityScreenOff.acquire()

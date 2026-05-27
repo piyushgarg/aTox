@@ -12,22 +12,22 @@ class NativeTox {
     }
 
     /**
-     * Создает и инициализирует новый нативный инстанс Tox.
-     * @param savedata Сохраненные ранее байтовые данные профиля (tox save), либо null для создания нового аккаунта.
-     * @return Указатель (pointer) на нативную структуру Tox в памяти.
+     * Creates and initializes a new native Tox instance.
+     * @param savedata Previously saved profile byte data (tox save), or null to create a new account.
+     * @return Pointer to the native Tox structure in memory.
      */
     external fun toxNew(savedata: ByteArray?): Long
 
     /**
-     * Создает и инициализирует новый нативный инстанс Tox с полным набором сетевых настроек и поддержкой прокси.
-     * @param savedata Сохраненные ранее байтовые данные профиля (tox save), либо null.
-     * @param ipv6Enabled true для включения IPv6.
-     * @param udpEnabled true для включения UDP (прямые соединения), false для принудительного TCP-режима.
-     * @param localDiscoveryEnabled true для обнаружения узлов в локальной Wi-Fi/LAN сети.
-     * @param proxyType Тип прокси (0 - без прокси, 1 - HTTP, 2 - SOCKS5).
-     * @param proxyHost Хост прокси-сервера (например, "127.0.0.1" для локального Tor-демона), либо null.
-     * @param proxyPort Порт прокси-сервера (например, 9050 для Tor).
-     * @return Указатель (pointer) на нативную структуру Tox в памяти, либо 0 в случае ошибки.
+     * Creates and initializes a new native Tox instance with a full set of network options and proxy support.
+     * @param savedata Previously saved profile byte data (tox save), or null.
+     * @param ipv6Enabled true to enable IPv6.
+     * @param udpEnabled true to enable UDP (direct connections), false to force TCP-only mode.
+     * @param localDiscoveryEnabled true to enable node discovery in local Wi-Fi/LAN networks.
+     * @param proxyType Proxy type (0 - no proxy, 1 - HTTP, 2 - SOCKS5).
+     * @param proxyHost Proxy server host (e.g., "127.0.0.1" for local Tor daemon), or null.
+     * @param proxyPort Proxy server port (e.g., 9050 for Tor).
+     * @return Pointer to the native Tox structure in memory, or 0 in case of error.
      */
     external fun toxNewWithOptions(
         savedata: ByteArray?,
@@ -40,621 +40,621 @@ class NativeTox {
     ): Long
 
     /**
-     * Уничтожает инстанс Tox и освобождает всю связанную с ним нативную память.
-     * @param tox Указатель на инстанс Tox.
+     * Destroys the Tox instance and frees all associated native memory.
+     * @param tox Pointer to the Tox instance.
      */
     external fun toxKill(tox: Long)
     
     /**
-     * Подключает инстанс к публичному DHT-узлу (bootstrap) сети Tox.
-     * @param tox Указатель на инстанс Tox.
-     * @param address IP-адрес или доменное имя DHT-узла.
-     * @param port Порт DHT-узла.
-     * @param publicKey Публичный ключ DHT-узла (32 байта).
+     * Connects the instance to a public DHT bootstrap node of the Tox network.
+     * @param tox Pointer to the Tox instance.
+     * @param address IP address or domain name of the DHT node.
+     * @param port Port of the DHT node.
+     * @param publicKey Public key of the DHT node (32 bytes).
      */
     external fun toxBootstrap(tox: Long, address: String, port: Int, publicKey: ByteArray)
 
     /**
-     * Добавляет TCP-релей для обхода сложных NAT и фаерволов.
-     * @param tox Указатель на инстанс Tox.
-     * @param address IP-адрес или доменное имя TCP-релея.
-     * @param port Порт TCP-релея.
-     * @param publicKey Публичный ключ TCP-релея (32 байта).
+     * Adds a TCP relay to bypass strict NAT and firewalls.
+     * @param tox Pointer to the Tox instance.
+     * @param address IP address or domain name of the TCP relay.
+     * @param port Port of the TCP relay.
+     * @param publicKey Public key of the TCP relay (32 bytes).
      */
     external fun toxAddTcpRelay(tox: Long, address: String, port: Int, publicKey: ByteArray)
     
     /**
-     * Главный рабочий цикл Tox: обрабатывает входящие/исходящие сетевые пакеты и вызывает зарегистрированные коллбеки.
-     * Должен вызываться регулярно в цикле.
-     * @param tox Указатель на инстанс Tox.
-     * @param listener Реализация слушателя событий для проброса событий в Kotlin.
+     * Main work cycle of Tox: processes incoming/outgoing network packets and triggers registered callbacks.
+     * Must be called regularly in a loop.
+     * @param tox Pointer to the Tox instance.
+     * @param listener The event listener implementation to forward events into Kotlin.
      */
     external fun toxIterate(tox: Long, listener: ToxEventListener)
 
     /**
-     * Возвращает рекомендуемый интервал времени в миллисекундах до следующего вызова [toxIterate].
-     * @param tox Указатель на инстанс Tox.
-     * @return Интервал в миллисекундах.
+     * Returns the recommended time interval in milliseconds before the next call to [toxIterate].
+     * @param tox Pointer to the Tox instance.
+     * @return Interval in milliseconds.
      */
     external fun toxIterationInterval(tox: Long): Int
 
     /**
-     * Возвращает текущее имя нашего профиля в Tox.
-     * @param tox Указатель на инстанс Tox.
-     * @return Имя профиля в виде байтового массива (UTF-8).
+     * Returns the current name of our Tox profile.
+     * @param tox Pointer to the Tox instance.
+     * @return Profile name as a byte array (UTF-8).
      */
     external fun toxGetName(tox: Long): ByteArray
 
     /**
-     * Устанавливает новое имя для нашего профиля в Tox.
-     * @param tox Указатель на инстанс Tox.
-     * @param name Новое имя в виде байтового массива (UTF-8).
+     * Sets a new name for our Tox profile.
+     * @param tox Pointer to the Tox instance.
+     * @param name The new name as a byte array (UTF-8).
      */
     external fun toxSetName(tox: Long, name: ByteArray)
 
     /**
-     * Возвращает текущее статус-сообщение нашего профиля.
-     * @param tox Указатель на инстанс Tox.
-     * @return Текст статуса в виде байтового массива (UTF-8).
+     * Returns the current status message of our profile.
+     * @param tox Pointer to the Tox instance.
+     * @return Status message text as a byte array (UTF-8).
      */
     external fun toxGetStatusMessage(tox: Long): ByteArray
 
     /**
-     * Устанавливает новое статус-сообщение для нашего профиля.
-     * @param tox Указатель на инстанс Tox.
-     * @param msg Текст нового статуса в виде байтового массива (UTF-8).
+     * Sets a new status message for our profile.
+     * @param tox Pointer to the Tox instance.
+     * @param msg New status message text as a byte array (UTF-8).
      */
     external fun toxSetStatusMessage(tox: Long, msg: ByteArray)
     
     /**
-     * Возвращает полный уникальный Tox ID нашего аккаунта (38 байт: 32 байта публичный ключ + 4 байта nospam + 2 байта checksum).
-     * @param tox Указатель на инстанс Tox.
-     * @return Полный Tox-адрес в виде байтового массива.
+     * Returns the full unique Tox ID of our account (38 bytes: 32 bytes public key + 4 bytes nospam + 2 bytes checksum).
+     * @param tox Pointer to the Tox instance.
+     * @return Full Tox address as a byte array.
      */
     external fun toxGetAddress(tox: Long): ByteArray
 
     /**
-     * Возвращает только публичный ключ (Tox Public Key) нашего аккаунта (32 байта).
-     * @param tox Указатель на инстанс Tox.
-     * @return Публичный ключ в виде байтового массива.
+     * Returns only the public key (Tox Public Key) of our account (32 bytes).
+     * @param tox Pointer to the Tox instance.
+     * @return Public key as a byte array.
      */
     external fun toxGetPublicKey(tox: Long): ByteArray
 
     /**
-     * Возвращает секретный (приватный) ключ нашего аккаунта (32 байта).
-     * ВНИМАНИЕ: Секретный ключ должен храниться в строжайшем секрете!
-     * @param tox Указатель на инстанс Tox.
-     * @return Секретный ключ в виде байтового массива.
+     * Returns the secret (private) key of our account (32 bytes).
+     * WARNING: The secret key must be kept strictly confidential!
+     * @param tox Pointer to the Tox instance.
+     * @return Secret key as a byte array.
      */
     external fun toxSelfGetSecretKey(tox: Long): ByteArray
 
     /**
-     * Возвращает активный UDP-порт нашего запущенного узла.
-     * @param tox Указатель на инстанс Tox.
-     * @return Номер порта, либо 0 в случае ошибки или если UDP выключен.
+     * Returns the active UDP port of our running node.
+     * @param tox Pointer to the Tox instance.
+     * @return Port number, or 0 in case of error or if UDP is disabled.
      */
     external fun toxSelfGetUdpPort(tox: Long): Int
 
     /**
-     * Возвращает активный TCP-порт нашего запущенного узла.
-     * @param tox Указатель на инстанс Tox.
-     * @return Номер порта, либо 0 в случае ошибки.
+     * Returns the active TCP port of our running node.
+     * @param tox Pointer to the Tox instance.
+     * @return Port number, or 0 in case of error.
      */
     external fun toxSelfGetTcpPort(tox: Long): Int
 
     /**
-     * Возвращает временный DHT-ключ (DHT ID) нашего инстанса (32 байта).
-     * Используется для диагностики подключения к глобальной сети.
-     * @param tox Указатель на инстанс Tox.
-     * @return DHT ID в виде байтового массива.
+     * Returns the temporary DHT key (DHT ID) of our instance (32 bytes).
+     * Used for diagnosing connection status with the global network.
+     * @param tox Pointer to the Tox instance.
+     * @return DHT ID as a byte array.
      */
     external fun toxSelfGetDhtId(tox: Long): ByteArray
     
     /**
-     * Возвращает текущее значение Nospam нашего профиля (используется для предотвращения спама).
-     * @param tox Указатель на инстанс Tox.
-     * @return 32-битное число nospam.
+     * Returns the current Nospam value of our profile (used to prevent spam).
+     * @param tox Pointer to the Tox instance.
+     * @return 32-bit nospam number.
      */
     external fun toxGetNospam(tox: Long): Int
 
     /**
-     * Устанавливает новое значение Nospam для генерации нового Tox ID.
-     * @param tox Указатель на инстанс Tox.
-     * @param nospam Новое 32-битное число.
+     * Sets a new Nospam value to generate a new Tox ID.
+     * @param tox Pointer to the Tox instance.
+     * @param nospam The new 32-bit number.
      */
     external fun toxSetNospam(tox: Long, nospam: Int)
     
     /**
-     * Сериализует текущее состояние профиля Tox (список друзей, имя, настройки) в байты для последующего сохранения.
-     * @param tox Указатель на инстанс Tox.
-     * @return Байтовый массив сохраненного состояния.
+     * Serializes the current Tox profile state (friend list, name, settings) into bytes for subsequent saving.
+     * @param tox Pointer to the Tox instance.
+     * @return Saved state as a byte array.
      */
     external fun toxGetSavedata(tox: Long): ByteArray
 
     /**
-     * Отправляет запрос на добавление в друзья.
-     * @param tox Указатель на инстанс Tox.
-     * @param pubKey Публичный ключ друга (32 байта).
-     * @param message Приветственное текстовое сообщение (UTF-8).
-     * @return Номер созданного друга (ID друга), либо код ошибки (отрицательное число).
+     * Sends a friend request.
+     * @param tox Pointer to the Tox instance.
+     * @param pubKey Friend's public key (32 bytes).
+     * @param message Greeting text message (UTF-8).
+     * @return Created friend's ID (friend number), or error code (negative number).
      */
     external fun toxAddFriend(tox: Long, pubKey: ByteArray, message: ByteArray): Int
 
     /**
-     * Добавляет друга в список друзей без отправки запроса (например, при подтверждении или импорте).
-     * @param tox Указатель на инстанс Tox.
-     * @param pubKey Публичный ключ друга (32 байта).
-     * @return Номер созданного друга (ID друга), либо код ошибки.
+     * Adds a friend to the friend list without sending a request (e.g., during confirmation or import).
+     * @param tox Pointer to the Tox instance.
+     * @param pubKey Friend's public key (32 bytes).
+     * @return Created friend's ID (friend number), or error code.
      */
     external fun toxAddFriendNorequest(tox: Long, pubKey: ByteArray): Int
 
     /**
-     * Удаляет друга из списка контактов.
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер удаляемого друга.
+     * Removes a friend from the contact list.
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number to remove.
      */
     external fun toxDeleteFriend(tox: Long, friendNumber: Int)
     
     /**
-     * Возвращает список идентификаторов (номеров) всех друзей в нашем контакт-листе.
-     * @param tox Указатель на инстанс Tox.
-     * @return Массив идентификаторов друзей.
+     * Returns the list of identifiers (numbers) of all friends in our contact list.
+     * @param tox Pointer to the Tox instance.
+     * @return Array of friend identifiers.
      */
     external fun toxGetFriendList(tox: Long): IntArray
 
     /**
-     * Возвращает публичный ключ друга по его номеру.
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @return Публичный ключ друга (32 байта).
+     * Returns the public key of a friend by their number.
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @return Friend's public key (32 bytes).
      */
     external fun toxGetFriendPublicKey(tox: Long, friendNumber: Int): ByteArray
 
     /**
-     * Находит номер друга в контакт-листе по его публичному ключу.
-     * @param tox Указатель на инстанс Tox.
-     * @param pubKey Публичный ключ (32 байта).
-     * @return Номер друга в контакт-листе, либо -1, если друг не найден.
+     * Finds a friend's number in the contact list by their public key.
+     * @param tox Pointer to the Tox instance.
+     * @param pubKey Public key (32 bytes).
+     * @return Friend number in the contact list, or -1 if the friend is not found.
      */
     external fun toxFriendByPublicKey(tox: Long, pubKey: ByteArray): Int
 
     /**
-     * Проверяет, существует ли друг с указанным номером в нашем списке контактов.
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @return true, если друг существует, false в противном случае.
+     * Checks if a friend with the specified number exists in our contact list.
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @return true if the friend exists, false otherwise.
      */
     external fun toxFriendExists(tox: Long, friendNumber: Int): Boolean
 
     /**
-     * Возвращает текущее имя друга по его номеру (прямой запрос).
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @return Имя друга в виде байтового массива (UTF-8).
+     * Returns the current name of a friend by their number (direct query).
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @return Friend's name as a byte array (UTF-8).
      */
     external fun toxFriendGetName(tox: Long, friendNumber: Int): ByteArray
 
     /**
-     * Возвращает статус-сообщение друга по его номеру (прямой запрос).
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @return Статус-сообщение в виде байтового массива (UTF-8).
+     * Returns the status message of a friend by their number (direct query).
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @return Status message as a byte array (UTF-8).
      */
     external fun toxFriendGetStatusMessage(tox: Long, friendNumber: Int): ByteArray
 
     /**
-     * Возвращает онлайн-статус друга (Away/Busy/Online) по его номеру (прямой запрос).
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @return 0 - в сети, 1 - отошел, 2 - не беспокоить.
+     * Returns the online status of a friend (Away/Busy/Online) by their number (direct query).
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @return 0 - online, 1 - away, 2 - busy.
      */
     external fun toxFriendGetStatus(tox: Long, friendNumber: Int): Int
 
     /**
-     * Возвращает текущий тип сетевого соединения с другом (прямой запрос).
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @return 0 - офлайн, 1 - TCP-соединение, 2 - UDP-соединение.
+     * Returns the current network connection type with a friend (direct query).
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @return 0 - offline, 1 - TCP connection, 2 - UDP connection.
      */
     external fun toxFriendGetConnectionStatus(tox: Long, friendNumber: Int): Int
 
     /**
-     * Проверяет, пишет ли в данный момент друг нам сообщение (прямой запрос).
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @return true, если друг печатает, false в противном случае.
+     * Checks if a friend is currently typing a message to us (direct query).
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @return true if the friend is typing, false otherwise.
      */
     external fun toxFriendGetTyping(tox: Long, friendNumber: Int): Boolean
 
     /**
-     * Возвращает UNIX-время последнего зафиксированного онлайн-присутствия друга.
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @return UNIX timestamp (в секундах), либо 0, если друг в сети прямо сейчас или никогда не подключался.
+     * Returns the UNIX time of the last recorded online presence of a friend.
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @return UNIX timestamp (in seconds), or 0 if the friend is online right now or has never connected.
      */
     external fun toxFriendGetLastOnline(tox: Long, friendNumber: Int): Long
     
     /**
-     * Отправляет приватное текстовое сообщение другу.
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @param type Тип сообщения (0 - обычное, 1 - action).
-     * @param message Текст сообщения в виде байтового массива (UTF-8).
-     * @return Уникальный ID отправленного сообщения, либо 0 в случае ошибки.
+     * Sends a private text message to a friend.
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @param type Message type (0 - normal, 1 - action).
+     * @param message Message text as a byte array (UTF-8).
+     * @return Unique ID of the sent message, or 0 in case of error.
      */
     external fun toxFriendSendMessage(tox: Long, friendNumber: Int, type: Int, message: ByteArray): Int
 
     /**
-     * Уведомляет друга о том, печатаем мы сообщение в данный момент или нет.
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @param typing true, если мы печатаем, false в противном случае.
+     * Notifies a friend whether we are currently typing a message or not.
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @param typing true if we are typing, false otherwise.
      */
     external fun toxSetTyping(tox: Long, friendNumber: Int, typing: Boolean)
     
     /**
-     * Возвращает текущий онлайн-статус нашего профиля (0 - в сети, 1 - отошел, 2 - не беспокоить).
-     * @param tox Указатель на инстанс Tox.
-     * @return Код статуса.
+     * Returns the current online status of our profile (0 - online, 1 - away, 2 - busy).
+     * @param tox Pointer to the Tox instance.
+     * @return Status code.
      */
     external fun toxGetSelfUserStatus(tox: Long): Int
 
     /**
-     * Устанавливает новый онлайн-статус для нашего профиля.
-     * @param tox Указатель на инстанс Tox.
-     * @param status Код статуса (0 - в сети, 1 - отошел, 2 - не беспокоить).
+     * Sets a new online status for our profile.
+     * @param tox Pointer to the Tox instance.
+     * @param status Status code (0 - online, 1 - away, 2 - busy).
      */
     external fun toxSetSelfUserStatus(tox: Long, status: Int)
  
     /**
-     * Управляет текущей передачей файла (пауза, возобновление, отмена).
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @param fileNumber Номер файла.
-     * @param control Код управления (например, 0 - приостановить, 1 - продолжить, 2 - отменить).
+     * Controls the current file transfer (pause, resume, cancel).
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @param fileNumber File number.
+     * @param control Control code (e.g., 0 - pause, 1 - resume, 2 - cancel).
      */
     external fun toxFileControl(tox: Long, friendNumber: Int, fileNumber: Int, control: Int)
 
     /**
-     * Начинает отправку файла другу.
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @param kind Тип файла (0 - обычный файл, 1 - аватарка).
-     * @param fileSize Общий размер файла в байтах.
-     * @param fileId Уникальный ID файла (32 байта).
-     * @param filename Имя файла в виде байтового массива.
-     * @return Уникальный номер отправляемого файла в рамках сессии, либо -1 при ошибке.
+     * Starts sending a file to a friend.
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @param kind File kind (0 - regular file, 1 - avatar).
+     * @param fileSize Total file size in bytes.
+     * @param fileId Unique file ID (32 bytes).
+     * @param filename Filename as a byte array.
+     * @return Unique file number within the session, or -1 on error.
      */
     external fun toxFileSend(tox: Long, friendNumber: Int, kind: Int, fileSize: Long, fileId: ByteArray, filename: ByteArray): Int
 
     /**
-     * Отправляет конкретный чанк (кусок) файла.
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @param fileNumber Номер файла.
-     * @param position Позиция чанка в файле (смещение в байтах).
-     * @param data Байты чанка.
+     * Sends a specific chunk of a file.
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @param fileNumber File number.
+     * @param position Chunk position in the file (byte offset).
+     * @param data Chunk bytes.
      */
     external fun toxFileSendChunk(tox: Long, friendNumber: Int, fileNumber: Int, position: Long, data: ByteArray)
 
     /**
-     * Возвращает уникальный 32-байтовый ID передаваемого или принимаемого файла.
-     * @param tox Указатель на инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @param fileNumber Номер файла.
-     * @return 32-байтовый ID файла, либо null в случае ошибки.
+     * Returns the unique 32-byte ID of a file being sent or received.
+     * @param tox Pointer to the Tox instance.
+     * @param friendNumber Friend number.
+     * @param fileNumber File number.
+     * @return 32-byte file ID, or null in case of error.
      */
     external fun toxFileGetFileId(tox: Long, friendNumber: Int, fileNumber: Int): ByteArray
 
     /**
-     * Отправляет кастомный lossless-пакет данных другу (используется для передачи служебных данных).
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @param data Байты пакета.
+     * Sends a custom lossless data packet to a friend (used for service data transmission).
+     * @param tox Pointer to the native Tox instance.
+     * @param friendNumber Friend number.
+     * @param data Packet bytes.
      */
     external fun toxFriendSendLosslessPacket(tox: Long, friendNumber: Int, data: ByteArray)
 
     /**
-     * Отправляет кастомный ненадежный lossy-пакет данных другу (используется для быстрых некритичных данных).
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param friendNumber Номер друга.
-     * @param data Байты пакета.
+     * Sends a custom unreliable lossy data packet to a friend (used for fast, non-critical data).
+     * @param tox Pointer to the native Tox instance.
+     * @param friendNumber Friend number.
+     * @param data Packet bytes.
      */
     external fun toxFriendSendLossyPacket(tox: Long, friendNumber: Int, data: ByteArray)
 
     /**
-     * Создает новую текстовую конференцию (групповой чат).
-     * @param tox Указатель на нативный инстанс Tox.
-     * @return Уникальный номер созданной конференции (ID группы), либо -1 в случае ошибки.
+     * Creates a new text conference (group chat).
+     * @param tox Pointer to the native Tox instance.
+     * @return Unique conference number (group ID), or -1 in case of error.
      */
     external fun toxConferenceNew(tox: Long): Int
 
     /**
-     * Удаляет существующую конференцию (выход из группы или ее закрытие).
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param conferenceNumber Номер удаляемой конференции.
+     * Deletes an existing conference (leaving the group or closing it).
+     * @param tox Pointer to the native Tox instance.
+     * @param conferenceNumber Conference number to delete.
      */
     external fun toxConferenceDelete(tox: Long, conferenceNumber: Int)
 
     /**
-     * Отправляет приглашение другу для входа в существующую конференцию.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param friendNumber Номер друга, которого мы приглашаем.
-     * @param conferenceNumber Номер конференции, в которую приглашаем.
+     * Sends a conference invitation to a friend to join an existing conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param friendNumber Friend number we are inviting.
+     * @param conferenceNumber Conference number we are inviting them to.
      */
     external fun toxConferenceInvite(tox: Long, friendNumber: Int, conferenceNumber: Int)
 
     /**
-     * Принимает входящее приглашение и присоединяется к конференции.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param friendNumber Номер друга, приславшего приглашение.
-     * @param cookie Бинарные данные (cookie) приглашения, полученные в коллбеке.
-     * @return Номер присоединенной конференции (ID группы), либо -1 в случае ошибки.
+     * Accepts an incoming invitation and joins the conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param friendNumber Friend number who sent the invitation.
+     * @param cookie Binary invitation data (cookie) received in the callback.
+     * @return Joined conference number (group ID), or -1 in case of error.
      */
     external fun toxConferenceJoin(tox: Long, friendNumber: Int, cookie: ByteArray): Int
 
     /**
-     * Отправляет сообщение в конференцию (групповой чат).
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param conferenceNumber Номер конференции.
-     * @param type Тип сообщения (например, обычный текст).
-     * @param message Текст сообщения в виде байтового массива (UTF-8).
-     * @return 1 в случае успешной отправки, 0 при ошибке.
+     * Sends a message to the conference (group chat).
+     * @param tox Pointer to the native Tox instance.
+     * @param conferenceNumber Conference number.
+     * @param type Message type (e.g., normal text).
+     * @param message Message text as a byte array (UTF-8).
+     * @return 1 on successful send, 0 on error.
      */
     external fun toxConferenceSendMessage(tox: Long, conferenceNumber: Int, type: Int, message: ByteArray): Int
 
     /**
-     * Устанавливает новое название (заголовок) для группового чата.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param conferenceNumber Номер конференции.
-     * @param title Новое название в виде байтового массива (UTF-8).
+     * Sets a new title for the group chat.
+     * @param tox Pointer to the native Tox instance.
+     * @param conferenceNumber Conference number.
+     * @param title New title as a byte array (UTF-8).
      */
     external fun toxConferenceSetTitle(tox: Long, conferenceNumber: Int, title: ByteArray)
 
     /**
-     * Возвращает текущее название (заголовок) группового чата.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param conferenceNumber Номер конференции.
-     * @return Название в виде байтового массива (UTF-8).
+     * Returns the current title of the group chat.
+     * @param tox Pointer to the native Tox instance.
+     * @param conferenceNumber Conference number.
+     * @return Title as a byte array (UTF-8).
      */
     external fun toxConferenceGetTitle(tox: Long, conferenceNumber: Int): ByteArray
 
     /**
-     * Проверяет, является ли участник конференции с указанным номером нами самими.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param conferenceNumber Номер конференции.
-     * @param peerNumber Номер участника.
-     * @return true, если участник - это мы, false в противном случае.
+     * Checks if the conference peer with the specified number is ourselves.
+     * @param tox Pointer to the native Tox instance.
+     * @param conferenceNumber Conference number.
+     * @param peerNumber Peer number.
+     * @return true if the peer is ourselves, false otherwise.
      */
     external fun toxConferencePeerNumberIsOurself(tox: Long, conferenceNumber: Int, peerNumber: Int): Boolean
 
     /**
-     * Возвращает количество участников в конкретной конференции.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param conferenceNumber Номер конференции.
-     * @return Количество участников, либо -1 при ошибке.
+     * Returns the number of peers in a specific conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param conferenceNumber Conference number.
+     * @return Number of peers, or -1 on error.
      */
     external fun toxConferenceGetPeerCount(tox: Long, conferenceNumber: Int): Int
 
     /**
-     * Возвращает имя участника конференции по его порядковому номеру.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param conferenceNumber Номер конференции.
-     * @param peerNumber Порядковый номер участника в группе.
-     * @return Имя участника в формате байтового массива (UTF-8).
+     * Returns the name of a conference peer by their index.
+     * @param tox Pointer to the native Tox instance.
+     * @param conferenceNumber Conference number.
+     * @param peerNumber Peer index in the group.
+     * @return Peer name as a byte array (UTF-8).
      */
     external fun toxConferenceGetPeerName(tox: Long, conferenceNumber: Int, peerNumber: Int): ByteArray
 
     /**
-     * Возвращает публичный ключ (Tox PublicKey) участника конференции.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param conferenceNumber Номер конференции.
-     * @param peerNumber Порядковый номер участника в группе.
-     * @return Публичный ключ участника (32 байта).
+     * Returns the public key (Tox PublicKey) of a conference peer.
+     * @param tox Pointer to the native Tox instance.
+     * @param conferenceNumber Conference number.
+     * @param peerNumber Peer public key (32 bytes).
+     * @return Peer public key (32 bytes).
      */
     external fun toxConferenceGetPeerPublicKey(tox: Long, conferenceNumber: Int, peerNumber: Int): ByteArray
 
     /**
-     * Возвращает список номеров всех активных конференций, в которых состоит пользователь.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @return Массив идентификаторов конференций.
+     * Returns the list of identifiers (numbers) of all active conferences the user is in.
+     * @param tox Pointer to the native Tox instance.
+     * @return Array of conference identifiers.
      */
     external fun toxConferenceGetChatlist(tox: Long): IntArray
 
     /**
-     * Возвращает тип конференции (текстовая или аудио/видео).
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param conferenceNumber Номер конференции.
-     * @return 0 для текстовой группы, 1 для A/V конференции, либо -1 в случае ошибки.
+     * Returns the conference type (text or audio/video).
+     * @param tox Pointer to the native Tox instance.
+     * @param conferenceNumber Conference number.
+     * @return 0 for text group, 1 for A/V conference, or -1 in case of error.
      */
     external fun toxConferenceGetType(tox: Long, conferenceNumber: Int): Int
 
     // ===================================================================================
-    // Новые Групповые конференции NGC (Next Generation Conferences / Tox Groups)
+    // New Group Conferences NGC (Next Generation Conferences / Tox Groups)
     // ===================================================================================
 
     /**
-     * Создает новую групповую NGC-конференцию.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param privacyState Статус приватности группы (0 - Public, 1 - Private).
-     * @param groupName Название создаваемой группы в виде байтового массива.
-     * @param selfName Ваше имя в создаваемой группе.
-     * @return Уникальный номер группы в Tox (Tox_Group_Number), либо -1 в случае ошибки.
+     * Creates a new group NGC conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param privacyState Group privacy state (0 - Public, 1 - Private).
+     * @param groupName Name of the group being created as a byte array.
+     * @param selfName Your name in the group being created.
+     * @return Unique group number in Tox (Tox_Group_Number), or -1 in case of error.
      */
     external fun toxGroupNew(tox: Long, privacyState: Int, groupName: ByteArray, selfName: ByteArray): Int
 
     /**
-     * Присоединяется к групповой NGC-конференции по полученному приглашению.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param friendNumber Номер друга, приславшего приглашение.
-     * @param inviteData Массив байт данных приглашения (invite_data).
-     * @param selfName Ваше имя при входе в группу.
-     * @param password Пароль группы (если есть, иначе null или пустой массив).
-     * @return Номер присоединенной группы, либо -1 в случае ошибки.
+     * Joins a group NGC conference using the received invitation.
+     * @param tox Pointer to the native Tox instance.
+     * @param friendNumber Friend number who sent the invitation.
+     * @param inviteData Invitation data byte array (invite_data).
+     * @param selfName Your name when entering the group.
+     * @param password Group password (if any, otherwise null or empty array).
+     * @return Joined group number, or -1 in case of error.
      */
     external fun toxGroupJoin(tox: Long, friendNumber: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int
 
     /**
-     * Выходит из групповой NGC-конференции.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return true в случае успеха, false в случае ошибки.
+     * Leaves a group NGC conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return true on success, false on error.
      */
     external fun toxGroupLeave(tox: Long, groupNumber: Int): Boolean
 
     /**
-     * Отправляет текстовое сообщение в NGC-группу.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @param type Тип сообщения (0 - Normal, 1 - Action /me).
-     * @param message Текст сообщения в виде байтового массива.
-     * @return Уникальный ID отправленного сообщения в рамках группы, либо -1 в случае ошибки.
+     * Sends a text message to a group NGC conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @param type Message type (0 - Normal, 1 - Action /me).
+     * @param message Message text as a byte array.
+     * @return Unique ID of the sent message within the group, or -1 in case of error.
      */
     external fun toxGroupSendMessage(tox: Long, groupNumber: Int, type: Int, message: ByteArray): Int
 
     /**
-     * Устанавливает тему (topic) для NGC-группы.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @param topic Новая тема в виде байтового массива.
-     * @return true в случае успеха, false в случае ошибки.
+     * Sets the topic for a group NGC conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @param topic New topic as a byte array.
+     * @return true on success, false on error.
      */
     external fun toxGroupSetTopic(tox: Long, groupNumber: Int, topic: ByteArray): Boolean
 
     /**
-     * Получает текущую тему (topic) NGC-группы.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return Массив байт темы, либо null в случае ошибки.
+     * Gets the topic of a group NGC conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return Topic byte array, or null in case of error.
      */
     external fun toxGroupGetTopic(tox: Long, groupNumber: Int): ByteArray?
 
     /**
-     * Получает название NGC-группы.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return Массив байт названия, либо null в случае ошибки.
+     * Gets the name of a group NGC conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return Name byte array, or null in case of error.
      */
     external fun toxGroupGetName(tox: Long, groupNumber: Int): ByteArray?
 
     /**
-     * Возвращает уникальный постоянный 32-байтовый идентификатор NGC-чата (Chat ID).
-     * Необходим для отслеживания и синхронизации групп между устройствами.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return 32-байтовый Chat ID, либо null в случае ошибки.
+     * Returns the unique permanent 32-byte NGC chat identifier (Chat ID).
+     * Required to track and sync groups across devices.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return 32-byte Chat ID, or null in case of error.
      */
     external fun toxGroupGetChatId(tox: Long, groupNumber: Int): ByteArray?
 
     /**
-     * Устанавливает пароль для доступа к NGC-группе.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @param password Пароль в виде байтового массива (null для удаления пароля).
-     * @return true в случае успеха, false в случае ошибки.
+     * Sets the password for access to a group NGC conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @param password Password as a byte array (null to remove password).
+     * @return true on success, false on error.
      */
     external fun toxGroupSetPassword(tox: Long, groupNumber: Int, password: ByteArray?): Boolean
 
     /**
-     * Возвращает текущий установленный пароль группы.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return Массив байт пароля, либо null в случае ошибки или отсутствия пароля.
+     * Returns the current set password of the group.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return Password byte array, or null in case of error or if there is no password.
      */
     external fun toxGroupGetPassword(tox: Long, groupNumber: Int): ByteArray?
 
     /**
-     * Получает имя участника NGC-группы по его ID.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @param peerId Внутренний идентификатор участника в группе.
-     * @return Массив байт имени участника, либо null в случае ошибки.
+     * Gets the name of a group NGC conference peer by their ID.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @param peerId Internal identifier of the peer in the group.
+     * @return Peer name byte array, or null in case of error.
      */
     external fun toxGroupPeerGetName(tox: Long, groupNumber: Int, peerId: Int): ByteArray?
 
     /**
-     * Получает публичный ключ участника NGC-группы по его ID.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @param peerId Внутренний идентификатор участника в группе.
-     * @return 32-байтовый публичный ключ участника, либо null в случае ошибки.
+     * Gets the public key of a group NGC conference peer by their ID.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @param peerId Internal identifier of the peer in the group.
+     * @return 32-byte public key of the peer, or null in case of error.
      */
     external fun toxGroupPeerGetPublicKey(tox: Long, groupNumber: Int, peerId: Int): ByteArray?
 
     /**
-     * Возвращает наш собственный Peer ID в NGC-группе.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return Наш Peer ID в группе, либо -1 в случае ошибки.
+     * Returns our own Peer ID in the group NGC conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return Our Peer ID in the group, or -1 in case of error.
      */
     external fun toxGroupSelfGetPeerId(tox: Long, groupNumber: Int): Int
 
     /**
-     * Возвращает нашу текущую роль в NGC-группе.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return Роль (0 - Owner, 1 - Moderator, 2 - Participant), либо -1 в случае ошибки.
+     * Returns our current role in the group NGC conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return Role (0 - Owner, 1 - Moderator, 2 - Participant), or -1 in case of error.
      */
     external fun toxGroupSelfGetRole(tox: Long, groupNumber: Int): Int
 
     /**
-     * Отправляет приглашение в NGC-группу конкретному другу.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @param friendNumber Номер друга, которому отправляем приглашение.
-     * @return true в случае успеха, false в случае ошибки.
+     * Sends an invitation to a group NGC conference to a specific friend.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @param friendNumber Friend number we are sending the invitation to.
+     * @return true on success, false on error.
      */
     external fun toxGroupInviteSend(tox: Long, groupNumber: Int, friendNumber: Int): Boolean
 
     /**
-     * Присоединяется к NGC-группе напрямую по Chat ID (без инвайта от друга).
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param chatId 32-байтовый Chat ID группы.
-     * @param selfName Имя пользователя при входе в группу.
-     * @param password Пароль группы (если есть, иначе null или пустой массив).
-     * @return Номер присоединённой группы, либо -1 в случае ошибки.
+     * Joins a group NGC conference directly by Chat ID (without a friend's invitation).
+     * @param tox Pointer to the native Tox instance.
+     * @param chatId 32-byte group Chat ID.
+     * @param selfName Username when entering the group.
+     * @param password Group password (if any, otherwise null or empty array).
+     * @return Joined group number, or -1 in case of error.
      */
     external fun toxGroupJoinDirect(tox: Long, chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int
 
     /**
-     * Переподключается к ранее сохранённой NGC-группе.
-     * Должна вызываться после загрузки сохранённого профиля для каждой группы.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы, возвращённый при первом подключении.
-     * @return true в случае успешного переподключения, false в случае ошибки.
+     * Reconnects to a previously saved group NGC conference.
+     * Must be called after loading the saved profile for each group.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number returned during the initial connection.
+     * @return true on success, false on error.
      */
     external fun toxGroupReconnect(tox: Long, groupNumber: Int): Boolean
 
-    // Раздел шифрования профилей Tox (Tox Encrypt / Decrypt API)
+    // Tox profile encryption section (Tox Encrypt / Decrypt API)
 
     /**
-     * Извлекает соль (salt) из зашифрованных байтовых данных профиля для последующей генерации ключа.
-     * @param data Зашифрованный массив байт профиля.
-     * @return 32-байтовая соль, либо null в случае ошибки или если данные не зашифрованы.
+     * Extracts the salt from the encrypted profile byte data for subsequent key generation.
+     * @param data Encrypted profile byte array.
+     * @return 32-byte salt, or null in case of error or if the data is not encrypted.
      */
     external fun getSalt(data: ByteArray): ByteArray?
 
     /**
-     * Генерирует криптографический ключ (passkey) на основе пароля и соли с использованием PBKDF2.
-     * @param passphrase Пароль в виде байтового массива.
-     * @param salt Соль в виде байтового массива.
-     * @return Сгенерированный ключ (passkey), либо null в случае ошибки.
+     * Generates a cryptographic key (passkey) from a password and salt using PBKDF2.
+     * @param passphrase Password as a byte array.
+     * @param salt Salt as a byte array.
+     * @return Generated key (passkey), or null in case of error.
      */
     external fun passKeyDeriveWithSalt(passphrase: ByteArray, salt: ByteArray): ByteArray?
 
     /**
-     * Расшифровывает байтовые данные профиля с использованием сгенерированного ключа (passkey).
-     * @param data Зашифрованный массив байт профиля.
-     * @param passkey Сгенерированный passkey ключ (из [passKeyDeriveWithSalt]).
-     * @return Расшифрованный массив байт профиля, либо null в случае неверного ключа или ошибки.
+     * Decrypts profile byte data using the generated key (passkey).
+     * @param data Encrypted profile byte array.
+     * @param passkey Generated passkey key (from [passKeyDeriveWithSalt]).
+     * @return Decrypted profile byte array, or null in case of an invalid key or error.
      */
     external fun passDecrypt(data: ByteArray, passkey: ByteArray): ByteArray?
 
     /**
-     * Зашифровывает байтовые данные профиля с использованием ключа (passkey).
-     * @param data Исходные несжатые байты профиля.
-     * @param passkey Сгенерированный passkey ключ.
-     * @return Зашифрованный массив байт, готовый для сохранения, либо null в случае ошибки.
+     * Encrypts profile byte data using the key (passkey).
+     * @param data Original uncompressed profile bytes.
+     * @param passkey Generated passkey key.
+     * @return Encrypted byte array, ready for saving, or null in case of error.
      */
     external fun passEncrypt(data: ByteArray, passkey: ByteArray): ByteArray?
 }

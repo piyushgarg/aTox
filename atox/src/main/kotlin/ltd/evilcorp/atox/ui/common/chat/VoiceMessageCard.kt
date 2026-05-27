@@ -26,7 +26,7 @@ import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
-import ltd.evilcorp.atox.infrastructure.settings.Settings
+import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.common.formatChatTime
 import ltd.evilcorp.domain.model.FileTransfer
 import ltd.evilcorp.domain.model.isComplete
@@ -34,6 +34,7 @@ import ltd.evilcorp.domain.model.isStarted
 import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.model.Sender
 
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun VoiceMessageCard(
     ft: FileTransfer,
@@ -42,7 +43,7 @@ fun VoiceMessageCard(
     onRejectFt: (Int) -> Unit,
     msg: Message,
     isOutgoing: Boolean,
-    settings: Settings
+    uiConfig: ChatUiConfig
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
@@ -51,7 +52,7 @@ fun VoiceMessageCard(
     var currentPosition by remember { mutableIntStateOf(0) }
     var duration by remember { mutableIntStateOf(0) }
 
-    val isComplete = ft.isComplete()
+    val isComplete = ft.isComplete() || isOutgoing
     val isStarted = ft.isStarted()
 
     DisposableEffect(Unit) {
@@ -290,9 +291,9 @@ fun VoiceMessageCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
-                    val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
+                    val timeString = remember(msg.timestamp, uiConfig.timeFormatPreference) {
                         val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
-                        formatChatTime(context, time, settings.timeFormatPreference)
+                        formatChatTime(context, time, uiConfig.timeFormatPreference)
                     }
                     Text(
                         text = timeString,

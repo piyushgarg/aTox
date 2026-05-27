@@ -17,12 +17,14 @@ import ltd.evilcorp.domain.tox.enums.ToxMessageType
 import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
 import ltd.evilcorp.domain.tox.enums.ToxGroupRole
 import ltd.evilcorp.domain.tox.save.SaveOptions
+import ltd.evilcorp.domain.model.ProxyType
 import ltd.evilcorp.domain.tox.toToxtype
 import ltd.evilcorp.domain.tox.toToxType
+import ltd.evilcorp.core.tox.runtime.delegates.ToxFileTransmitter
+import ltd.evilcorp.core.tox.runtime.delegates.ToxAudioVideoBridge
+import ltd.evilcorp.core.tox.runtime.delegates.ToxGroupBridge
 
 private const val TAG = "ToxWrapper"
-
-private const val FILE_ID_LENGTH = 32
 
 /**
  * Перечисление возможных ошибок при отправке пользовательских P2P-пакетов.
@@ -57,8 +59,16 @@ class ToxWrapper(
 ) {
     private val nativeTox = NativeTox()
     private val nativeToxAv = NativeToxAv()
+
+    @Volatile
     private var toxPtr: Long = 0
+
+    @Volatile
     private var toxavPtr: Long = 0
+
+    val fileTransmitter = ToxFileTransmitter(nativeTox) { toxPtr }
+    val audioVideoBridge = ToxAudioVideoBridge(nativeTox, nativeToxAv, { toxPtr }, { toxavPtr })
+    val groupBridge = ToxGroupBridge(nativeTox, nativeToxAv) { toxPtr }
 
     /**
      * Динамически настраиваемый битрейт аудио Opus (в kbps).
@@ -69,7 +79,15 @@ class ToxWrapper(
 
     init {
         val sd = options.saveData
-        toxPtr = nativeTox.toxNew(sd)
+        toxPtr = nativeTox.toxNewWithOptions(
+            savedata = sd,
+            ipv6Enabled = true,
+            udpEnabled = options.udpEnabled,
+            localDiscoveryEnabled = true,
+            proxyType = options.proxyType.ordinal,
+            proxyHost = options.proxyAddress.ifEmpty { null },
+            proxyPort = options.proxyPort
+        )
         if (toxPtr != 0L) {
             toxavPtr = nativeToxAv.toxavNew(toxPtr)
         }
@@ -258,24 +276,12 @@ class ToxWrapper(
     /**
      * Возобновляет или одобряет входящий файловый трансфер.
      */
-    fun startFileTransfer(pk: PublicKey, fileNumber: Int) = synchronized(this) {
-        try {
-            nativeTox.toxFileControl(toxPtr, contactByKey(pk), fileNumber, ToxFileControl.RESUME.ordinal)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error starting ft ${pk.fingerprint()} $fileNumber\n$e")
-        }
-    }
+    fun startFileTransfer(pk: PublicKey, fileNumber: Int) = fileTransmitter.startFileTransfer(pk, fileNumber)
 
     /**
      * Ставит на паузу или отменяет файловый трансфер.
      */
-    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = synchronized(this) {
-        try {
-            nativeTox.toxFileControl(toxPtr, contactByKey(pk), fileNumber, ToxFileControl.CANCEL.ordinal)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping ft ${pk.fingerprint()} $fileNumber\n$e")
-        }
-    }
+    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = fileTransmitter.stopFileTransfer(pk, fileNumber)
 
     /**
      * Инициирует отправку нового файла другу.
@@ -286,27 +292,14 @@ class ToxWrapper(
      * @param fileName Имя отправляемого файла.
      * @return Внутренний номер созданной файловой сессии.
      */
-    fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String): Int = synchronized(this) {
-        try {
-            nativeTox.toxFileSend(toxPtr, contactByKey(pk), fileKind.toToxtype(), fileSize, Random.nextBytes(FILE_ID_LENGTH), fileName.toByteArray())
-        } catch (e: Exception) {
-            Log.e(TAG, "Error sending ft $fileName ${pk.fingerprint()}\n$e")
-            -1
-        }
-    }
+    fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String): Int =
+        fileTransmitter.sendFile(pk, fileKind, fileSize, fileName)
 
     /**
      * Передает конкретный порционный блок байтов (чанк) отправляемого файла.
      */
-    fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> = synchronized(this) {
-        try {
-            nativeTox.toxFileSendChunk(toxPtr, contactByKey(pk), fileNo, pos, data)
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error sending chunk $pos:${data.size} to ${pk.fingerprint()} $fileNo\n$e")
-            Result.failure(e)
-        }
-    }
+    fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> =
+        fileTransmitter.sendFileChunk(pk, fileNo, pos, data)
 
     /**
      * Уведомляет контакта о статусе набора текста (печатает / закончил ввод).
@@ -412,51 +405,39 @@ class ToxWrapper(
     /**
      * Инициирует исходящий 1-на-1 голосовой вызов другу.
      */
-    fun startCall(pk: PublicKey) = synchronized(this) {
-        nativeToxAv.toxavCall(toxavPtr, contactByKey(pk), audioBitrate, 0)
-    }
+    fun startCall(pk: PublicKey) = audioVideoBridge.startCall(pk, audioBitrate)
 
     /**
      * Одобряет и подключается к входящему голосовому вызову от друга.
      */
-    fun answerCall(pk: PublicKey) = synchronized(this) {
-        nativeToxAv.toxavAnswer(toxavPtr, contactByKey(pk), audioBitrate, 0)
-    }
+    fun answerCall(pk: PublicKey) = audioVideoBridge.answerCall(pk, audioBitrate)
 
     /**
      * Прерывает, сбрасывает или отклоняет текущий вызов.
      */
-    fun endCall(pk: PublicKey) = synchronized(this) {
-        nativeToxAv.toxavCallControl(toxavPtr, contactByKey(pk), ToxavCallControl.CANCEL.ordinal)
-    }
+    fun endCall(pk: PublicKey) = audioVideoBridge.endCall(pk)
 
     /**
      * Передает порционный PCM-кадр записанного голоса собеседнику.
      */
-    fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) = synchronized(this) {
-        nativeToxAv.toxavAudioSendFrame(toxavPtr, contactByKey(pk), pcm, pcm.size, channels, samplingRate)
-    }
+    fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) =
+        audioVideoBridge.sendAudio(pk, pcm, channels, samplingRate)
 
     /**
      * Отправляет видеокадр YUV420P собеседнику в рамках видеовызова.
      */
-    fun sendVideoFrame(pk: PublicKey, width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray): Boolean = synchronized(this) {
-        nativeToxAv.toxavVideoSendFrame(toxavPtr, contactByKey(pk), width, height, y, u, v)
-    }
+    fun sendVideoFrame(pk: PublicKey, width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray): Boolean =
+        audioVideoBridge.sendVideoFrame(pk, width, height, y, u, v)
 
     /**
      * Изменяет битрейт аудио потока на лету во время звонка.
      */
-    fun audioSetBitRate(pk: PublicKey, bitrate: Int): Boolean = synchronized(this) {
-        nativeToxAv.toxavAudioSetBitRate(toxavPtr, contactByKey(pk), bitrate)
-    }
+    fun audioSetBitRate(pk: PublicKey, bitrate: Int): Boolean = audioVideoBridge.audioSetBitRate(pk, bitrate)
 
     /**
      * Изменяет битрейт видео потока на лету во время звонка.
      */
-    fun videoSetBitRate(pk: PublicKey, bitrate: Int): Boolean = synchronized(this) {
-        nativeToxAv.toxavVideoSetBitRate(toxavPtr, contactByKey(pk), bitrate)
-    }
+    fun videoSetBitRate(pk: PublicKey, bitrate: Int): Boolean = audioVideoBridge.videoSetBitRate(pk, bitrate)
 
     /**
      * Создает новую групповую NGC-конференцию.
@@ -465,161 +446,130 @@ class ToxWrapper(
      * @param groupName Название создаваемой группы.
      * @param selfName Наш псевдоним внутри создаваемой группы.
      */
-    fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int = synchronized(this) {
-        nativeTox.toxGroupNew(toxPtr, privacyState.value, groupName, selfName)
-    }
+    /**
+     * Создает новую групповую NGC-конференцию.
+     *
+     * @param privacyState Вид приватности (публичная или приватная).
+     * @param groupName Название создаваемой группы.
+     * @param selfName Наш псевдоним внутри создаваемой группы.
+     */
+    fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int =
+        groupBridge.groupNew(privacyState, groupName, selfName)
 
     /**
      * Присоединяется к групповой NGC-конференции по полученным пригласительным данным.
      */
-    fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int = synchronized(this) {
-        nativeTox.toxGroupJoin(toxPtr, friendNo, inviteData, selfName, password)
-    }
+    fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
+        groupBridge.groupJoin(friendNo, inviteData, selfName, password)
 
     /**
      * Выходит из состава участников указанной NGC-группы.
      */
-    fun groupLeave(groupNumber: Int): Boolean = synchronized(this) {
-        nativeTox.toxGroupLeave(toxPtr, groupNumber)
-    }
+    fun groupLeave(groupNumber: Int): Boolean = groupBridge.groupLeave(groupNumber)
 
     /**
      * Отправляет групповое сообщение всем участникам NGC-конференции.
      */
-    fun groupSendMessage(groupNumber: Int, type: ToxMessageType, message: ByteArray): Int = synchronized(this) {
-        nativeTox.toxGroupSendMessage(toxPtr, groupNumber, type.ordinal, message)
-    }
+    fun groupSendMessage(groupNumber: Int, type: ToxMessageType, message: ByteArray): Int =
+        groupBridge.groupSendMessage(groupNumber, type, message)
 
     /**
      * Устанавливает тему для указанной NGC-группы.
      */
-    fun groupSetTopic(groupNumber: Int, topic: ByteArray): Boolean = synchronized(this) {
-        nativeTox.toxGroupSetTopic(toxPtr, groupNumber, topic)
-    }
+    fun groupSetTopic(groupNumber: Int, topic: ByteArray): Boolean = groupBridge.groupSetTopic(groupNumber, topic)
 
     /**
      * Получает текущую тему указанной NGC-группы.
      */
-    fun groupGetTopic(groupNumber: Int): ByteArray? = synchronized(this) {
-        nativeTox.toxGroupGetTopic(toxPtr, groupNumber)
-    }
+    fun groupGetTopic(groupNumber: Int): ByteArray? = groupBridge.groupGetTopic(groupNumber)
 
     /**
      * Получает название указанной NGC-группы.
      */
-    fun groupGetName(groupNumber: Int): ByteArray? = synchronized(this) {
-        nativeTox.toxGroupGetName(toxPtr, groupNumber)
-    }
+    fun groupGetName(groupNumber: Int): ByteArray? = groupBridge.groupGetName(groupNumber)
 
     /**
      * Возвращает уникальный постоянный 32-байтовый ID группового чата NGC.
      */
-    fun groupGetChatId(groupNumber: Int): ByteArray? = synchronized(this) {
-        nativeTox.toxGroupGetChatId(toxPtr, groupNumber)
-    }
+    fun groupGetChatId(groupNumber: Int): ByteArray? = groupBridge.groupGetChatId(groupNumber)
 
     /**
      * Устанавливает или сбрасывает пароль доступа к NGC-группе.
      */
-    fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean = synchronized(this) {
-        nativeTox.toxGroupSetPassword(toxPtr, groupNumber, password)
-    }
+    fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean =
+        groupBridge.groupSetPassword(groupNumber, password)
 
     /**
      * Получает текущий пароль для входа в данную NGC-группу.
      */
-    fun groupGetPassword(groupNumber: Int): ByteArray? = synchronized(this) {
-        nativeTox.toxGroupGetPassword(toxPtr, groupNumber)
-    }
+    fun groupGetPassword(groupNumber: Int): ByteArray? = groupBridge.groupGetPassword(groupNumber)
 
     /**
      * Получает имя конкретного участника NGC-группы по его ID.
      */
-    fun groupPeerGetName(groupNumber: Int, peerId: Int): ByteArray? = synchronized(this) {
-        nativeTox.toxGroupPeerGetName(toxPtr, groupNumber, peerId)
-    }
+    fun groupPeerGetName(groupNumber: Int, peerId: Int): ByteArray? = groupBridge.groupPeerGetName(groupNumber, peerId)
 
     /**
      * Получает публичный ключ конкретного участника NGC-группы по его ID.
      */
-    fun groupPeerGetPublicKey(groupNumber: Int, peerId: Int): ByteArray? = synchronized(this) {
-        nativeTox.toxGroupPeerGetPublicKey(toxPtr, groupNumber, peerId)
-    }
+    fun groupPeerGetPublicKey(groupNumber: Int, peerId: Int): ByteArray? =
+        groupBridge.groupPeerGetPublicKey(groupNumber, peerId)
 
     /**
      * Возвращает наш собственный ID участника в NGC-группе.
      */
-    fun groupSelfGetPeerId(groupNumber: Int): Int = synchronized(this) {
-        nativeTox.toxGroupSelfGetPeerId(toxPtr, groupNumber)
-    }
+    fun groupSelfGetPeerId(groupNumber: Int): Int = groupBridge.groupSelfGetPeerId(groupNumber)
 
     /**
      * Возвращает нашу текущую роль внутри NGC-группы.
      */
-    fun groupSelfGetRole(groupNumber: Int): ToxGroupRole = synchronized(this) {
-        ToxGroupRole.fromInt(nativeTox.toxGroupSelfGetRole(toxPtr, groupNumber))
-    }
+    fun groupSelfGetRole(groupNumber: Int): ToxGroupRole = groupBridge.groupSelfGetRole(groupNumber)
 
     /**
      * Отправляет приглашение в NGC-группу конкретному другу.
      */
-    fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean = synchronized(this) {
-        nativeTox.toxGroupInviteSend(toxPtr, groupNumber, friendNumber)
-    }
+    fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean =
+        groupBridge.groupInviteSend(groupNumber, friendNumber)
 
     /**
      * Присоединяется к NGC-группе напрямую по Chat ID.
      */
-    fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int = synchronized(this) {
-        nativeTox.toxGroupJoinDirect(toxPtr, chatId, selfName, password)
-    }
+    fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
+        groupBridge.groupJoinDirect(chatId, selfName, password)
 
     /**
      * Переподключается к ранее сохранённой NGC-группе после загрузки профиля.
      */
-    fun groupReconnect(groupNumber: Int): Boolean = synchronized(this) {
-        nativeTox.toxGroupReconnect(toxPtr, groupNumber)
-    }
+    fun groupReconnect(groupNumber: Int): Boolean = groupBridge.groupReconnect(groupNumber)
 
     /**
      * Создает групповую аудио-конференцию на базе группы.
      */
-    fun groupavAdd(): Int = synchronized(this) {
-        nativeToxAv.toxavAddAvGroupchat(toxPtr)
-    }
+    fun groupavAdd(): Int = groupBridge.groupavAdd()
 
     /**
      * Подключается к групповой аудио-конференции.
      */
-    fun groupavJoin(groupNumber: Int): Int = synchronized(this) {
-        nativeToxAv.toxavJoinAvGroupchat(toxPtr, groupNumber)
-    }
+    fun groupavJoin(groupNumber: Int): Int = groupBridge.groupavJoin(groupNumber)
 
     /**
      * Транслирует PCM-кадр нашего голоса всем участникам групповой конференции.
      */
-    fun groupavSendAudio(groupNumber: Int, pcm: ShortArray, channels: Int, samplingRate: Int): Int = synchronized(this) {
-        nativeToxAv.toxavGroupSendAudio(toxPtr, groupNumber, pcm, pcm.size, channels, samplingRate)
-    }
+    fun groupavSendAudio(groupNumber: Int, pcm: ShortArray, channels: Int, samplingRate: Int): Int =
+        groupBridge.groupavSendAudio(groupNumber, pcm, channels, samplingRate)
 
     /**
      * Активирует функции аудио/видео вызова в групповом чате.
      */
-    fun groupavEnableAudio(groupNumber: Int): Int = synchronized(this) {
-        nativeToxAv.toxavGroupchatEnableAv(toxPtr, groupNumber)
-    }
+    fun groupavEnableAudio(groupNumber: Int): Int = groupBridge.groupavEnableAudio(groupNumber)
 
     /**
      * Выключает функции аудио/видео вызова в групповом чате.
      */
-    fun groupavDisableAudio(groupNumber: Int): Int = synchronized(this) {
-        nativeToxAv.toxavGroupchatDisableAv(toxPtr, groupNumber)
-    }
+    fun groupavDisableAudio(groupNumber: Int): Int = groupBridge.groupavDisableAudio(groupNumber)
 
     /**
      * Проверяет, активна ли трансляция звука в данном групповом чате.
      */
-    fun groupavIsEnabled(groupNumber: Int): Boolean = synchronized(this) {
-        nativeToxAv.toxavGroupchatAvEnabled(toxPtr, groupNumber)
-    }
+    fun groupavIsEnabled(groupNumber: Int): Boolean = groupBridge.groupavIsEnabled(groupNumber)
 }

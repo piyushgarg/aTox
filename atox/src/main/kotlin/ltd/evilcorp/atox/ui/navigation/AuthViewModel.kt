@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
 import ltd.evilcorp.domain.tox.ITox
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
@@ -68,6 +68,30 @@ class AuthViewModel @Inject constructor(
         } else {
             unlockState.value = UnlockUiState.Error
             return false
+        }
+    }
+
+    fun enableBiometric(context: android.content.Context, password: String): Boolean {
+        return try {
+            val cipher = ltd.evilcorp.atox.infrastructure.security.BiometricCipherHelper.getInitializedCipherForEncryption()
+            val encryptedBytes = cipher.doFinal(password.toByteArray(Charsets.UTF_8))
+            val iv = cipher.iv
+            ltd.evilcorp.atox.infrastructure.security.BiometricStorage.saveEncryptedPassword(context, encryptedBytes, iv)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("AuthViewModel", "Failed to enable biometric: $e")
+            false
+        }
+    }
+
+    fun decryptPassword(context: android.content.Context, cipher: javax.crypto.Cipher): String? {
+        return try {
+            val encrypted = ltd.evilcorp.atox.infrastructure.security.BiometricStorage.getEncryptedPassword(context) ?: return null
+            val decryptedBytes = cipher.doFinal(encrypted)
+            String(decryptedBytes, Charsets.UTF_8)
+        } catch (e: Exception) {
+            android.util.Log.e("AuthViewModel", "Failed to decrypt password: $e")
+            null
         }
     }
 

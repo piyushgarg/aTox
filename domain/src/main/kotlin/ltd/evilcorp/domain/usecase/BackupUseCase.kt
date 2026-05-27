@@ -22,10 +22,10 @@ private const val PBKDF2_ITERATIONS = 120_000
 private const val SALT_SIZE = 16
 private const val IV_SIZE = 12
 
-class BackupUseCase @Inject constructor(
+open class BackupUseCase @Inject constructor(
     val providers: List<@JvmSuppressWildcards BackupDataProvider>,
 ) {
-    fun export(selectedIds: Set<String>, password: String? = null): ByteArray {
+    open fun export(selectedIds: Set<String>, password: String? = null): ByteArray {
         val zipBytes = ByteArrayOutputStream().use { bytes ->
             ZipOutputStream(bytes).use { zip ->
                 zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
@@ -46,7 +46,7 @@ class BackupUseCase @Inject constructor(
         return password?.takeIf(String::isNotBlank)?.let { encrypt(zipBytes, it) } ?: zipBytes
     }
 
-    fun import(data: ByteArray, password: String? = null, skipIds: Set<String> = emptySet()) {
+    open fun import(data: ByteArray, password: String? = null, skipIds: Set<String> = emptySet()) {
         val zipBytes = decryptIfNeeded(data, password)
         val providerById = providers.associateBy { it.id }
 
@@ -61,7 +61,7 @@ class BackupUseCase @Inject constructor(
         }
     }
 
-    fun providerData(data: ByteArray, password: String? = null, id: String): ByteArray? {
+    open fun providerData(data: ByteArray, password: String? = null, id: String): ByteArray? {
         ZipInputStream(ByteArrayInputStream(decryptIfNeeded(data, password))).use { zip ->
             generateSequence { zip.nextEntry }.forEach { entry ->
                 if (entry.name == "$id.bin") {

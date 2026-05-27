@@ -18,6 +18,10 @@ import ltd.evilcorp.domain.tox.bootstrap.DefaultBootstrapNodeRegistry
 import ltd.evilcorp.core.tox.save.AndroidSaveManager
 import ltd.evilcorp.core.tox.save.SaveManager
 import ltd.evilcorp.domain.backup.BackupDataProvider
+import ltd.evilcorp.domain.av.IAudioRecorder
+import ltd.evilcorp.core.av.CallAudioRecorder
+import ltd.evilcorp.domain.media.ICallSignalPlayer
+import ltd.evilcorp.core.media.CallSignalPlayer
 
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
@@ -89,4 +93,29 @@ class AppModule {
 
     @Provides
     fun provideProfileDeleter(deleter: ltd.evilcorp.core.repository.ProfileDeleterImpl): ltd.evilcorp.domain.usecase.IProfileDeleter = deleter
+
+    @Provides
+    fun provideChatHistoryBackupHelper(impl: ltd.evilcorp.core.backup.ChatHistoryBackupHelperImpl): ltd.evilcorp.domain.backup.IChatHistoryBackupHelper = impl
+
+    @Provides
+    fun provideContactsBackupHelper(impl: ltd.evilcorp.core.backup.ContactsBackupHelperImpl): ltd.evilcorp.domain.backup.IContactsBackupHelper = impl
+
+    @Provides
+    fun provideFileTransferBackupHelper(impl: ltd.evilcorp.core.backup.FileTransferBackupHelperImpl): ltd.evilcorp.domain.backup.IFileTransferBackupHelper = impl
+
+    @Provides
+    fun provideTimeProvider(impl: ltd.evilcorp.core.time.SystemTimeProvider): ltd.evilcorp.domain.feature.TimeProvider = impl
+
+    @Provides
+    fun provideAudioRecorder(recorder: CallAudioRecorder): IAudioRecorder = recorder
+
+    @Provides
+    fun provideCallSignalPlayer(player: CallSignalPlayer): ICallSignalPlayer = player
+
+    @Provides
+    fun provideGroupConnectionScheduler(scheduler: ltd.evilcorp.core.tox.GroupConnectionScheduler): ltd.evilcorp.domain.feature.IGroupConnectionScheduler = scheduler
+
+    @Provides
+    fun provideFileStorageHelper(impl: ltd.evilcorp.core.util.JVMFileStorageHelper): ltd.evilcorp.domain.feature.IFileStorageHelper = impl
 }
+

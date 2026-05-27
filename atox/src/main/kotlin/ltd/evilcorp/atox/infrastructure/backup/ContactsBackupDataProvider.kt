@@ -2,16 +2,16 @@ package ltd.evilcorp.atox.infrastructure.backup
 
 import javax.inject.Inject
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.core.db.ContactDao
+import ltd.evilcorp.domain.backup.BackupDataProvider
+import ltd.evilcorp.domain.backup.IContactsBackupHelper
 import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.backup.BackupDataProvider
 import org.json.JSONArray
 import org.json.JSONObject
 
 class ContactsBackupDataProvider @Inject constructor(
-    private val contactDao: ContactDao,
+    private val helper: IContactsBackupHelper,
 ) : BackupDataProvider {
     override val id: String = "contacts"
     override val displayNameRes: Int = R.string.backup_module_contacts
@@ -19,7 +19,7 @@ class ContactsBackupDataProvider @Inject constructor(
 
     override fun serialize(): ByteArray {
         val contacts = JSONArray()
-        contactDao.loadAllBlocking().forEach { contact ->
+        helper.serializeContacts().forEach { contact ->
             contacts.put(JSONObject().apply {
                 put("publicKey", contact.publicKey)
                 put("name", contact.name)
@@ -55,6 +55,6 @@ class ContactsBackupDataProvider @Inject constructor(
                 ))
             }
         }
-        contactDao.saveAll(restored)
+        helper.deserializeContacts(restored)
     }
 }

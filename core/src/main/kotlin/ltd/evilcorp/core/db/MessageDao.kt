@@ -5,24 +5,24 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.domain.model.Message
+import ltd.evilcorp.core.db.entity.MessageEntity
 
 @Dao
 interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun save(message: Message)
+    fun save(message: MessageEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun saveAll(messages: List<Message>)
+    fun saveAll(messages: List<MessageEntity>)
 
     @Query("SELECT * FROM messages WHERE conversation == :conversation ORDER BY id ASC")
-    fun load(conversation: String): Flow<List<Message>>
+    fun load(conversation: String): Flow<List<MessageEntity>>
 
     @Query("SELECT * FROM messages")
-    fun loadAllBlocking(): List<Message>
+    fun loadAllBlocking(): List<MessageEntity>
 
     @Query("SELECT * FROM messages WHERE conversation == :conversation AND timestamp == 0")
-    fun loadPending(conversation: String): List<Message>
+    fun loadPending(conversation: String): List<MessageEntity>
 
     @Query("UPDATE messages SET correlation_id = :correlationId WHERE id == :id")
     fun setCorrelationId(id: Long, correlationId: Int)

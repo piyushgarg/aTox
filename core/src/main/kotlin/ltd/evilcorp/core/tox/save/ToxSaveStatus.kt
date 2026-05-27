@@ -2,34 +2,7 @@ package ltd.evilcorp.core.tox.save
 
 import ltd.evilcorp.core.tox.NativeTox
 import ltd.evilcorp.domain.tox.save.SaveOptions
-
-/**
- * Перечисление возможных статусов загрузки и проверки бинарного файла сохранения Tox (save data).
- */
-enum class ToxSaveStatus {
-    /** Успешная загрузка и валидация. */
-    Ok,
-    /** Неверный формат файла сохранения. */
-    BadFormat,
-    /** Файл зашифрован (требуется пароль). */
-    Encrypted,
-    /** Ошибка выделения памяти (Out of Memory). */
-    OutOfMemory,
-    /** Нулевые данные сохранения. */
-    Null,
-    /** Ошибка выделения портов сокетов. */
-    PortAlloc,
-    /** Неверно указан хост прокси-сервера. */
-    BadProxyHost,
-    /** Неверно указан порт прокси-сервера. */
-    BadProxyPort,
-    /** Неподдерживаемый тип прокси. */
-    BadProxyType,
-    /** Прокси-сервер не найден или недоступен. */
-    ProxyNotFound,
-    /** Файл сохранения не найден. */
-    SaveNotFound,
-}
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
 
 /**
  * Выполняет тестовую загрузку бинарных данных Tox с расшифровкой (при наличии пароля).

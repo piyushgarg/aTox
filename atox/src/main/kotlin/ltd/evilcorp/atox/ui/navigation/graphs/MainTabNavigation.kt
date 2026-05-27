@@ -30,8 +30,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.Toast
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.ui.appearance.AppAppearance
+import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.addcontact.AddContactScreen
 import ltd.evilcorp.atox.ui.addcontact.AddContactViewModel
@@ -47,6 +50,9 @@ import ltd.evilcorp.atox.ui.navigation.LocalTabPadding
 import ltd.evilcorp.atox.ui.settings.SettingsScreen
 import ltd.evilcorp.atox.ui.userprofile.UserProfileScreen
 import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
+import ltd.evilcorp.atox.ui.common.AtoxAppBar
+import ltd.evilcorp.domain.model.ConnectionStatus
+import androidx.compose.foundation.layout.Column
 import ltd.evilcorp.domain.model.PublicKey
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +61,7 @@ fun NavGraphBuilder.mainTabGraph(
     contactListViewModel: ContactListViewModel,
     settings: Settings,
     appearance: AppAppearance,
+    isExpanded: Boolean,
     onThemeChanged: (Int) -> Unit,
     onDynamicColorChanged: (Boolean) -> Unit,
     onAccentColorSeedChanged: (Int) -> Unit,
@@ -69,6 +76,7 @@ fun NavGraphBuilder.mainTabGraph(
         val friendRequests by friendRequestsViewModel.friendRequests.collectAsStateWithLifecycle(emptyList())
         val groupInvite by contactListViewModel.groupInvite.collectAsStateWithLifecycle()
         val groupInviteFriendName by contactListViewModel.groupInviteFriendName.collectAsStateWithLifecycle()
+        val user by contactListViewModel.user.collectAsStateWithLifecycle()
 
         val isSearchingState = rememberSaveable { mutableStateOf(false) }
 
@@ -79,6 +87,7 @@ fun NavGraphBuilder.mainTabGraph(
                     .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
             ) {
                 ChatsRouteScreen(
+                    connectionStatus = user?.connectionStatus ?: ConnectionStatus.None,
                     contacts = contacts,
                     friendRequests = friendRequests,
                     groupInvite = groupInvite,
@@ -89,7 +98,9 @@ fun NavGraphBuilder.mainTabGraph(
                     timeFormatPreference = settings.timeFormatPreference,
                     onContactClick = { contact ->
                         contactListViewModel.prepareOpenChat(contact)
-                        navController.navigate(AppRoutes.Chat(contact.publicKey))
+                        if (!isExpanded) {
+                            navController.navigate(AppRoutes.Chat(contact.publicKey))
+                        }
                     },
                     onDeleteContact = { contact -> contactListViewModel.deleteContact(PublicKey(contact.publicKey)) },
                     onAcceptFriendRequest = { req -> friendRequestsViewModel.acceptFriendRequest(req) },
@@ -113,27 +124,30 @@ fun NavGraphBuilder.mainTabGraph(
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
         val groupsRouteName = AppRoutes.Groups::class.qualifiedName!!
+        val user by contactListViewModel.user.collectAsStateWithLifecycle()
+        val connectionStatus = user?.connectionStatus ?: ConnectionStatus.None
 
-        LaunchedEffect(Unit) {
-            AppBarStateHolder.register(
-                route = groupsRouteName,
-                cfg = AppBarConfig(
-                    title = {
+        AtoxAppBar(
+            route = groupsRouteName,
+            config = AppBarConfig(
+                title = {
+                    Column {
                         Text(
                             text = context.getString(R.string.groups),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
+                        if (connectionStatus == ConnectionStatus.None) {
+                            Text(
+                                text = context.getString(R.string.connecting),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
                     }
-                )
+                }
             )
-        }
-
-        DisposableEffect(Unit) {
-            onDispose {
-                AppBarStateHolder.unregister(groupsRouteName)
-            }
-        }
+        )
 
         val groupListViewModel: GroupListViewModel = hiltViewModel()
         val groupsState = groupListViewModel.groups.collectAsStateWithLifecycle()
@@ -169,37 +183,40 @@ fun NavGraphBuilder.mainTabGraph(
         val context = LocalContext.current
         val addContactViewModel: AddContactViewModel = hiltViewModel()
         val addContactTabRouteName = AppRoutes.AddContactTab::class.qualifiedName!!
+        val user by contactListViewModel.user.collectAsStateWithLifecycle()
+        val connectionStatus = user?.connectionStatus ?: ConnectionStatus.None
 
-        LaunchedEffect(Unit) {
-            AppBarStateHolder.register(
-                route = addContactTabRouteName,
-                cfg = AppBarConfig(
-                    title = {
+        AtoxAppBar(
+            route = addContactTabRouteName,
+            config = AppBarConfig(
+                title = {
+                    Column {
                         Text(
                             text = context.getString(R.string.add_contact),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            navController.popBackStack()
-                        }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = context.getString(R.string.navigation_back)
+                        if (connectionStatus == ConnectionStatus.None) {
+                            Text(
+                                text = context.getString(R.string.connecting),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                         }
                     }
-                )
+                },
+                navigationIcon = {
+                    IconButton(onClick = {
+                        navController.popBackStack()
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = context.getString(R.string.navigation_back)
+                        )
+                    }
+                }
             )
-        }
-
-        DisposableEffect(Unit) {
-            onDispose {
-                AppBarStateHolder.unregister(addContactTabRouteName)
-            }
-        }
+        )
 
         Box(
             modifier = Modifier
@@ -223,29 +240,31 @@ fun NavGraphBuilder.mainTabGraph(
         val context = LocalContext.current
         val profileViewModel: UserProfileViewModel = hiltViewModel()
         val profileRouteName = AppRoutes.Profile::class.qualifiedName!!
+        val user by contactListViewModel.user.collectAsStateWithLifecycle()
+        val connectionStatus = user?.connectionStatus ?: ConnectionStatus.None
 
-        LaunchedEffect(Unit) {
-            AppBarStateHolder.register(
-                route = profileRouteName,
-                cfg = AppBarConfig(
-                    title = {
+        AtoxAppBar(
+            route = profileRouteName,
+            config = AppBarConfig(
+                title = {
+                    Column {
                         Text(
                             text = context.getString(R.string.profile),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
+                        if (connectionStatus == ConnectionStatus.None) {
+                            Text(
+                                text = context.getString(R.string.connecting),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
                     }
-                )
+                }
             )
-        }
+        )
 
-        DisposableEffect(Unit) {
-            onDispose {
-                AppBarStateHolder.unregister(profileRouteName)
-            }
-        }
-
-        val user by contactListViewModel.user.collectAsStateWithLifecycle()
         val avatar by profileViewModel.avatar.collectAsStateWithLifecycle()
         val cropState by profileViewModel.cropState.collectAsStateWithLifecycle()
         val storedSettings by settings.state.collectAsStateWithLifecycle()
@@ -253,6 +272,29 @@ fun NavGraphBuilder.mainTabGraph(
         val performHaptic = {
             if (storedSettings.hapticEnabled) {
                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+            }
+        }
+
+        var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+        val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
+            if (uri != null) {
+                selectedImageUri = uri
+            }
+        }
+
+        val tempFile = remember { java.io.File(context.cacheDir, "avatar_capture.jpg") }
+        val tempFileUri = remember(tempFile) {
+            androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                tempFile
+            )
+        }
+
+        val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
+            if (success) {
+                selectedImageUri = tempFileUri
             }
         }
 
@@ -266,6 +308,20 @@ fun NavGraphBuilder.mainTabGraph(
                 toxId = profileViewModel.toxId.string(),
                 avatar = avatar,
                 cropState = cropState,
+                selectedImageUri = selectedImageUri,
+                onSelectedImageUriChanged = { selectedImageUri = it },
+                onLaunchCamera = {
+                    try {
+                        cameraLauncher.launch(tempFileUri)
+                    } catch (e: android.content.ActivityNotFoundException) {
+                        Toast.makeText(context, "Camera application not found", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                },
+                onLaunchGallery = {
+                    galleryLauncher.launch("image/*")
+                },
                 showBackButton = false,
                 onSetName = profileViewModel::setName,
                 onSetStatusMessage = profileViewModel::setStatusMessage,
@@ -297,46 +353,48 @@ fun NavGraphBuilder.mainTabGraph(
         val settingsOnSearchAction = settingsOnSearchActionState.value
         val settingsRouteName = AppRoutes.Settings::class.qualifiedName!!
 
-        LaunchedEffect(settingsTitle, settingsOnBackAction, settingsOnSearchAction) {
-            if (settingsTitle == context.getString(R.string.search_settings)) {
-                AppBarStateHolder.unregister(settingsRouteName)
-            } else {
-                AppBarStateHolder.register(
-                    route = settingsRouteName,
-                    cfg = AppBarConfig(
-                        title = {
+        val user by contactListViewModel.user.collectAsStateWithLifecycle()
+        val connectionStatus = user?.connectionStatus ?: ConnectionStatus.None
+
+        if (settingsTitle != context.getString(R.string.search_settings)) {
+            AtoxAppBar(
+                route = settingsRouteName,
+                config = AppBarConfig(
+                    title = {
+                        Column {
                             Text(
                                 text = if (settingsOnBackAction == null) context.getString(R.string.settings) else settingsTitle,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
-                        },
-                        navigationIcon = {
-                            if (settingsOnBackAction != null) {
-                                IconButton(onClick = { settingsOnBackAction.invoke() }) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = context.getString(R.string.navigation_back)
-                                    )
-                                }
-                            } else {
-                                Box(modifier = Modifier.padding(start = 4.dp)) {
-                                    MorphingNavigationIcon(
-                                        isBack = false,
-                                        onClick = { settingsOnSearchAction?.invoke() }
-                                    )
-                                }
+                            if (connectionStatus == ConnectionStatus.None) {
+                                Text(
+                                    text = context.getString(R.string.connecting),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
                             }
                         }
-                    )
+                    },
+                    navigationIcon = {
+                        if (settingsOnBackAction != null) {
+                            IconButton(onClick = { settingsOnBackAction.invoke() }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = context.getString(R.string.navigation_back)
+                                )
+                            }
+                        } else {
+                            Box(modifier = Modifier.padding(start = 4.dp)) {
+                                MorphingNavigationIcon(
+                                    isBack = false,
+                                    onClick = { settingsOnSearchAction?.invoke() }
+                                )
+                            }
+                        }
+                    }
                 )
-            }
-        }
-
-        DisposableEffect(Unit) {
-            onDispose {
-                AppBarStateHolder.unregister(settingsRouteName)
-            }
+            )
         }
 
         Box(

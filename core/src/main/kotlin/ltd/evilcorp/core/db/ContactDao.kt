@@ -6,37 +6,39 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
+import ltd.evilcorp.core.db.entity.ContactEntity
 import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.UserStatus
 
 @Dao
 interface ContactDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun save(contact: Contact)
+    fun save(contact: ContactEntity)
 
     @Update
-    fun update(contact: Contact)
+    fun update(contact: ContactEntity)
 
     @Delete
-    fun delete(contact: Contact)
+    fun delete(contact: ContactEntity)
 
     @Query("SELECT COUNT(*) FROM contacts WHERE public_key = :publicKey")
     fun exists(publicKey: String): Boolean
 
     @Query("SELECT * FROM contacts WHERE public_key = :publicKey")
-    fun load(publicKey: String): Flow<Contact?>
+    fun load(publicKey: String): Flow<ContactEntity?>
 
     @Query("SELECT * FROM contacts")
-    fun loadAll(): Flow<List<Contact>>
+    fun loadAll(): Flow<List<ContactEntity>>
 
     @Query("SELECT * FROM contacts")
-    fun loadAllBlocking(): List<Contact>
+    fun loadAllBlocking(): List<ContactEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun saveAll(contacts: List<Contact>)
+    fun saveAll(contacts: List<ContactEntity>)
 
+    @Transaction
     @Query("UPDATE contacts SET connection_status = :status, typing = :typing")
     fun resetTransientData(status: ConnectionStatus = ConnectionStatus.None, typing: Boolean = false)
 

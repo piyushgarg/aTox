@@ -4,9 +4,6 @@
 
 package ltd.evilcorp.domain.feature
 
-import java.nio.ByteBuffer
-import java.nio.CharBuffer
-import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -23,20 +20,46 @@ import ltd.evilcorp.domain.tox.MAX_MESSAGE_LENGTH
 import ltd.evilcorp.domain.tox.ITox
 
 private fun String.chunked(chunkSizeInBytes: Int): MutableList<String> {
-    val encoder = StandardCharsets.UTF_8.newEncoder()
-    val tmp = ByteBuffer.allocate(chunkSizeInBytes - 1)
-    val input = CharBuffer.wrap(this)
-    val chunks: MutableList<String> = ArrayList()
-    var currentIdx = 0
-
-    do {
-        val res = encoder.encode(input, tmp, true)
-        val nextIdx = this.length - input.length
-        chunks.add(this.substring(currentIdx, nextIdx))
-        currentIdx = nextIdx
-        tmp.rewind()
-    } while (res.isOverflow)
-
+    val maxBytes = chunkSizeInBytes - 1
+    val chunks = mutableListOf<String>()
+    
+    var currentChunk = java.lang.StringBuilder()
+    var currentBytes = 0
+    
+    var i = 0
+    while (i < this.length) {
+        val char = this[i]
+        val isSurrogatePair = char.isHighSurrogate() && i + 1 < this.length && this[i + 1].isLowSurrogate()
+        
+        val symbolStr = if (isSurrogatePair) {
+            this.substring(i, i + 2)
+        } else {
+            char.toString()
+        }
+        
+        val symbolBytes = symbolStr.encodeToByteArray()
+        val symbolSize = symbolBytes.size
+        
+        if (currentBytes + symbolSize > maxBytes) {
+            if (currentChunk.isNotEmpty()) {
+                chunks.add(currentChunk.toString())
+                currentChunk = java.lang.StringBuilder()
+                currentBytes = 0
+            }
+            currentChunk.append(symbolStr)
+            currentBytes = symbolSize
+        } else {
+            currentChunk.append(symbolStr)
+            currentBytes += symbolSize
+        }
+        
+        i += if (isSurrogatePair) 2 else 1
+    }
+    
+    if (currentChunk.isNotEmpty()) {
+        chunks.add(currentChunk.toString())
+    }
+    
     return chunks
 }
 

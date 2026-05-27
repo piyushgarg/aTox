@@ -16,11 +16,11 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
-import ltd.evilcorp.core.db.Database
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.tox.IToxStarter
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
 import ltd.evilcorp.domain.backup.BackupDataProvider
 import ltd.evilcorp.domain.usecase.BackupUseCase
+import ltd.evilcorp.domain.usecase.IProfileDeleter
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.tox.ITox
 
@@ -33,10 +33,10 @@ sealed interface BackupUiEvent {
 @HiltViewModel
 class BackupSettingsViewModel @Inject constructor(
     private val fileProcessor: ISettingsFileProcessor,
-    private val toxStarter: ToxStarter,
+    private val toxStarter: IToxStarter,
     private val tox: ITox,
     private val backupUseCase: BackupUseCase,
-    private val database: Database,
+    private val profileDeleter: IProfileDeleter,
     private val userManager: UserManager,
 ) : ViewModel() {
     private val _backupExporting = MutableStateFlow(false)
@@ -74,17 +74,28 @@ class BackupSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _backupImporting.value = true
             val success = withContext(Dispatchers.IO) {
+                val checkpointCreated = profileDeleter.createCheckpoint()
                 runCatching {
                     val backup = fileProcessor.readBytes(uriString) ?: error("Unable to open backup")
                     val toxCore = backupUseCase.providerData(backup, password, "tox_core") ?: error("Missing Tox core data")
                     toxStarter.stopTox()
-                    database.clearAllTables()
+                    profileDeleter.clearDatabase()
                     val status = toxStarter.startTox(toxCore, password.takeIf { !it.isNullOrBlank() })
                     check(status == ToxSaveStatus.Ok) { "Unable to start restored profile: $status" }
                     backupUseCase.import(backup, password, skipIds = setOf("tox_core"))
                     userManager.verifyExists(tox.publicKey)
+                    if (checkpointCreated) {
+                        profileDeleter.clearCheckpoint()
+                    }
                     true
-                }.getOrElse { false }
+                }.getOrElse { throwable ->
+                    android.util.Log.e("BackupSettingsViewModel", "Backup restore failed", throwable)
+                    if (checkpointCreated) {
+                        profileDeleter.restoreFromCheckpoint()
+                    }
+                    toxStarter.stopTox()
+                    false
+                }
             }
             _backupImporting.value = false
             _uiEvents.emit(

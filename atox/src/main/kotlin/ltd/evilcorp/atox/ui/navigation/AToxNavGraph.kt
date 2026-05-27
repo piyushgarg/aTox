@@ -12,6 +12,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -43,13 +44,17 @@ import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.MainActivity
 import ltd.evilcorp.atox.SharedContent
-import ltd.evilcorp.atox.ui.appearance.AppAppearance
+import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.atox.ui.chat.ForwardSelectionScreen
+import ltd.evilcorp.atox.ui.navigation.graphs.sharingGraph
 import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
 import ltd.evilcorp.atox.ui.contactlist.components.chatListAttentionCount
-import ltd.evilcorp.atox.ui.navigation.components.ReturnToCallBanner
+import ltd.evilcorp.atox.ui.navigation.components.AToxWindowDecorator
+import ltd.evilcorp.atox.ui.navigation.components.PlaceholderScreen
+import ltd.evilcorp.atox.ui.chat.ChatViewModel
+import ltd.evilcorp.atox.ui.chat.ChatScreen
+import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.navigation.graphs.authGraph
 import ltd.evilcorp.atox.ui.navigation.graphs.callGraph
 import ltd.evilcorp.atox.ui.navigation.graphs.mainTabGraph
@@ -71,18 +76,25 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.navigation.toRoute
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 
-@Suppress("FunctionNaming", "ViewModelInjection", "CyclomaticComplexMethod", "MaxLineLength")
+@Suppress("FunctionNaming", "ViewModelInjection", "CyclomaticComplexMethod", "MagicNumber")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AToxNavGraph(
     appearance: AppAppearance,
     settings: Settings,
+    windowSizeClass: WindowSizeClass,
     callManager: CallManager,
     notificationHelper: NotificationHelper,
     permissionManager: PermissionManager,
     systemSoundPlayer: SystemSoundPlayer,
-    initialToxIdToLink: MutableState<String?>,
+    toxLinkManager: ToxLinkManager,
     callScreenMinimized: MutableState<Boolean>,
     onOpenFile: (FileTransfer) -> Unit,
     onQuitApp: () -> Unit,
@@ -93,6 +105,7 @@ fun AToxNavGraph(
     onDisableScreenshotsChanged: (Boolean) -> Unit,
 ) {
     val navController = rememberNavController()
+    val isExpandedMode = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
     val callState by callManager.inCall.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = remember(context) { context as? AppCompatActivity }
@@ -105,49 +118,53 @@ fun AToxNavGraph(
     }
 
     val contactListViewModel: ContactListViewModel = hiltViewModel()
-    val authViewModel: AuthViewModel = hiltViewModel()
     val selectedChatSnapshot = contactListViewModel.selectedChatSnapshot.collectAsStateWithLifecycle()
-
-    val contactsState by contactListViewModel.visibleContacts.collectAsStateWithLifecycle(emptyList())
-    val friendRequestsViewModel: FriendRequestsViewModel = hiltViewModel()
-    val friendRequestsState by friendRequestsViewModel.friendRequests.collectAsStateWithLifecycle(emptyList())
-    val attentionCount = chatListAttentionCount(contactsState, friendRequestsState)
+    val attentionCount by contactListViewModel.attentionCount.collectAsStateWithLifecycle(0)
+    val sharedContent by contactListViewModel.sharedContent.collectAsStateWithLifecycle()
 
     // Track current route for reactive UI
     val currentBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStack?.destination?.route
 
     // Update AppBarStateHolder with current route
-    LaunchedEffect(currentRoute) {
+    androidx.compose.runtime.SideEffect {
         AppBarStateHolder.updateRoute(currentRoute)
     }
 
     // Reactive TopAppBar driven by AppBarStateHolder
     val reactiveTopBar: @Composable () -> Unit = {
         val currentConfig by AppBarStateHolder.config.collectAsStateWithLifecycle()
-        currentConfig?.let { cfg ->
-            if (cfg.isLarge) {
-                LargeTopAppBar(
-                    title = cfg.title,
-                    navigationIcon = cfg.navigationIcon ?: {},
-                    actions = cfg.actions ?: {},
-                    colors = TopAppBarDefaults.largeTopAppBarColors(
-                        containerColor = cfg.containerColor ?: MaterialTheme.colorScheme.surfaceContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    scrollBehavior = cfg.scrollBehavior
-                )
-            } else {
-                TopAppBar(
-                    title = cfg.title,
-                    navigationIcon = cfg.navigationIcon ?: {},
-                    actions = cfg.actions ?: {},
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = cfg.containerColor ?: MaterialTheme.colorScheme.surfaceContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    scrollBehavior = cfg.scrollBehavior
-                )
+        AnimatedContent(
+            targetState = currentConfig,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(150))
+            },
+            label = "topBarTransition"
+        ) { cfg ->
+            if (cfg != null) {
+                if (cfg.isLarge) {
+                    LargeTopAppBar(
+                        title = cfg.title,
+                        navigationIcon = cfg.navigationIcon ?: {},
+                        actions = cfg.actions ?: {},
+                        colors = TopAppBarDefaults.largeTopAppBarColors(
+                            containerColor = cfg.containerColor ?: MaterialTheme.colorScheme.surfaceContainer,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        scrollBehavior = cfg.scrollBehavior
+                    )
+                } else {
+                    TopAppBar(
+                        title = cfg.title,
+                        navigationIcon = cfg.navigationIcon ?: {},
+                        actions = cfg.actions ?: {},
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = cfg.containerColor ?: MaterialTheme.colorScheme.surfaceContainer,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        scrollBehavior = cfg.scrollBehavior
+                    )
+                }
             }
         }
     }
@@ -170,7 +187,7 @@ fun AToxNavGraph(
     val density = androidx.compose.ui.platform.LocalDensity.current
     val navigationBarsInsets = WindowInsets.navigationBars
 
-    val targetBottomPadding = if (isSubScreen || !showBottomBar) {
+    val targetBottomPadding = if (isSubScreen || !showBottomBar || isExpandedMode) {
         0.dp
     } else {
         80.dp + with(density) { navigationBarsInsets.getBottom(density).toDp() }
@@ -193,11 +210,16 @@ fun AToxNavGraph(
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
             Scaffold(
                 contentWindowInsets = WindowInsets(0),
-                topBar = reactiveTopBar,
+                topBar = {
+                    val showRootTopBar = if (isExpandedMode) !showBottomBar else true
+                    if (showRootTopBar) {
+                        reactiveTopBar()
+                    }
+                },
                 bottomBar = {
                     AToxBottomBar(
                         currentRoute = currentRoute,
-                        visible = showBottomBar,
+                        visible = showBottomBar && !isExpandedMode,
                         attentionCount = attentionCount,
                         hapticEnabled = settings.hapticEnabled,
                         onTabSelected = { route ->
@@ -221,7 +243,10 @@ fun AToxNavGraph(
                 floatingActionButton = {
                     AToxFAB(
                         currentRoute = currentRoute,
-                        visible = showBottomBar && (currentRoute?.endsWith("AppRoutes.Chats") == true || currentRoute?.endsWith("AppRoutes.Groups") == true),
+                        visible = showBottomBar && !isExpandedMode && (
+                            currentRoute?.endsWith("AppRoutes.Chats") == true ||
+                            currentRoute?.endsWith("AppRoutes.Groups") == true
+                        ),
                         hapticEnabled = settings.hapticEnabled,
                         onAddContactClick = {
                             navController.navigate(AppRoutes.AddContactTab) {
@@ -238,12 +263,16 @@ fun AToxNavGraph(
                     )
                 }
             ) { paddingValues ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(top = paddingValues.calculateTopPadding())
+                AToxWindowDecorator(
+                    callScreenMinimized = callScreenMinimized,
+                    publicKeyForCall = callState.publicKeyForCallScreen()
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(top = paddingValues.calculateTopPadding())
+                    ) {
                     // Call state management
                     LaunchedEffect(callState, callScreenMinimized.value) {
                         val publicKey = callState.publicKeyForCallScreen()
@@ -258,16 +287,17 @@ fun AToxNavGraph(
                     }
 
                     // Tox ID deep link handling
-                    LaunchedEffect(initialToxIdToLink.value) {
-                        initialToxIdToLink.value?.let { toxId ->
+                    val pendingToxId by toxLinkManager.pendingToxId.collectAsStateWithLifecycle()
+                    LaunchedEffect(pendingToxId) {
+                        pendingToxId?.let { toxId ->
                             navController.navigate(AppRoutes.AddContact(toxId))
-                            initialToxIdToLink.value = null
+                            toxLinkManager.clear()
                         }
                     }
 
                     // Shared content handling
-                    LaunchedEffect(MainActivity.sharedContentState.value, currentRoute) {
-                        if (MainActivity.sharedContentState.value != null) {
+                    LaunchedEffect(sharedContent, currentRoute) {
+                        if (sharedContent != null) {
                             val isAuthRoute = currentRoute?.endsWith("AppRoutes.Launch") == true ||
                                               currentRoute?.endsWith("AppRoutes.Unlock") == true ||
                                               currentRoute?.endsWith("AppRoutes.CreateProfile") == true
@@ -280,156 +310,274 @@ fun AToxNavGraph(
                     }
 
                     // Single flat NavHost with ALL destinations
-                    CompositionLocalProvider(LocalTabPadding provides tabPadding) {
-                        NavHost(
-                            navController = navController,
-                            startDestination = AppRoutes.Launch,
-                            enterTransition = { AToxMotion.sharedAxisZEnter(forward = true) },
-                            exitTransition = { AToxMotion.sharedAxisZExit(forward = true) },
-                            popEnterTransition = { AToxMotion.sharedAxisZEnter(forward = false) },
-                            popExitTransition = { AToxMotion.sharedAxisZExit(forward = false) },
-                        ) {
-                            // Auth flow
-                            authGraph(
-                                navController = navController,
-                                authViewModel = authViewModel,
-                                onQuitApp = onQuitApp
-                            )
-
-                            // Main tab destinations (flat, no nesting)
-                            mainTabGraph(
-                                navController = navController,
-                                contactListViewModel = contactListViewModel,
-                                settings = settings,
-                                appearance = appearance,
-                                onThemeChanged = onThemeChanged,
-                                onDynamicColorChanged = onDynamicColorChanged,
-                                onAccentColorSeedChanged = onAccentColorSeedChanged,
-                                onLocaleTagChanged = onLocaleTagChanged,
-                                onDisableScreenshotsChanged = onDisableScreenshotsChanged,
-                            )
-
-                            // Chat detail
-                            chatGraph(
-                                navController = navController,
-                                contactListViewModel = contactListViewModel,
-                                settings = settings,
-                                selectedChatSnapshotState = selectedChatSnapshot,
-                                systemSoundPlayer = systemSoundPlayer,
-                                onOpenFile = onOpenFile,
-                            )
-
-                            // Group screens
-                            groupGraph(
-                                navController = navController,
-                                contactListViewModel = contactListViewModel,
-                                settings = settings,
-                                onOpenFile = onOpenFile,
-                                systemSoundPlayer = systemSoundPlayer,
-                            )
-
-                            // Call overlay
-                            callGraph(
-                                navController = navController,
-                                permissionManager = permissionManager,
-                                callScreenMinimized = callScreenMinimized,
-                                settings = settings,
-                            )
-
-                            // Forward selection
-                            composable<AppRoutes.ForwardSelection>(
-                                enterTransition = { AToxMotion.sharedAxisZEnter(forward = true) },
-                                exitTransition = { AToxMotion.sharedAxisZExit(forward = true) },
-                                popEnterTransition = { AToxMotion.sharedAxisZEnter(forward = false) },
-                                popExitTransition = { AToxMotion.sharedAxisZExit(forward = false) },
-                            ) { backStackEntry ->
-                                val forwardRoute = backStackEntry.toRoute<AppRoutes.ForwardSelection>()
-                                val messageText = forwardRoute.message
-                                val contactsState by contactListViewModel.contacts.collectAsStateWithLifecycle()
-                                val ctx = LocalContext.current
-
-                                ForwardSelectionScreen(
-                                    contacts = contactsState,
-                                    settings = settings,
-                                    onBack = { navController.popBackStack() },
-                                    onContactsSelect = { selectedList ->
-                                        selectedList.forEach { contact ->
-                                            contactListViewModel.onShareText(messageText, contact)
-                                        }
-                                        Toast.makeText(ctx, ctx.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
-                                        navController.popBackStack()
+                    if (isExpandedMode && showBottomBar) {
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            // Left Pane: 35% width, local Scaffold
+                            Box(modifier = Modifier.weight(0.35f).fillMaxHeight()) {
+                                Scaffold(
+                                    topBar = {
+                                        val leftConfig by AppBarStateHolder.config.collectAsStateWithLifecycle()
+                                        LocalTopAppBar(leftConfig)
+                                    },
+                                    bottomBar = {
+                                        AToxBottomBar(
+                                            currentRoute = currentRoute,
+                                            visible = showBottomBar,
+                                            attentionCount = attentionCount,
+                                            hapticEnabled = settings.hapticEnabled,
+                                            onTabSelected = { route ->
+                                                val targetRoute: Any = when (route) {
+                                                    AppRoutes.Chats::class.qualifiedName -> AppRoutes.Chats
+                                                    AppRoutes.Groups::class.qualifiedName -> AppRoutes.Groups
+                                                    AppRoutes.Profile::class.qualifiedName -> AppRoutes.Profile
+                                                    AppRoutes.Settings::class.qualifiedName -> AppRoutes.Settings
+                                                    else -> AppRoutes.Chats
+                                                }
+                                                navController.navigate(targetRoute) {
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                    popUpTo(AppRoutes.Chats) {
+                                                        saveState = true
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    },
+                                    floatingActionButton = {
+                                        AToxFAB(
+                                            currentRoute = currentRoute,
+                                            visible = currentRoute?.endsWith("AppRoutes.Chats") == true || currentRoute?.endsWith("AppRoutes.Groups") == true,
+                                            hapticEnabled = settings.hapticEnabled,
+                                            onAddContactClick = {
+                                                navController.navigate(AppRoutes.AddContactTab) {
+                                                    launchSingleTop = true
+                                                }
+                                            },
+                                            onCreateGroupClick = {
+                                                navController.navigate(AppRoutes.CreateGroup)
+                                            },
+                                            onJoinGroupClick = {
+                                                navController.navigate(AppRoutes.JoinGroup)
+                                            }
+                                        )
                                     }
-                                )
+                                ) { leftPadding ->
+                                    Box(modifier = Modifier.fillMaxSize().padding(leftPadding)) {
+                                        CompositionLocalProvider(LocalTabPadding provides PaddingValues(bottom = 0.dp)) {
+                                            NavHost(
+                                                navController = navController,
+                                                startDestination = AppRoutes.Launch,
+                                                enterTransition = { AToxMotion.sharedAxisZEnter(forward = true) },
+                                                exitTransition = { AToxMotion.sharedAxisZExit(forward = true) },
+                                                popEnterTransition = { AToxMotion.sharedAxisZEnter(forward = false) },
+                                                popExitTransition = { AToxMotion.sharedAxisZExit(forward = false) },
+                                            ) {
+                                                authGraph(navController = navController, onQuitApp = onQuitApp)
+                                                mainTabGraph(
+                                                    navController = navController,
+                                                    contactListViewModel = contactListViewModel,
+                                                    settings = settings,
+                                                    appearance = appearance,
+                                                    isExpanded = true,
+                                                    onThemeChanged = onThemeChanged,
+                                                    onDynamicColorChanged = onDynamicColorChanged,
+                                                    onAccentColorSeedChanged = onAccentColorSeedChanged,
+                                                    onLocaleTagChanged = onLocaleTagChanged,
+                                                    onDisableScreenshotsChanged = onDisableScreenshotsChanged,
+                                                )
+                                                chatGraph(
+                                                    navController = navController,
+                                                    contactListViewModel = contactListViewModel,
+                                                    selectedChatSnapshotState = selectedChatSnapshot,
+                                                    systemSoundPlayer = systemSoundPlayer,
+                                                    onOpenFile = onOpenFile,
+                                                )
+                                                groupGraph(
+                                                    navController = navController,
+                                                    contactListViewModel = contactListViewModel,
+                                                    settings = settings,
+                                                    onOpenFile = onOpenFile,
+                                                    systemSoundPlayer = systemSoundPlayer,
+                                                )
+                                                callGraph(
+                                                    navController = navController,
+                                                    permissionManager = permissionManager,
+                                                    callScreenMinimized = callScreenMinimized,
+                                                    settings = settings,
+                                                )
+                                                sharingGraph(
+                                                    navController = navController,
+                                                    contactListViewModel = contactListViewModel,
+                                                    settings = settings,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
-                            // Shared content forwarding
-                            composable<AppRoutes.ForwardShared>(
+                            VerticalDivider(
+                                thickness = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+
+                            // Right Pane: 65% width
+                            Box(modifier = Modifier.weight(0.65f).fillMaxHeight()) {
+                                val selectedChat = selectedChatSnapshot.value
+                                if (selectedChat != null) {
+                                    val rightChatViewModel: ChatViewModel = hiltViewModel(key = selectedChat.publicKey)
+                                    
+                                    LaunchedEffect(selectedChat.publicKey) {
+                                        rightChatViewModel.setActiveChat(PublicKey(selectedChat.publicKey))
+                                    }
+                                    
+                                    val uiState by rightChatViewModel.uiState.collectAsStateWithLifecycle()
+                                    val finalUiState = remember(uiState, selectedChat) {
+                                        if (uiState.contact == null) {
+                                            uiState.copy(contact = selectedChat)
+                                        } else {
+                                            uiState
+                                        }
+                                    }
+                                    
+                                    val groupListViewModel: GroupListViewModel = hiltViewModel()
+                                    val groupsState by groupListViewModel.groups.collectAsStateWithLifecycle()
+                                    val coroutineScope = rememberCoroutineScope()
+                                    
+                                    ChatScreen(
+                                        uiState = finalUiState,
+                                        onBack = { contactListViewModel.clearSelectedChat() },
+                                        onSendMessage = { content -> rightChatViewModel.send(content, ltd.evilcorp.domain.model.MessageType.Normal) },
+                                        onTypingChanged = rightChatViewModel::setTyping,
+                                        onSendFile = rightChatViewModel::createFt,
+                                        onCallClick = rightChatViewModel::startCall,
+                                        onCallHistoryClick = rightChatViewModel::startCall,
+                                        onAcceptFt = rightChatViewModel::acceptFt,
+                                        onRejectFt = rightChatViewModel::rejectFt,
+                                        onCancelFt = rightChatViewModel::delete,
+                                        onSaveFt = rightChatViewModel::exportFt,
+                                        onOpenFile = onOpenFile,
+                                        systemSoundPlayer = systemSoundPlayer,
+                                        isExpanded = true,
+                                        isTypingFlow = rightChatViewModel.isTyping,
+                                        onCancelReply = { rightChatViewModel.setReplyingTo(null) },
+                                        onReplyClick = { msg -> rightChatViewModel.setReplyingTo(msg) },
+                                        onCopyClick = { msg ->
+                                            val clipboard = context.getSystemService(
+                                                android.content.Context.CLIPBOARD_SERVICE
+                                            ) as android.content.ClipboardManager
+                                            val clip = android.content.ClipData.newPlainText("aTox message", msg.message)
+                                            clipboard.setPrimaryClip(clip)
+                                            Toast.makeText(context, context.getString(R.string.message_copied), Toast.LENGTH_SHORT).show()
+                                        },
+                                        onForwardClick = { msg ->
+                                            navController.navigate(AppRoutes.ForwardSelection(msg.message))
+                                        },
+                                        onSendVoice = rightChatViewModel::createFt,
+                                        isJoinedGroup = { chatId ->
+                                            groupsState.any { it.chatId.equals(chatId, ignoreCase = true) }
+                                        },
+                                        onJoinGroupClick = { chatIdOrBytes, groupName ->
+                                            coroutineScope.launch {
+                                                val alreadyJoined = groupsState.any { it.chatId.equals(chatIdOrBytes, ignoreCase = true) }
+                                                if (alreadyJoined) {
+                                                    navController.navigate(AppRoutes.GroupChat(chatIdOrBytes))
+                                                    return@launch
+                                                }
+                                                val groupNumber = if (chatIdOrBytes.length == 64) {
+                                                    val pending = groupListViewModel.getPendingInvite()
+                                                    if (pending != null && pending.groupName.equals(groupName, ignoreCase = true)) {
+                                                        groupListViewModel.joinWithPendingInvite(selectedChat.publicKey, pending)
+                                                    } else {
+                                                        groupListViewModel.joinByChatId(chatIdOrBytes, null)
+                                                    }
+                                                } else {
+                                                    groupListViewModel.joinGroupWithBytes(selectedChat.publicKey, chatIdOrBytes, null)
+                                                }
+                                                if (groupNumber >= 0) {
+                                                    val chatId = if (chatIdOrBytes.length == 64) {
+                                                        chatIdOrBytes
+                                                    } else {
+                                                        groupListViewModel.getChatIdByGroupNumber(groupNumber) ?: ""
+                                                    }
+                                                    if (chatId.isNotEmpty()) {
+                                                        navController.navigate(AppRoutes.GroupChat(chatId))
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, "Не удалось вступить в группу", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    PlaceholderScreen()
+                                }
+                            }
+                        }
+                    } else {
+                        CompositionLocalProvider(LocalTabPadding provides tabPadding) {
+                            NavHost(
+                                navController = navController,
+                                startDestination = AppRoutes.Launch,
                                 enterTransition = { AToxMotion.sharedAxisZEnter(forward = true) },
                                 exitTransition = { AToxMotion.sharedAxisZExit(forward = true) },
                                 popEnterTransition = { AToxMotion.sharedAxisZEnter(forward = false) },
                                 popExitTransition = { AToxMotion.sharedAxisZExit(forward = false) },
                             ) {
-                                val contactsState by contactListViewModel.contacts.collectAsStateWithLifecycle()
-                                val ctx = LocalContext.current
+                                authGraph(
+                                    navController = navController,
+                                    onQuitApp = onQuitApp
+                                )
 
-                                ForwardSelectionScreen(
-                                    contacts = contactsState,
+                                // Main tab destinations (flat, no nesting)
+                                mainTabGraph(
+                                    navController = navController,
+                                    contactListViewModel = contactListViewModel,
                                     settings = settings,
-                                    onBack = {
-                                        MainActivity.sharedContentState.value = null
-                                        navController.popBackStack()
-                                    },
-                                    onContactsSelect = { selectedList ->
-                                        val content = MainActivity.sharedContentState.value
-                                        if (content != null) {
-                                            selectedList.forEach { contact ->
-                                                when (content) {
-                                                    is SharedContent.Text -> {
-                                                        contactListViewModel.onShareText(content.text, contact)
-                                                    }
-                                                    is SharedContent.File -> {
-                                                        contactListViewModel.onShareFile(content.uri, contact)
-                                                    }
-                                                    is SharedContent.MultipleFiles -> {
-                                                        content.uris.forEach { uri ->
-                                                            contactListViewModel.onShareFile(uri, contact)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            if (content is SharedContent.Text) {
-                                                Toast.makeText(ctx, ctx.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(ctx, ctx.getString(R.string.file_sharing_started), Toast.LENGTH_SHORT).show()
-                                            }
-                                            MainActivity.sharedContentState.value = null
-                                        }
-                                        navController.popBackStack()
-                                        if (selectedList.size == 1) {
-                                            navController.navigate(AppRoutes.Chat(selectedList.first().publicKey)) {
-                                                popUpTo(AppRoutes.Chats) { inclusive = false }
-                                            }
-                                        }
-                                    }
+                                    appearance = appearance,
+                                    isExpanded = false,
+                                    onThemeChanged = onThemeChanged,
+                                    onDynamicColorChanged = onDynamicColorChanged,
+                                    onAccentColorSeedChanged = onAccentColorSeedChanged,
+                                    onLocaleTagChanged = onLocaleTagChanged,
+                                    onDisableScreenshotsChanged = onDisableScreenshotsChanged,
+                                )
+
+                                // Chat detail
+                                chatGraph(
+                                    navController = navController,
+                                    contactListViewModel = contactListViewModel,
+                                    selectedChatSnapshotState = selectedChatSnapshot,
+                                    systemSoundPlayer = systemSoundPlayer,
+                                    onOpenFile = onOpenFile,
+                                )
+
+                                // Group screens
+                                groupGraph(
+                                    navController = navController,
+                                    contactListViewModel = contactListViewModel,
+                                    settings = settings,
+                                    onOpenFile = onOpenFile,
+                                    systemSoundPlayer = systemSoundPlayer,
+                                )
+
+                                // Call overlay
+                                callGraph(
+                                    navController = navController,
+                                    permissionManager = permissionManager,
+                                    callScreenMinimized = callScreenMinimized,
+                                    settings = settings,
+                                )
+
+                                // Sharing & Forwarding graph
+                                sharingGraph(
+                                    navController = navController,
+                                    contactListViewModel = contactListViewModel,
+                                    settings = settings,
                                 )
                             }
                         }
                     }
-
-                // Return to call banner
-                val publicKey = callState.publicKeyForCallScreen()
-                if (callScreenMinimized.value && publicKey != null) {
-                    ReturnToCallBanner(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .zIndex(1f)
-                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                            .padding(top = 72.dp, start = 16.dp, end = 16.dp),
-                        onClick = {
-                            callScreenMinimized.value = false
-                        },
-                    )
-                }
 
                 // Incoming call dialog
                 val incomingCall = callState as? CallState.IncomingRinging
@@ -479,6 +627,7 @@ fun AToxNavGraph(
                     )
                 }
                 }
+                }
             }
         }
     }
@@ -492,5 +641,35 @@ private fun CallState.publicKeyForCallScreen(): String? {
         is CallState.OutgoingRinging -> publicKey.string()
         is CallState.Active -> publicKey.string()
         else -> null
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LocalTopAppBar(cfg: AppBarConfig?) {
+    if (cfg != null) {
+        if (cfg.isLarge) {
+            LargeTopAppBar(
+                title = cfg.title,
+                navigationIcon = cfg.navigationIcon ?: {},
+                actions = cfg.actions ?: {},
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = cfg.containerColor ?: MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+                scrollBehavior = cfg.scrollBehavior
+            )
+        } else {
+            TopAppBar(
+                title = cfg.title,
+                navigationIcon = cfg.navigationIcon ?: {},
+                actions = cfg.actions ?: {},
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = cfg.containerColor ?: MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+                scrollBehavior = cfg.scrollBehavior
+            )
+        }
     }
 }

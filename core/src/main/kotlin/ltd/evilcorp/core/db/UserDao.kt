@@ -6,17 +6,17 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import ltd.evilcorp.core.db.entity.UserEntity
 import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.User
 import ltd.evilcorp.domain.model.UserStatus
 
 @Dao
 interface UserDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
-    fun save(user: User)
+    fun save(user: UserEntity)
 
     @Update
-    fun update(user: User)
+    fun update(user: UserEntity)
 
     @Query("UPDATE users SET name = :name WHERE public_key == :publicKey")
     fun updateName(publicKey: String, name: String)
@@ -34,5 +34,5 @@ interface UserDao {
     fun exists(publicKey: String): Boolean
 
     @Query("SELECT * FROM users WHERE public_key = :publicKey")
-    fun load(publicKey: String): Flow<User?>
+    fun load(publicKey: String): Flow<UserEntity?>
 }

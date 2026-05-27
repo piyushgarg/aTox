@@ -60,7 +60,11 @@ fun ContactAvatar(
     val lastModified = remember(avatarUri) {
         avatarUri.takeIf { it.isNotEmpty() }?.let {
             runCatching {
-                val file = Uri.parse(it).path?.let(::File)
+                val parsedUri = Uri.parse(it)
+                val path = parsedUri.path ?: if (it.startsWith("file:")) {
+                    it.substringAfter("file:").substringBefore("?")
+                } else null
+                val file = path?.let(::File)
                 if (file != null && file.exists()) {
                     file.lastModified()
                 } else 0L
@@ -83,7 +87,11 @@ fun ContactAvatar(
             val cacheKey = "$avatarUri:$lastModified"
             avatarBitmapCache.get(cacheKey) ?: withContext(Dispatchers.IO) {
                 runCatching {
-                    val file = Uri.parse(avatarUri).path?.let(::File)
+                    val parsedUri = Uri.parse(avatarUri)
+                    val path = parsedUri.path ?: if (avatarUri.startsWith("file:")) {
+                        avatarUri.substringAfter("file:").substringBefore("?")
+                    } else null
+                    val file = path?.let(::File)
                     if (file != null && file.exists()) {
                         BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()?.also {
                             avatarBitmapCache.put(cacheKey, it)

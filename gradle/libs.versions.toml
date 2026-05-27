@@ -23,6 +23,8 @@ opus = "1.4"
 libvpx = "v1.14.1"
 toxcore = "v0.2.20"
 compose-bom = "2026.05.01"
+biometric = "1.2.0-alpha05"
+org-json = "20260522"
 
 
 [plugins]
@@ -41,6 +43,7 @@ detekt-compose = { module = "io.nlopez.compose.rules:detekt", version.ref = "det
 androidx-activity = "androidx.activity:activity:1.13.0" # >=1.11.0 needs compileSdk 36.
 androidx-activity-compose = "androidx.activity:activity-compose:1.13.0"
 androidx-appcompat = "androidx.appcompat:appcompat:1.7.1"
+androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-constraintlayout = "androidx.constraintlayout:constraintlayout:2.2.1"
 androidx-core-ktx = "androidx.core:core-ktx:1.18.0" # >=1.17.0 needs compileSdk 36.
@@ -83,9 +86,10 @@ javax-inject = "javax.inject:javax.inject:1"
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
-kotlinx-serialization-json = "org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0"
+kotlinx-serialization-json = "org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0"
 
 nayuki-qrcodegen = "io.nayuki:qrcodegen:1.8.0"
+org-json = { module = "org.json:json", version.ref = "org-json" }
 
 square-leakcanary = "com.squareup.leakcanary:leakcanary-android:2.14"
 square-picasso = "com.squareup.picasso:picasso:2.71828"

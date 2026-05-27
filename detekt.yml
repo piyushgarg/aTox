@@ -1,6 +1,10 @@
 naming:
   InvalidPackageDeclaration:
     active: false
+  FunctionNaming:
+    active: true
+    ignoreAnnotated:
+      - 'Composable'
 
 empty-blocks:
   EmptyFunctionBlock:

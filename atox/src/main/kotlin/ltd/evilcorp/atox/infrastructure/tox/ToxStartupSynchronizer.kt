@@ -5,14 +5,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.core.repository.ContactRepository
-import ltd.evilcorp.core.repository.UserRepository
+import ltd.evilcorp.domain.repository.IContactRepository
+import ltd.evilcorp.domain.repository.IUserRepository
 import ltd.evilcorp.domain.tox.ITox
 
 class ToxStartupSynchronizer @Inject constructor(
     private val scope: CoroutineScope,
-    private val contactRepository: ContactRepository,
-    private val userRepository: UserRepository,
+    private val contactRepository: IContactRepository,
+    private val userRepository: IUserRepository,
     private val tox: ITox,
 ) {
     fun synchronizeAfterStart() {

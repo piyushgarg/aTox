@@ -10,15 +10,14 @@ import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.atox.ui.navigation.AuthViewModel
 import ltd.evilcorp.atox.ui.navigation.LaunchScreen
 import ltd.evilcorp.atox.ui.navigation.UnlockScreen
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
 
 fun NavGraphBuilder.authGraph(
     navController: NavHostController,
-    authViewModel: AuthViewModel,
-
     onQuitApp: () -> Unit,
 ) {
     composable<AppRoutes.Launch> {
+        val authViewModel: AuthViewModel = hiltViewModel()
         LaunchScreen(
             viewModel = authViewModel,
             onLaunchResolved = { status ->
@@ -35,6 +34,7 @@ fun NavGraphBuilder.authGraph(
     }
 
     composable<AppRoutes.Unlock> {
+        val authViewModel: AuthViewModel = hiltViewModel()
         UnlockScreen(
             viewModel = authViewModel,
             onUnlockSuccess = {

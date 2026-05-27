@@ -58,7 +58,7 @@ class UserSettingsRepository @Inject constructor(
         .stateIn(
             scope = scope,
             started = SharingStarted.Eagerly,
-            initialValue = readBlocking(context),
+            initialValue = UserSettings(),
         )
 
     override fun updateThemeMode(themeMode: Int) = update(Keys.themeMode, themeMode)

@@ -9,6 +9,7 @@ import ltd.evilcorp.domain.model.ProxyStatus
 import ltd.evilcorp.domain.model.ProxyType
 import ltd.evilcorp.domain.tox.save.IToxSaveTester
 import ltd.evilcorp.domain.tox.save.SaveOptions
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
 
 class ToxSaveTesterImpl @Inject constructor() : IToxSaveTester {
     override fun testProxy(

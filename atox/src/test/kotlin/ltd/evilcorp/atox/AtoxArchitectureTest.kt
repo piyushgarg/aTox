@@ -28,6 +28,37 @@ class AtoxArchitectureTest {
     }
 
     @Test
+    fun `presentation layer atox should not import database or JNI runtime packages`() {
+        Konsist
+            .scopeFromPackage("ltd.evilcorp.atox..")
+            .files
+            .filter { file ->
+                val path = file.path
+                val isTest = path.contains("/src/test/") || path.contains("/src/androidTest/")
+                val isDi = file.packagee?.name?.startsWith("ltd.evilcorp.atox.di") ?: false
+                !isTest && !isDi
+            }
+            .flatMap { it.imports }
+            .assertTrue { import ->
+                // Presentation layer must interact with data layers only via domain interfaces, never directly
+                !import.name.startsWith("ltd.evilcorp.core.db") &&
+                !import.name.startsWith("ltd.evilcorp.core.tox.runtime")
+            }
+    }
+
+    @Test
+    fun `atox UI package classes should not directly depend on core implementations`() {
+        Konsist
+            .scopeFromPackage("ltd.evilcorp.atox.ui..")
+            .imports
+            .assertTrue { import ->
+                // UI ViewModels, Screens, and Controllers must depend on Domain interfaces, never directly on Core repositories or DAOs
+                !import.name.startsWith("ltd.evilcorp.core.repository") &&
+                !import.name.startsWith("ltd.evilcorp.core.db")
+            }
+    }
+
+    @Test
     fun `presentation layer atox should not declare any UseCase classes`() {
         Konsist
             .scopeFromPackage("ltd.evilcorp.atox..")

@@ -39,8 +39,13 @@ import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import kotlinx.coroutines.delay
 import ltd.evilcorp.atox.R
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.Lifecycle
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
-import ltd.evilcorp.atox.infrastructure.settings.Settings
+import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.stripReplyPrefix
 import ltd.evilcorp.atox.ui.theme.AToxMotion
 import ltd.evilcorp.domain.model.ConnectionStatus
@@ -52,7 +57,7 @@ import ltd.evilcorp.domain.model.Sender
 @Composable
 fun ChatInputBar(
     contact: Contact?,
-    settings: Settings,
+    uiConfig: ChatUiConfig,
     systemSoundPlayer: SystemSoundPlayer,
     onSendMessage: (String) -> Unit,
     onTypingChanged: (Boolean) -> Unit,
@@ -72,8 +77,55 @@ fun ChatInputBar(
     var recordDuration by remember { mutableIntStateOf(0) }
     val cancelThreshold = with(LocalDensity.current) { 60.dp.toPx() }
 
-    // MediaRecorder local state helpers
-    val recordingState = remember { RecordingState() }
+    // Voice recording controller and lifecycle observer
+    val recordingController = remember(context) { VoiceRecordingController(context) }
+
+    DisposableEffect(recordingController) {
+        onDispose {
+            recordingController.release()
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, recordingController) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                if (isRecording) {
+                    recordingController.cancelRecording()
+                    isRecording = false
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Check mic permission dynamically and Compose launcher
+    val checkMicPermission = {
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.RECORD_AUDIO
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    var hasMicPermission by remember {
+        mutableStateOf(checkMicPermission())
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasMicPermission = isGranted
+        if (!isGranted) {
+            Toast.makeText(
+                context,
+                context.getString(R.string.call_mic_permission_needed),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
     val micScale by animateFloatAsState(
         targetValue = if (isRecording) 1.25f else 1.0f,
@@ -104,25 +156,6 @@ fun ChatInputBar(
         label = "micContentColor"
     )
 
-    // Check mic permission dynamically
-    val checkMicPermission = {
-        androidx.core.content.ContextCompat.checkSelfPermission(
-            context,
-            android.Manifest.permission.RECORD_AUDIO
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-    }
-
-    val requestMicPermission = {
-        val activity = context as? android.app.Activity
-        activity?.let {
-            androidx.core.app.ActivityCompat.requestPermissions(
-                it,
-                arrayOf(android.Manifest.permission.RECORD_AUDIO),
-                200
-            )
-        }
-    }
-
     // Stopwatch for voice recording
     LaunchedEffect(isRecording) {
         if (isRecording) {
@@ -137,19 +170,13 @@ fun ChatInputBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .windowInsetsPadding(WindowInsets.ime)
     ) {
         // 1. Reply Preview Block above text field
         AnimatedVisibility(
             visible = replyingToMessage != null,
-            enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = tween(200, easing = AToxMotion.EmphasizedDecelerate)
-            ) + fadeIn(animationSpec = tween(150)),
-            exit = slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = tween(150, easing = AToxMotion.EmphasizedAccelerate)
-            ) + fadeOut(animationSpec = tween(100))
+            enter = AToxMotion.replyPreviewEnter(),
+            exit = AToxMotion.replyPreviewExit()
         ) {
             replyingToMessage?.let { replyMsg ->
                 Row(
@@ -326,7 +353,7 @@ fun ChatInputBar(
                             if (textInput.trim().isNotEmpty()) {
                                 onHaptic()
                                 onSendMessage(textInput)
-                                systemSoundPlayer.playSentSound(settings.sentMessageSoundUri, settings.sentMessageSoundVolume)
+                                systemSoundPlayer.playSentSound(uiConfig.sentMessageSoundUri, uiConfig.sentMessageSoundVolume)
                                 onTypingChanged(false)
                                 textInput = ""
                             }
@@ -356,14 +383,18 @@ fun ChatInputBar(
                                     while (true) {
                                         val down = awaitFirstDown()
                                         if (!checkMicPermission()) {
-                                            requestMicPermission()
+                                            permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
                                             continue
                                         }
 
                                         // Start recording process
-                                        isRecording = true
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        recordingState.startRecording(context)
+                                        val success = recordingController.startRecording()
+                                        if (success) {
+                                            isRecording = true
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        } else {
+                                            continue
+                                        }
 
                                         var cancelled = false
                                         while (true) {
@@ -376,7 +407,7 @@ fun ChatInputBar(
                                                 cancelled = true
                                                 isRecording = false
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                recordingState.cancelRecording()
+                                                recordingController.cancelRecording()
                                                 Toast.makeText(context, context.getString(R.string.slide_to_cancel), Toast.LENGTH_SHORT).show()
                                                 break
                                             }
@@ -388,7 +419,7 @@ fun ChatInputBar(
 
                                         if (isRecording) {
                                             isRecording = false
-                                            val file = recordingState.stopRecording()
+                                            val file = recordingController.stopRecording()
                                             if (file != null && file.exists() && file.length() > 0) {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 onSendVoice(android.net.Uri.fromFile(file))
@@ -410,65 +441,4 @@ fun ChatInputBar(
     }
 }
 
-// MediaRecorder state class
-private class RecordingState {
-    private var mediaRecorder: android.media.MediaRecorder? = null
-    private var voiceFile: java.io.File? = null
 
-    fun startRecording(context: android.content.Context) {
-        val file = java.io.File(context.cacheDir, "voice_message_${System.currentTimeMillis()}.m4a")
-        voiceFile = file
-        try {
-            mediaRecorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                android.media.MediaRecorder(context)
-            } else {
-                @Suppress("DEPRECATION")
-                android.media.MediaRecorder()
-            }.apply {
-                setAudioSource(android.media.MediaRecorder.AudioSource.MIC)
-                setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(44100)
-                setAudioEncodingBitRate(96000)
-                setOutputFile(file.absolutePath)
-                prepare()
-                start()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun stopRecording(): java.io.File? {
-        val file = voiceFile
-        try {
-            mediaRecorder?.stop()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        try {
-            mediaRecorder?.release()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        mediaRecorder = null
-        voiceFile = null
-        return file
-    }
-
-    fun cancelRecording() {
-        try {
-            mediaRecorder?.stop()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        try {
-            mediaRecorder?.release()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        mediaRecorder = null
-        voiceFile?.delete()
-        voiceFile = null
-    }
-}

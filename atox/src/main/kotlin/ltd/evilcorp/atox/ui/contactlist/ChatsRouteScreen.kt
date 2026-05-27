@@ -39,9 +39,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.MorphingNavigationIcon
+import ltd.evilcorp.atox.ui.common.AtoxAppBar
+import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 import ltd.evilcorp.atox.ui.navigation.AppBarConfig
 import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
+import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.atox.ui.contactlist.components.ChatListTab
 import ltd.evilcorp.atox.ui.contactlist.components.ContactItemCard
 import ltd.evilcorp.domain.model.Contact
@@ -82,6 +85,7 @@ import androidx.compose.runtime.remember
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatsRouteScreen(
+    connectionStatus: ConnectionStatus,
     contacts: List<Contact>,
     friendRequests: List<FriendRequest>,
     groupInvite: GroupInvite?,
@@ -107,57 +111,49 @@ fun ChatsRouteScreen(
     }
 
     val appNameString = stringResource(R.string.app_name)
-    androidx.compose.runtime.LaunchedEffect(isSearching, appNameString) {
-        if (isSearching) {
-            AppBarStateHolder.unregister(AppRoutes.Chats::class.qualifiedName!!)
-        } else {
-            AppBarStateHolder.register(
-                route = AppRoutes.Chats::class.qualifiedName!!,
-                cfg = AppBarConfig(
-                    title = {
+    val connectingString = stringResource(R.string.connecting)
+    if (!isSearching) {
+        AtoxAppBar(
+            route = AppRoutes.Chats::class.qualifiedName!!,
+            config = AppBarConfig(
+                title = {
+                    Column {
                         Text(
                             text = appNameString,
                             fontWeight = FontWeight.Bold
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { onSearchingChanged(true) }) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Search"
+                        if (connectionStatus == ConnectionStatus.None) {
+                            Text(
+                                text = connectingString,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                         }
-                    },
-                )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { onSearchingChanged(true) }) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search"
+                        )
+                    }
+                },
             )
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            AppBarStateHolder.unregister(AppRoutes.Chats::class.qualifiedName!!)
-        }
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (isSearching) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding(),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ltd.evilcorp.atox.ui.common.AtoxSearchBar(
+                query = searchQuery,
+                onQueryChange = onSearchQueryChanged,
+                onSearch = {},
+                active = true,
+                onActiveChange = onSearchingChanged,
+                placeholder = stringResource(R.string.contact_list_search_placeholder),
+                modifier = Modifier.fillMaxSize()
             ) {
-                ltd.evilcorp.atox.ui.common.AtoxSearchBar(
-                    query = searchQuery,
-                    onQueryChange = onSearchQueryChanged,
-                    onSearch = {},
-                    active = true,
-                    onActiveChange = onSearchingChanged,
-                    placeholder = stringResource(R.string.contact_list_search_placeholder),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
                     val filteredContacts = remember(searchQuery, contacts) {
                         if (searchQuery.isBlank()) emptyList()
                         else contacts.filter {
@@ -211,7 +207,6 @@ fun ChatsRouteScreen(
                         }
                     }
                 }
-            }
         }
 
         Box(
@@ -241,45 +236,24 @@ fun ChatsRouteScreen(
         }
 
         contactToDelete?.let { contact ->
-            DeleteContactDialog(
-                contactName = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
+            AtoxConfirmDialog(
                 onDismiss = { contactToDelete = null },
                 onConfirm = {
                     contactToDelete = null
                     onDeleteContact(contact)
+                },
+                title = stringResource(R.string.contact_list_delete_contact),
+                text = stringResource(R.string.contact_list_delete_contact_confirm, contact.name.ifEmpty { stringResource(R.string.contact_default_name) }),
+                confirmText = stringResource(R.string.delete),
+                dismissText = stringResource(android.R.string.cancel),
+                isDangerous = true,
+                icon = {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.delete)
+                    )
                 }
             )
         }
     }
-}
-
-@Composable
-private fun DeleteContactDialog(
-    contactName: String,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = stringResource(R.string.delete)
-            )
-        },
-        title = { Text(stringResource(R.string.contact_list_delete_contact)) },
-        text = {
-            Text(stringResource(R.string.contact_list_delete_contact_confirm, contactName))
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.delete))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(android.R.string.cancel))
-            }
-        }
-    )
 }

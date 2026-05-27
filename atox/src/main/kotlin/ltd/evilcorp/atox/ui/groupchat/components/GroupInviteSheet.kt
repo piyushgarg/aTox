@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.widget.Toast
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.common.ContactAvatar
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.GroupPeer
@@ -41,7 +40,6 @@ fun GroupInviteSheet(
     onInviteFriend: (friendPublicKey: String) -> Unit,
     peers: List<GroupPeer>,
     contacts: List<Contact>,
-    settings: Settings,
     onInviteResult: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -53,12 +51,6 @@ fun GroupInviteSheet(
     val inviteCopiedText = stringResource(R.string.group_invite_copied)
     val inviteSentText = stringResource(R.string.group_invite_sent)
     val inviteFailedText = stringResource(R.string.group_invite_failed)
-
-    val performHaptic = {
-        if (settings.hapticEnabled) {
-            // Can perform haptic internally if needed, but not strictly required
-        }
-    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,

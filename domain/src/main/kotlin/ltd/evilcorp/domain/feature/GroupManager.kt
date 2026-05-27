@@ -1,6 +1,5 @@
 package ltd.evilcorp.domain.feature
 
-import android.util.Log
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,6 +30,8 @@ import ltd.evilcorp.domain.repository.IMessageRepository
 import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
 import ltd.evilcorp.domain.tox.enums.ToxMessageType
 import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.tox.hexToBytes
+import ltd.evilcorp.domain.tox.bytesToHex
 
 enum class GroupConnectionStatus {
     Disconnected,
@@ -59,7 +60,6 @@ data class GroupInvite(
 }
 
 @Singleton
-@Suppress("LargeClass")
 class GroupManager @Inject constructor(
     private val scope: CoroutineScope,
     private val groupRepository: IGroupRepository,
@@ -67,6 +67,7 @@ class GroupManager @Inject constructor(
     private val chatManager: ChatManager,
     private val messageRepository: IMessageRepository,
     private val tox: ITox,
+    private val connectionScheduler: IGroupConnectionScheduler,
 ) {
     var activeGroup = ""
         set(value) {
@@ -100,10 +101,8 @@ class GroupManager @Inject constructor(
 
     fun getPendingInvite(): GroupInvite? = _pendingInvite.value
 
-    private val reconnectJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
-
     fun cancelReconnect(chatId: String) {
-        reconnectJobs.remove(chatId)?.cancel()
+        connectionScheduler.cancelReconnect(chatId)
     }
 
     fun notifyGroupMigrated(oldChatId: String, newChatId: String) {
@@ -131,7 +130,7 @@ class GroupManager @Inject constructor(
             peers.forEach { peer ->
                 if (peer.publicKey.isEmpty() && peer.peerId >= 0 && !peer.isOurselves) {
                     val peerKeyBytes = tox.groupPeerGetPublicKey(group.groupNumber, peer.peerId)
-                    val peerKey = peerKeyBytes?.toHexString()?.uppercase() ?: ""
+                    val peerKey = peerKeyBytes?.bytesToHex()?.uppercase() ?: ""
                     if (peerKey.isNotEmpty()) {
                         val updatedPeer = peer.copy(publicKey = peerKey)
                         groupRepository.addPeer(updatedPeer)
@@ -142,80 +141,12 @@ class GroupManager @Inject constructor(
         }
     }
 
-    private suspend fun reconnectWithRetry(chatId: String, groupNumber: Int, maxRetries: Int = 999999) {
-        for (attempt in 0 until maxRetries) {
-            val currentStatus = connectionStatus(chatId)
-            // Stop retrying if the group has successfully connected, or reconnect was aborted (e.g. user left the group)
-            if (currentStatus == GroupConnectionStatus.Connected || (currentStatus == GroupConnectionStatus.Disconnected && attempt > 0)) {
-                Log.d("GroupManager", "reconnectWithRetry for group $chatId stopped: status is $currentStatus")
-                return
-            }
-
-            val ok = tox.groupReconnect(groupNumber)
-            Log.d("GroupManager", "Reconnect attempt $attempt for group $chatId returned: $ok")
-            if (ok) {
-                setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
-            }
-            
-            // Adaptive delay (Exponential Back-off) to conserve battery and network:
-            // - first 10 attempts: every 5 seconds (fast reconnection)
-            // - next 20 attempts: every 15 seconds
-            // - all subsequent attempts: every 30 seconds
-            val delayMs = when {
-                attempt < 10 -> 5000L
-                attempt < 30 -> 15000L
-                else -> 30000L
-            }
-            delay(delayMs)
-        }
-        
-        val finalStatus = connectionStatus(chatId)
-        if (finalStatus == GroupConnectionStatus.Reconnecting || finalStatus == GroupConnectionStatus.Connecting) {
-            Log.e("GroupManager", "All $maxRetries reconnect attempts failed for group $chatId")
-            setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
-        }
-    }
-
     fun reconnectAll() {
-        scope.launch {
-            val groups = groupRepository.getAll().firstOrNull() ?: return@launch
-            Log.d("GroupManager", "reconnectAll found ${groups.size} groups in database")
-            for (group in groups) {
-                val currentStatus = connectionStatus(group.chatId)
-                Log.d("GroupManager", "Group ${group.chatId} database status connected: ${group.connected}, current status state: $currentStatus, groupNumber: ${group.groupNumber}")
-                
-                if (currentStatus == GroupConnectionStatus.Connected) {
-                    continue
-                }
-                
-                reconnectJobs[group.chatId]?.cancel()
-                
-                groupRepository.setConnected(group.chatId, false)
-                setConnectionStatus(group.chatId, GroupConnectionStatus.Reconnecting)
-                if (group.groupNumber >= 0) {
-                    Log.d("GroupManager", "Launching reconnectWithRetry for group ${group.chatId}")
-                    val job = scope.launch {
-                        reconnectWithRetry(group.chatId, group.groupNumber)
-                    }
-                    reconnectJobs[group.chatId] = job
-                } else {
-                    Log.w("GroupManager", "Group ${group.chatId} has invalid groupNumber ${group.groupNumber}, setting Disconnected")
-                    setConnectionStatus(group.chatId, GroupConnectionStatus.Disconnected)
-                }
-            }
-        }
+        connectionScheduler.reconnectAll()
     }
 
     fun scheduleAutoReconnect(chatId: String, groupNumber: Int) {
-        reconnectJobs[chatId]?.cancel()
-        val job = scope.launch {
-            delay(3000)
-            val g = groupRepository.get(chatId).firstOrNull()
-            if (g == null || g.connected) return@launch
-            setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
-            reconnectWithRetry(chatId, groupNumber)
-        }
-        reconnectJobs[chatId] = job
+        connectionScheduler.scheduleAutoReconnect(chatId, groupNumber)
     }
 
     fun resendPendingMessages(chatId: String) {
@@ -239,15 +170,11 @@ class GroupManager @Inject constructor(
         }
     }
 
-    fun acceptInvite() {
-        val invite = _pendingInvite.value ?: return
+    suspend fun acceptInvite() = withContext(Dispatchers.IO) {
+        val invite = _pendingInvite.value ?: return@withContext
         _pendingInvite.value = null
-        scope.launch {
-            withContext(Dispatchers.IO) {
-                val selfName = tox.getName()
-                joinGroup(invite.friendNo, invite.inviteData, selfName)
-            }
-        }
+        val selfName = tox.getName()
+        joinGroup(invite.friendNo, invite.inviteData, selfName)
     }
 
     fun declineInvite() {
@@ -338,8 +265,8 @@ class GroupManager @Inject constructor(
                 chatIdBytes = tox.groupGetChatId(groupNumber)
                 attempts++
             }
-            val chatId = chatIdBytes?.toHexString() ?: "unknown_$groupNumber"
-            android.util.Log.i("GroupManager", "Joined group number $groupNumber, chatId = $chatId (attempts = $attempts)")
+            val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: "unknown_$groupNumber"
+            Log.i("GroupManager", "Joined group number $groupNumber, chatId = $chatId (attempts = $attempts)")
 
             val groupNameBytes = tox.groupGetName(groupNumber)
             val groupName = groupNameBytes?.decodeToString() ?: "Unknown Group"
@@ -383,7 +310,7 @@ class GroupManager @Inject constructor(
         if (friendNo < 0) return -5 // Friend not found
 
         val inviteData = try {
-            inviteDataHex.hexToByteArray()
+            inviteDataHex.hexToBytes()
         } catch (e: Exception) {
             return -4 // Invalid hex format
         }
@@ -391,7 +318,7 @@ class GroupManager @Inject constructor(
         return joinGroup(friendNo, inviteData, selfName, password)
     }
 
-    fun leaveGroup(chatId: String) = scope.launch {
+    suspend fun leaveGroup(chatId: String) = withContext(Dispatchers.IO) {
         cancelReconnect(chatId)
         val g = groupRepository.get(chatId).firstOrNull()
         g?.let {
@@ -404,8 +331,8 @@ class GroupManager @Inject constructor(
         }
     }
 
-    fun sendMessage(chatId: String, message: String, type: MessageType = MessageType.Normal) = scope.launch {
-        val g = groupRepository.get(chatId).firstOrNull() ?: return@launch
+    suspend fun sendMessage(chatId: String, message: String, type: MessageType = MessageType.Normal) = withContext(Dispatchers.IO) {
+        val g = groupRepository.get(chatId).firstOrNull() ?: return@withContext
         val status = connectionStatus(chatId)
         val toxType = mapType(type)
 
@@ -450,7 +377,7 @@ class GroupManager @Inject constructor(
         else -> ToxMessageType.NORMAL
     }
 
-    fun setTopic(chatId: String, topic: String) = scope.launch {
+    suspend fun setTopic(chatId: String, topic: String) = withContext(Dispatchers.IO) {
         val g = groupRepository.get(chatId).firstOrNull()
         g?.let {
             if (it.groupNumber >= 0) {
@@ -464,16 +391,16 @@ class GroupManager @Inject constructor(
 
     fun getPeers(chatId: String): Flow<List<GroupPeer>> = groupRepository.getPeers(chatId)
 
-    fun clearHistory(chatId: String) = scope.launch {
+    suspend fun clearHistory(chatId: String) = withContext(Dispatchers.IO) {
         groupRepository.deleteMessages(chatId)
         groupRepository.setLastMessage(chatId, 0)
     }
 
-    fun deleteMessage(id: Long) = scope.launch {
+    suspend fun deleteMessage(id: Long) = withContext(Dispatchers.IO) {
         groupRepository.deleteMessage(id)
     }
 
-    fun setDraft(chatId: String, draft: String) = scope.launch {
+    suspend fun setDraft(chatId: String, draft: String) = withContext(Dispatchers.IO) {
         groupRepository.setDraftMessage(chatId, draft)
     }
 
@@ -523,7 +450,7 @@ class GroupManager @Inject constructor(
 
         val chatIdBytes: ByteArray
         try {
-            chatIdBytes = chatIdHex.hexToByteArray()
+            chatIdBytes = chatIdHex.hexToBytes()
         } catch (e: Exception) {
             return@withContext -4
         }
@@ -535,7 +462,7 @@ class GroupManager @Inject constructor(
         )
 
         if (groupNumber >= 0) {
-            val chatId = chatIdBytes.toHexString()
+            val chatId = chatIdBytes.bytesToHex().lowercase()
 
             val groupNameBytes = tox.groupGetName(groupNumber)
             val groupName = groupNameBytes?.decodeToString() ?: "Unknown Group"
@@ -578,13 +505,5 @@ class GroupManager @Inject constructor(
         groupNumber
     }
 
-    private fun String.hexToByteArray(): ByteArray {
-        val result = ByteArray(length / 2)
-        for (i in indices step 2) {
-            result[i / 2] = ((substring(i, i + 2).toInt(16)) and 0xFF).toByte()
-        }
-        return result
-    }
-
-    private fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }
 }
+

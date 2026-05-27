@@ -21,13 +21,13 @@ import ltd.evilcorp.core.tox.save.testToxSave
 import ltd.evilcorp.core.tox.Tox
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
 
 import ltd.evilcorp.domain.tox.IToxStarter
 
 private const val TAG = "ToxStarter"
 
-class ToxStarter @Inject constructor(
+open class ToxStarter @Inject constructor(
     private val fileTransferManager: FileTransferManager,
     private val saveManager: SaveManager,
     private val userManager: UserManager,
@@ -38,8 +38,13 @@ class ToxStarter @Inject constructor(
     private val avEventListener: ToxAvEventListener,
     private val context: Context,
     private val settings: Settings,
+    private val groupEventProcessor: GroupEventProcessor,
 ) : IToxStarter {
-    fun startTox(save: ByteArray? = null, password: String? = null): ToxSaveStatus {
+    init {
+        Log.d(TAG, "Initialized with GroupEventProcessor: ${groupEventProcessor.hashCode()}")
+    }
+
+    override fun startTox(save: ByteArray?, password: String?): ToxSaveStatus {
         listenerCallbacks.setUp(eventListener)
         listenerCallbacks.setUp(avEventListener)
         val options =
@@ -64,7 +69,7 @@ class ToxStarter @Inject constructor(
         context.stopService(Intent(context, ToxService::class.java))
     }
 
-    fun tryLoadTox(password: String?): ToxSaveStatus {
+    override fun tryLoadTox(password: String?): ToxSaveStatus {
         val save = tryLoadSave() ?: return ToxSaveStatus.SaveNotFound
         val status = startTox(save, password)
         if (status == ToxSaveStatus.Ok) {

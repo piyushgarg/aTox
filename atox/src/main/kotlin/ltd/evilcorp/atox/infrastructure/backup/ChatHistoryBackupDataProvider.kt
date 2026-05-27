@@ -2,42 +2,40 @@ package ltd.evilcorp.atox.infrastructure.backup
 
 import javax.inject.Inject
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.core.db.MessageDao
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.Sender
 import ltd.evilcorp.domain.backup.BackupDataProvider
+import ltd.evilcorp.domain.backup.IChatHistoryBackupHelper
+import ltd.evilcorp.domain.model.Message
 import org.json.JSONArray
 import org.json.JSONObject
 
 class ChatHistoryBackupDataProvider @Inject constructor(
-    private val messageDao: MessageDao,
+    private val helper: IChatHistoryBackupHelper,
 ) : BackupDataProvider {
     override val id: String = "chat_history"
     override val displayNameRes: Int = R.string.backup_module_chat_history
     override val descriptionRes: Int = R.string.backup_module_chat_history_description
 
-    override fun serialize(): ByteArray = serializeMessages(messageDao.loadAllBlocking())
+    override fun serialize(): ByteArray = serializeMessages(helper.serializeChatHistory())
 
     override fun deserialize(data: ByteArray) {
-        messageDao.saveAll(parseMessages(data))
+        helper.deserializeChatHistory(parseMessages(data))
     }
 }
 
 class CallLogBackupDataProvider @Inject constructor(
-    private val messageDao: MessageDao,
+    private val helper: IChatHistoryBackupHelper,
 ) : BackupDataProvider {
     override val id: String = "call_log"
     override val displayNameRes: Int = R.string.backup_module_call_log
     override val descriptionRes: Int = R.string.backup_module_call_log_description
 
     override fun serialize(): ByteArray {
-        val callMessages = messageDao.loadAllBlocking().filter { it.correlationId == Int.MIN_VALUE }
+        val callMessages = helper.serializeCallLog()
         return serializeMessages(callMessages)
     }
 
     override fun deserialize(data: ByteArray) {
-        messageDao.saveAll(parseMessages(data))
+        helper.deserializeCallLog(parseMessages(data))
     }
 }
 

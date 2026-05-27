@@ -52,13 +52,14 @@ import ltd.evilcorp.atox.ui.theme.StatusAvailable
 import ltd.evilcorp.atox.ui.theme.StatusAway
 import ltd.evilcorp.atox.ui.theme.StatusBusy
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarEditDialog
-import ltd.evilcorp.atox.ui.userprofile.components.LogoutConfirmDialog
+import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 import ltd.evilcorp.atox.ui.userprofile.components.QrCodeDialog
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarProcessingDialog
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarSourceDialog
 import ltd.evilcorp.atox.ui.userprofile.components.ToxIdShareCard
 import ltd.evilcorp.domain.model.User
 import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.domain.model.initials
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +68,10 @@ fun UserProfileScreen(
     toxId: String,
     avatar: android.graphics.Bitmap?,
     cropState: AvatarCropUiState = AvatarCropUiState.Idle,
+    selectedImageUri: android.net.Uri?,
+    onSelectedImageUriChanged: (android.net.Uri?) -> Unit,
+    onLaunchCamera: () -> Unit,
+    onLaunchGallery: () -> Unit,
     onBack: () -> Unit = {},
     showBackButton: Boolean = true,
     onSetName: (String) -> Unit,
@@ -87,42 +92,19 @@ fun UserProfileScreen(
         avatar?.asImageBitmap()
     }
 
-    var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
-
     LaunchedEffect(cropState) {
         when (cropState) {
             is AvatarCropUiState.Success -> {
                 onAvatarChanged()
                 onResetCropState()
-                selectedImageUri = null
+                onSelectedImageUriChanged(null)
             }
             is AvatarCropUiState.Failure -> {
                 Toast.makeText(context, context.getString(R.string.avatar_too_large), Toast.LENGTH_LONG).show()
                 onResetCropState()
-                selectedImageUri = null
+                onSelectedImageUriChanged(null)
             }
             else -> {}
-        }
-    }
-
-    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
-        if (uri != null) {
-            selectedImageUri = uri
-        }
-    }
-
-    val tempFile = remember { java.io.File(context.cacheDir, "avatar_capture.jpg") }
-    val tempFileUri = remember(tempFile) {
-        androidx.core.content.FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            tempFile
-        )
-    }
-
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
-        if (success) {
-            selectedImageUri = tempFileUri
         }
     }
 
@@ -186,11 +168,7 @@ fun UserProfileScreen(
                             )
                         } else {
                             val initials = remember(user?.name) {
-                                val name = user?.name ?: ""
-                                if (name.isEmpty()) "U" else {
-                                    val parts = name.split(" ")
-                                    if (parts.size == 1) name.take(1) else name.take(1) + parts[1].take(1)
-                                }
+                                user?.initials ?: "U"
                             }
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(
@@ -426,9 +404,14 @@ fun UserProfileScreen(
     }
 
     if (showLogoutConfirmDialog) {
-        LogoutConfirmDialog(
+        AtoxConfirmDialog(
             onDismiss = { showLogoutConfirmDialog = false },
-            onConfirm = onLogout
+            onConfirm = onLogout,
+            title = stringResource(R.string.profile_logout_confirm_title),
+            text = stringResource(R.string.profile_logout_confirm),
+            confirmText = stringResource(R.string.profile_logout_confirm_button),
+            dismissText = stringResource(R.string.profile_logout_cancel_button),
+            isDangerous = true
         )
     }
 
@@ -446,7 +429,7 @@ fun UserProfileScreen(
     if (selectedImageUri != null && cropState !is AvatarCropUiState.Processing) {
         AvatarEditDialog(
             imageUri = selectedImageUri!!,
-            onDismiss = { selectedImageUri = null },
+            onDismiss = { onSelectedImageUriChanged(null) },
             onConfirm = { originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth ->
                 onCropAndSaveAvatar(originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth)
             }
@@ -458,17 +441,11 @@ fun UserProfileScreen(
             onDismissRequest = { showSourceDialog = false },
             onCameraClick = {
                 showSourceDialog = false
-                try {
-                    cameraLauncher.launch(tempFileUri)
-                } catch (e: android.content.ActivityNotFoundException) {
-                    Toast.makeText(context, "Camera application not found", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                onLaunchCamera()
             },
             onGalleryClick = {
                 showSourceDialog = false
-                galleryLauncher.launch("image/*")
+                onLaunchGallery()
             }
         )
     }

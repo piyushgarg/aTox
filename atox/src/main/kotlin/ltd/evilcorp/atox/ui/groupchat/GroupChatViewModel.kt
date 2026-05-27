@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.firstOrNull
@@ -26,12 +27,13 @@ import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.Group
 import ltd.evilcorp.domain.model.GroupMessage
 import ltd.evilcorp.domain.model.GroupPeer
+import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.Sender
 import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.core.repository.ContactRepository
-import ltd.evilcorp.core.repository.GroupRepository
-import ltd.evilcorp.core.repository.FileTransferRepository
+import ltd.evilcorp.domain.repository.IContactRepository
+import ltd.evilcorp.domain.repository.IGroupRepository
+import ltd.evilcorp.domain.repository.IFileTransferRepository
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.domain.feature.GroupManager
 import ltd.evilcorp.domain.feature.FileTransferManager
@@ -43,11 +45,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 @HiltViewModel
 class GroupChatViewModel @Inject constructor(
     private val groupManager: GroupManager,
-    private val contactRepository: ContactRepository,
+    private val contactRepository: IContactRepository,
     private val context: Context,
     private val systemSoundPlayer: SystemSoundPlayer,
-    private val groupRepository: GroupRepository,
-    private val fileTransferRepository: FileTransferRepository,
+    private val groupRepository: IGroupRepository,
+    private val fileTransferRepository: IFileTransferRepository,
     private val fileTransferManager: FileTransferManager,
 ) : ViewModel(), ltd.evilcorp.atox.ui.chat.IChatController {
     private var chatId = ""
@@ -55,7 +57,16 @@ class GroupChatViewModel @Inject constructor(
 
     private val activeGroupChatId = MutableStateFlow<String?>(null)
 
+    private val _selfAvatarUri = MutableStateFlow("")
+    val selfAvatarUri: StateFlow<String> = _selfAvatarUri.asStateFlow()
+
     init {
+        viewModelScope.launch(Dispatchers.IO) {
+            val file = File(context.filesDir, "self_avatar.png")
+            if (file.exists()) {
+                _selfAvatarUri.value = file.toURI().toString()
+            }
+        }
         viewModelScope.launch {
             groupManager.groupMigratedEvent.collect { (oldId, newId) ->
                 if (chatId == oldId) {
@@ -264,7 +275,9 @@ class GroupChatViewModel @Inject constructor(
     }
 
     fun leaveGroup() {
-        groupManager.leaveGroup(chatId)
+        viewModelScope.launch {
+            groupManager.leaveGroup(chatId)
+        }
     }
 
     fun setDraft(draft: String) {

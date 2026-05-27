@@ -19,7 +19,7 @@ import javax.inject.Inject
 import dagger.hilt.android.AndroidEntryPoint
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
 
 private const val ENCRYPTED = "aTox profile encrypted"
 private const val TAG = "BootReceiver"

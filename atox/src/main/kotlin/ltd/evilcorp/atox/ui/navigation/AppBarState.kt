@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.flow.MutableStateFlow
 
+import java.util.concurrent.ConcurrentHashMap
+
 data class AppBarConfig @OptIn(ExperimentalMaterial3Api::class) constructor(
     val title: @Composable () -> Unit = {},
     val navigationIcon: @Composable (() -> Unit)? = null,
@@ -18,8 +20,13 @@ data class AppBarConfig @OptIn(ExperimentalMaterial3Api::class) constructor(
 
 object AppBarStateHolder {
     val config = MutableStateFlow<AppBarConfig?>(null)
-    private val configs = mutableMapOf<String, AppBarConfig>()
+    val configs = ConcurrentHashMap<String, AppBarConfig>()
     private var currentRoute: String? = null
+
+    fun getConfigForRoute(route: String): AppBarConfig? {
+        val baseRoute = getBaseRoute(route) ?: return null
+        return configs[baseRoute]
+    }
 
     private fun getBaseRoute(route: String?): String? {
         if (route == null) return null
@@ -45,6 +52,12 @@ object AppBarStateHolder {
     fun updateRoute(route: String?) {
         currentRoute = route
         val baseRoute = getBaseRoute(route)
-        config.value = configs[baseRoute]
+        config.value = if (baseRoute != null) configs[baseRoute] else null
+    }
+
+    fun clear() {
+        configs.clear()
+        config.value = null
+        currentRoute = null
     }
 }

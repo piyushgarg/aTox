@@ -9,20 +9,20 @@ import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.domain.tox.ITox
 
-class UserManager @Inject constructor(
+open class UserManager @Inject constructor(
     private val scope: CoroutineScope,
     private val userRepository: IUserRepository,
     private val tox: ITox,
 ) {
-    fun get(publicKey: PublicKey) = userRepository.get(publicKey.string())
+    open fun get(publicKey: PublicKey) = userRepository.get(publicKey.string())
 
-    fun create(user: User) = scope.launch {
+    open fun create(user: User) = scope.launch {
         userRepository.add(user)
         tox.setName(user.name)
         tox.setStatusMessage(user.statusMessage)
     }
 
-    fun verifyExists(publicKey: PublicKey) = scope.launch {
+    open fun verifyExists(publicKey: PublicKey) = scope.launch {
         if (!userRepository.exists(publicKey.string())) {
             val name = tox.getName()
             val statusMessage = tox.getStatusMessage()

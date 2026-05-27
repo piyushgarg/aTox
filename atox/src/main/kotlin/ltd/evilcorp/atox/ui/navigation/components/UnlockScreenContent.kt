@@ -12,9 +12,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +29,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.common.AtoxPasswordField
+import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 
 @Composable
 fun UnlockScreenContent(
@@ -38,9 +39,10 @@ fun UnlockScreenContent(
     onSubmitUnlock: (String) -> Unit,
     onQuit: () -> Unit,
     onClearError: () -> Unit,
+    isBiometricEnabled: Boolean = false,
+    onBiometricClick: () -> Unit = {},
 ) {
     var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     val submitUnlock = {
@@ -95,33 +97,14 @@ fun UnlockScreenContent(
                 )
                 Spacer(modifier = Modifier.height(32.dp))
 
-                OutlinedTextField(
+                AtoxPasswordField(
                     value = password,
                     onValueChange = {
                         password = it
                         onClearError()
                     },
-                    label = { Text(stringResource(R.string.password)) },
-                    singleLine = true,
-                    visualTransformation = if (passwordVisible) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (passwordVisible) stringResource(R.string.hide) else stringResource(R.string.show)
-                            )
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        capitalization = KeyboardCapitalization.None,
-                        autoCorrectEnabled = false,
-                        imeAction = ImeAction.Done
-                    ),
+                    label = stringResource(R.string.password),
+                    imeAction = ImeAction.Done,
                     keyboardActions = KeyboardActions(
                         onDone = { submitUnlock() }
                     ),
@@ -140,19 +123,35 @@ fun UnlockScreenContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Button(
-                    onClick = { submitUnlock() },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = password.isNotEmpty() && !isLoading
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(stringResource(R.string.unlock))
+                    AtoxLoadingButton(
+                        onClick = { submitUnlock() },
+                        text = stringResource(R.string.unlock),
+                        isLoading = isLoading,
+                        enabled = password.isNotEmpty(),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (isBiometricEnabled) {
+                        IconButton(
+                            onClick = onBiometricClick,
+                            enabled = !isLoading,
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Fingerprint,
+                                contentDescription = "Biometric Unlock",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
                 }
 

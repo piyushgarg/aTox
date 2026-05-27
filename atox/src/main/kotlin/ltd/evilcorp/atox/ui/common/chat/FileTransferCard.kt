@@ -59,6 +59,7 @@ fun FileTransferCard(
     onOpenFile: (FileTransfer) -> Unit
 ) {
     val isComplete = ft.isComplete()
+    val isLocalReady = ft.isComplete() || ft.outgoing
     val isStarted = ft.isStarted()
     val isRejected = ft.isRejected()
     val isOutgoing = ft.outgoing
@@ -135,7 +136,7 @@ fun FileTransferCard(
         modifier = Modifier
             .widthIn(max = 260.dp)
             .clip(RoundedCornerShape(8.dp))
-            .clickable(enabled = isComplete && !isRejected) { onOpenFile(ft) }
+            .clickable(enabled = isLocalReady && !isRejected) { onOpenFile(ft) }
             .padding(vertical = 4.dp)
     ) {
         if (isComplete && isImage && imageBitmap != null) {
@@ -157,7 +158,7 @@ fun FileTransferCard(
             Icon(
                 imageVector = when {
                     isRejected -> Icons.Default.ErrorOutline
-                    isComplete -> Icons.AutoMirrored.Filled.InsertDriveFile
+                    isLocalReady -> Icons.AutoMirrored.Filled.InsertDriveFile
                     else -> Icons.AutoMirrored.Filled.InsertDriveFile
                 },
                 contentDescription = null,
@@ -177,7 +178,7 @@ fun FileTransferCard(
                 Text(
                     text = when {
                         isRejected -> stringResource(R.string.ft_status_canceled)
-                        isComplete -> {
+                        isLocalReady -> {
                             val status = if (isOutgoing) stringResource(R.string.ft_status_sent) else stringResource(R.string.ft_status_received)
                             "${formatSize(context, ft.fileSize)} • $status"
                         }
@@ -276,7 +277,7 @@ fun FileTransferCard(
                     }
                 }
                 isComplete -> {
-                    val isAlreadySaved = ft.destination.startsWith("content://")
+                    val isAlreadySaved = ft.destination.startsWith("content://") || isOutgoing
                     if (isAlreadySaved) {
                         Box(
                             modifier = Modifier.size(32.dp),

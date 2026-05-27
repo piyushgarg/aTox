@@ -1,11 +1,10 @@
 package ltd.evilcorp.domain.feature
 
-import java.io.File
 import java.io.InputStream
 
 interface IFileTransferPlatformHelper {
-    fun getFilesDir(): File
-    fun getCacheDir(): File
+    fun getFilesDir(): String
+    fun getCacheDir(): String
     fun getFileSizeAndName(uriString: String): Pair<String, Long>?
     fun copyToOutgoingCache(uriString: String, name: String): String
     fun openInputStream(uriString: String): InputStream?

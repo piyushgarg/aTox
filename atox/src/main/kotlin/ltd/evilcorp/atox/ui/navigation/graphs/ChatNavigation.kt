@@ -20,9 +20,9 @@ import androidx.navigation.toRoute
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
-import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.chat.ChatScreen
 import ltd.evilcorp.atox.ui.chat.ChatViewModel
+import ltd.evilcorp.atox.ui.chat.ChatUiState
 import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
@@ -35,7 +35,6 @@ fun NavGraphBuilder.chatGraph(
     navController: NavHostController,
 
     contactListViewModel: ContactListViewModel,
-    settings: Settings,
     selectedChatSnapshotState: State<Contact?>,
     systemSoundPlayer: SystemSoundPlayer,
     onOpenFile: (FileTransfer) -> Unit,
@@ -69,23 +68,24 @@ fun NavGraphBuilder.chatGraph(
             }
         }
 
-        val contact by viewModel.contact.collectAsStateWithLifecycle()
+        val uiState by viewModel.uiState.collectAsStateWithLifecycle()
         val selectedChatSnapshot = selectedChatSnapshotState.value
         val contactSnapshot = remember(selectedChatSnapshot, publicKeyStr) {
             selectedChatSnapshot?.takeIf { it.publicKey == publicKeyStr }
         }
-        val messages by viewModel.messages.collectAsStateWithLifecycle()
-        val fileTransfers by viewModel.fileTransfers.collectAsStateWithLifecycle(emptyList())
-        val replyingToMessage by viewModel.replyingToMessage.collectAsStateWithLifecycle()
+        val finalUiState = remember(uiState, contactSnapshot) {
+            if (uiState.contact == null && contactSnapshot != null) {
+                uiState.copy(contact = contactSnapshot)
+            } else {
+                uiState
+            }
+        }
         val groupListViewModel: GroupListViewModel = hiltViewModel()
         val groupsState by groupListViewModel.groups.collectAsStateWithLifecycle()
-
+ 
         CompositionLocalProvider(LocalAnimatedVisibilityScope provides this) {
             ChatScreen(
-                contact = contact ?: contactSnapshot,
-                messages = messages,
-                fileTransfers = fileTransfers,
-                settings = settings,
+                uiState = finalUiState,
                 onBack = navController::popBackStack,
                 onSendMessage = { content -> viewModel.send(content, MessageType.Normal) },
                 onTypingChanged = viewModel::setTyping,
@@ -99,7 +99,6 @@ fun NavGraphBuilder.chatGraph(
                 onOpenFile = onOpenFile,
                 systemSoundPlayer = systemSoundPlayer,
                 isTypingFlow = viewModel.isTyping,
-                replyingToMessage = replyingToMessage,
                 onCancelReply = { viewModel.setReplyingTo(null) },
                 onReplyClick = { msg -> viewModel.setReplyingTo(msg) },
                 onCopyClick = { msg ->

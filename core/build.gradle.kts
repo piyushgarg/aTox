@@ -174,6 +174,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(kotlin("test-junit"))
+    testImplementation(libs.konsist.junit5)
 
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.test.runner)

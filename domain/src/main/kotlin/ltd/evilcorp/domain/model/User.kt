@@ -1,27 +1,21 @@
 package ltd.evilcorp.domain.model
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
-@Entity(tableName = "users")
 data class User(
-    @PrimaryKey
-    @ColumnInfo(name = "public_key")
     val publicKey: String,
-
-    @ColumnInfo(name = "name")
     var name: String = "aTox user",
-
-    @ColumnInfo(name = "status_message")
     var statusMessage: String = "Brought to you live, by aTox",
-
-    @ColumnInfo(name = "status")
     var status: UserStatus = UserStatus.None,
-
-    @ColumnInfo(name = "connection_status")
     var connectionStatus: ConnectionStatus = ConnectionStatus.None,
-
-    @ColumnInfo(name = "password")
     var password: String = "",
 )
+
+val User.initials: String
+    get() {
+        val displayName = name.ifEmpty { "aTox user" }
+        val segments = displayName.split(" ").filter { it.isNotBlank() }
+        return when {
+            segments.isEmpty() -> "U"
+            segments.size == 1 -> segments.first().take(1)
+            else -> segments.first().take(1) + segments[1].take(1)
+        }
+    }

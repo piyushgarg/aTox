@@ -128,7 +128,7 @@ class NotificationHelper @Inject constructor(
     }
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
-    fun showOngoingCallNotification(contact: Contact) {
+    override fun showOngoingCallNotification(contact: Contact) {
         if (!permissionManager.canPostNotifications()) {
             Log.w(TAG, "Call ongoing, notifications disallowed")
             return
@@ -168,7 +168,7 @@ class NotificationHelper @Inject constructor(
         notifier.notify(c.publicKey.hashCode() + CHANNEL_CALL.hashCode(), notification)
     }
 
-    fun invalidateAvatar(uri: android.net.Uri) {
-        avatarLoader.invalidateAvatar(uri)
+    override fun invalidateAvatar(uri: String) {
+        avatarLoader.invalidateAvatar(android.net.Uri.parse(uri))
     }
 }

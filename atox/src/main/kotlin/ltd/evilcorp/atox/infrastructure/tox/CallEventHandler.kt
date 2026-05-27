@@ -7,13 +7,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.core.repository.ContactRepository
+import ltd.evilcorp.domain.repository.IContactRepository
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.domain.model.FINGERPRINT_LEN
 import ltd.evilcorp.domain.tox.enums.ToxavFriendCallState
-import ltd.evilcorp.domain.av.AudioPlayer
+import ltd.evilcorp.core.av.AudioPlayer
 import ltd.evilcorp.domain.feature.CallManager
 import ltd.evilcorp.domain.tox.ITox
 
@@ -23,7 +23,7 @@ private fun String.fingerprint() = this.take(FINGERPRINT_LEN)
 
 class CallEventHandler @Inject constructor(
     private val scope: CoroutineScope,
-    private val contactRepository: ContactRepository,
+    private val contactRepository: IContactRepository,
     private val callManager: CallManager,
     private val notificationHelper: NotificationHelper,
     private val tox: ITox,

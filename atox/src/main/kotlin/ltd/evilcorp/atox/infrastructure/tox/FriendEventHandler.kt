@@ -8,10 +8,10 @@ import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.core.repository.ContactRepository
-import ltd.evilcorp.core.repository.FriendRequestRepository
-import ltd.evilcorp.core.repository.MessageRepository
-import ltd.evilcorp.core.repository.UserRepository
+import ltd.evilcorp.domain.repository.IContactRepository
+import ltd.evilcorp.domain.repository.IFriendRequestRepository
+import ltd.evilcorp.domain.repository.IMessageRepository
+import ltd.evilcorp.domain.repository.IUserRepository
 import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.FriendRequest
@@ -32,10 +32,10 @@ private fun String.fingerprint() = this.take(FINGERPRINT_LEN)
 
 class FriendEventHandler @Inject constructor(
     private val scope: CoroutineScope,
-    private val contactRepository: ContactRepository,
-    private val friendRequestRepository: FriendRequestRepository,
-    private val messageRepository: MessageRepository,
-    private val userRepository: UserRepository,
+    private val contactRepository: IContactRepository,
+    private val friendRequestRepository: IFriendRequestRepository,
+    private val messageRepository: IMessageRepository,
+    private val userRepository: IUserRepository,
     private val chatManager: ChatManager,
     private val fileTransferManager: FileTransferManager,
     private val notificationHelper: NotificationHelper,
@@ -71,7 +71,9 @@ class FriendEventHandler @Inject constructor(
     fun onFriendConnectionStatus(publicKey: String, status: ConnectionStatus) {
         contactRepository.setConnectionStatus(publicKey, status)
         if (status != ConnectionStatus.None) {
-            groupManager.reconnectAll()
+            scope.launch {
+                groupManager.reconnectAll()
+            }
             scope.launch {
                 fileTransferManager.sendAvatar(publicKey)
             }
@@ -133,7 +135,9 @@ class FriendEventHandler @Inject constructor(
     fun onSelfConnectionStatus(status: ConnectionStatus) {
         userRepository.updateConnection(tox.publicKey.string(), status)
         if (status != ConnectionStatus.None) {
-            groupManager.reconnectAll()
+            scope.launch {
+                groupManager.reconnectAll()
+            }
         }
     }
 

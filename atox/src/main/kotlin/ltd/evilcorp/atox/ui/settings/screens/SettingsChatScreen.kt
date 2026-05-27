@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
 import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
 import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
@@ -117,33 +118,19 @@ fun SettingsChatScreen(
     }
 
     if (showConfirmDialog) {
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showConfirmDialog = false },
-            title = { Text(stringResource(R.string.settings_clear_cache_title), fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    "Are you sure you want to clear the file cache? " +
-                    "All downloaded media files will remain on your device, but they will be removed from the app's cache."
-                )
+        AtoxConfirmDialog(
+            onDismiss = { showConfirmDialog = false },
+            onConfirm = {
+                showConfirmDialog = false
+                onClearCacheClick()
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showConfirmDialog = false
-                        onClearCacheClick()
-                    }
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirmDialog = false }) {
-                    Text(stringResource(R.string.reject))
-                }
-            }
+            title = stringResource(R.string.settings_clear_cache_title),
+            text = "Are you sure you want to clear the file cache? " +
+                "All downloaded media files will remain on your device, " +
+                "but they will be removed from the app's cache.",
+            confirmText = stringResource(R.string.confirm),
+            dismissText = stringResource(R.string.reject),
+            isDangerous = true
         )
     }
 }

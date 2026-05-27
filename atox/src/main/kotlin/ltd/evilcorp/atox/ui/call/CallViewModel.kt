@@ -57,7 +57,7 @@ class CallViewModel @Inject constructor(
                     val startTime = state.connectedAt
                     durationJob = viewModelScope.launch {
                         while (true) {
-                            val elapsedMs = android.os.SystemClock.elapsedRealtime() - startTime
+                            val elapsedMs = System.currentTimeMillis() - startTime
                             val elapsedSec = elapsedMs / 1000
                             val minutes = elapsedSec / 60
                             val seconds = elapsedSec % 60
@@ -119,6 +119,6 @@ class CallViewModel @Inject constructor(
     }
 
     val inCall = callManager.inCall
-    val sendingAudio = callManager.sendingAudio
+    val sendingAudio = callManager.microphoneEnabled
     val connectedAt = callManager.inCall.map { (it as? CallState.Active)?.connectedAt ?: -1L }
 }

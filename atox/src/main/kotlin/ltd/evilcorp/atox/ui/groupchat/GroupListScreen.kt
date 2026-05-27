@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.domain.model.Group
+import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 import ltd.evilcorp.atox.ui.groupchat.components.GroupItemCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -137,55 +138,18 @@ fun GroupListScreen(
         }
     }
 
-    if (showLeaveDialog != null) {
-        val sheetState = rememberModalBottomSheetState()
-        ModalBottomSheet(
-            onDismissRequest = { showLeaveDialog = null },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = stringResource(R.string.group_leave),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.group_leave_confirm, showLeaveDialog!!.name),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = {
-                        showLeaveDialog?.let { onLeaveGroup(it) }
-                        showLeaveDialog = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = { showLeaveDialog = null },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        }
+    showLeaveDialog?.let { group ->
+        AtoxConfirmDialog(
+            onDismiss = { showLeaveDialog = null },
+            onConfirm = {
+                onLeaveGroup(group)
+                showLeaveDialog = null
+            },
+            title = stringResource(R.string.group_leave),
+            text = stringResource(R.string.group_leave_confirm, group.name),
+            confirmText = stringResource(R.string.confirm),
+            dismissText = stringResource(android.R.string.cancel),
+            isDangerous = true
+        )
     }
 }

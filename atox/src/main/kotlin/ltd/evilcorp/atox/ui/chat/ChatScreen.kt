@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
-import ltd.evilcorp.atox.infrastructure.settings.Settings
+import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.common.ContactAvatar
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import ltd.evilcorp.atox.ui.navigation.LocalSharedTransitionScope
@@ -53,6 +53,8 @@ import ltd.evilcorp.atox.ui.theme.StatusBusy
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.model.Sender
+import ltd.evilcorp.domain.model.DateFormatPreference
+import ltd.evilcorp.domain.model.TimeFormatPreference
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
@@ -66,6 +68,7 @@ import androidx.compose.material.icons.filled.Attachment
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Close
@@ -82,29 +85,27 @@ import ltd.evilcorp.domain.model.isComplete
 import ltd.evilcorp.domain.model.isStarted
 import ltd.evilcorp.domain.model.isRejected
 import ltd.evilcorp.domain.model.MessageType
-import kotlinx.coroutines.delay
-import ltd.evilcorp.atox.ui.common.chat.ChatInputBar
-import ltd.evilcorp.atox.ui.common.chat.MessageBubble
-import ltd.evilcorp.atox.ui.chat.components.TypingBubble
-import ltd.evilcorp.atox.ui.common.chat.DateSeparator
+import ltd.evilcorp.atox.ui.common.chat.ChatScreenContent
+import ltd.evilcorp.atox.ui.common.chat.MessageBubbleConfig
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
 import ltd.evilcorp.atox.ui.navigation.AppBarConfig
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
+import ltd.evilcorp.atox.ui.common.AtoxAppBar
+import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 
 private const val CHAT_ENTER_CONTENT_DELAY_MS = 320L
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalSharedTransitionApi::class,
+    androidx.compose.foundation.ExperimentalFoundationApi::class
+)
 @Suppress("LongMethod", "FunctionNaming")
 @Composable
 fun ChatScreen(
-    contact: Contact?,
-    messages: List<Message>?,
-    fileTransfers: List<FileTransfer>,
-    settings: Settings,
+    uiState: ChatUiState,
     onBack: () -> Unit,
     onSendMessage: (String) -> Unit,
     onTypingChanged: (Boolean) -> Unit,
@@ -117,7 +118,7 @@ fun ChatScreen(
     onSaveFt: (Int, Uri) -> Unit,
     onOpenFile: (FileTransfer) -> Unit,
     systemSoundPlayer: SystemSoundPlayer,
-    replyingToMessage: Message? = null,
+    isExpanded: Boolean = false,
     onCancelReply: () -> Unit = {},
     onReplyClick: (Message) -> Unit = {},
     onCopyClick: (Message) -> Unit = {},
@@ -125,57 +126,29 @@ fun ChatScreen(
     onSendVoice: (Uri) -> Unit = {},
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
-    isTypingFlow: StateFlow<Boolean> = remember(contact?.typing) { MutableStateFlow(contact?.typing == true) },
+    isTypingFlow: StateFlow<Boolean> = remember(uiState.contact?.publicKey) { MutableStateFlow(uiState.contact?.typing == true) },
 ) {
-    val messages = messages ?: emptyList()
+    val contact = uiState.contact
+    val messages = uiState.messages
+    val fileTransfers = uiState.fileTransfers
+    val replyingToMessage = uiState.replyingToMessage
+    val uiConfig = uiState.uiConfig ?: ChatUiConfig(
+        hapticEnabled = false,
+        dateFormatPreference = DateFormatPreference.System,
+        timeFormatPreference = TimeFormatPreference.System,
+        sentMessageSoundUri = "",
+        sentMessageSoundVolume = 24,
+        enableReplies = true
+    )
     var showConversationContent by remember(contact?.publicKey) { mutableStateOf(true) }
-    val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    val showScrollToBottomFab by remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 2 }
-    }
-
-    var lastSeenMessageId by remember { mutableStateOf<Long?>(null) }
-    var unreadCount by remember { mutableStateOf(0) }
-
-    LaunchedEffect(listState.firstVisibleItemIndex, messages.firstOrNull()?.id) {
-        if (listState.firstVisibleItemIndex <= 1) {
-            unreadCount = 0
-            lastSeenMessageId = messages.firstOrNull()?.id
-        } else {
-            val lastId = lastSeenMessageId
-            if (lastId != null) {
-                val index = messages.indexOfFirst { it.id == lastId }
-                unreadCount = if (index > 0) index else 0
-            }
-        }
-    }
-
     val performHaptic = {
-        if (settings.hapticEnabled) {
+        if (uiConfig.hapticEnabled) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        }
-    }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            onSendFile(uri)
-        }
-    }
-
-    val activeFtIdToSave = remember { mutableStateOf(-1) }
-    val saveFileLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("*/*")
-    ) { uri: Uri? ->
-        if (uri != null && activeFtIdToSave.value != -1) {
-            onSaveFt(activeFtIdToSave.value, uri)
         }
     }
 
@@ -197,38 +170,23 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(showConversationContent, messages.size, contact?.typing) {
-        if (showConversationContent && messages.isNotEmpty()) {
-            if (listState.firstVisibleItemIndex <= 2) {
-                listState.scrollToItem(0)
-            }
-        }
-    }
-
     var showCallConfirmDialog by remember { mutableStateOf(false) }
 
     if (showCallConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showCallConfirmDialog = false },
-            title = { Text(stringResource(R.string.incoming_call)) },
-            text = { Text(stringResource(R.string.call_confirm)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    performHaptic()
-                    showCallConfirmDialog = false
-                    onCallClick()
-                }) {
-                    Text(stringResource(R.string.confirm))
-                }
+        AtoxConfirmDialog(
+            onDismiss = {
+                performHaptic()
+                showCallConfirmDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    performHaptic()
-                    showCallConfirmDialog = false
-                }) {
-                    Text(stringResource(R.string.reject))
-                }
-            }
+            onConfirm = {
+                performHaptic()
+                showCallConfirmDialog = false
+                onCallClick()
+            },
+            title = stringResource(R.string.incoming_call),
+            text = stringResource(R.string.call_confirm),
+            confirmText = stringResource(R.string.confirm),
+            dismissText = stringResource(R.string.reject)
         )
     }
 
@@ -237,8 +195,8 @@ fun ChatScreen(
         formatPresenceText(
             context = context,
             contact = it,
-            dateFormatPreference = settings.dateFormatPreference,
-            timeFormatPreference = settings.timeFormatPreference
+            dateFormatPreference = uiConfig.dateFormatPreference,
+            timeFormatPreference = uiConfig.timeFormatPreference
         )
     }
     val connectionStatus = contact?.connectionStatus
@@ -248,254 +206,176 @@ fun ChatScreen(
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
 
-    LaunchedEffect(contactName, presenceInfo?.text, connectionStatus, userStatus, settings.hapticEnabled, sharedTransitionScope, animatedVisibilityScope) {
-        AppBarStateHolder.register(
-            route = AppRoutes.Chat::class.qualifiedName!!,
-            cfg = AppBarConfig(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val avatarModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null && contact != null) {
-                            with(sharedTransitionScope) {
-                                Modifier.sharedElement(
-                                    sharedContentState = rememberSharedContentState(key = "avatar_${contact.publicKey}"),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            }
-                        } else {
-                            Modifier
-                        }
-
-                        ContactAvatar(
-                            name = contactName,
-                            publicKey = contact?.publicKey ?: "",
-                            avatarUri = contact?.avatarUri ?: "",
-                            size = 36.dp,
-                            fontSize = 14.sp,
-                            modifier = avatarModifier
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = contactName,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(
-                                            color = when (connectionStatus) {
-                                                ltd.evilcorp.domain.model.ConnectionStatus.None -> ltd.evilcorp.atox.ui.theme.StatusOffline
-                                                else -> when (userStatus) {
-                                                    ltd.evilcorp.domain.model.UserStatus.Away -> ltd.evilcorp.atox.ui.theme.StatusAway
-                                                    ltd.evilcorp.domain.model.UserStatus.Busy -> ltd.evilcorp.atox.ui.theme.StatusBusy
-                                                    else -> ltd.evilcorp.atox.ui.theme.StatusAvailable
-                                                }
-                                            },
-                                            shape = CircleShape
-                                        )
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = presenceInfo?.text ?: "",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                },
-                navigationIcon = {
-                    Box(modifier = Modifier.padding(start = 4.dp)) {
-                        MorphingNavigationIcon(
-                            isBack = true,
-                            onClick = {
-                                performHaptic()
-                                onBack()
-                            }
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {
+    val topAppBarTitle = @Composable {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = {
                         performHaptic()
-                        onCallClick()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "Call",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        val pk = contact?.publicKey ?: ""
+                        if (pk.isNotEmpty()) {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("friend ID", pk)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.profile_copied),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
+                )
+        ) {
+            val avatarModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null && contact != null) {
+                with(sharedTransitionScope) {
+                    Modifier.sharedElement(
+                        sharedContentState = rememberSharedContentState(key = "avatar_${contact.publicKey}"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                }
+            } else {
+                Modifier
+            }
+
+            ContactAvatar(
+                name = contactName,
+                publicKey = contact?.publicKey ?: "",
+                avatarUri = contact?.avatarUri ?: "",
+                size = 36.dp,
+                fontSize = 14.sp,
+                modifier = avatarModifier
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = contactName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                color = when (connectionStatus) {
+                                    ltd.evilcorp.domain.model.ConnectionStatus.None -> ltd.evilcorp.atox.ui.theme.StatusOffline
+                                    else -> when (userStatus) {
+                                        ltd.evilcorp.domain.model.UserStatus.Away -> ltd.evilcorp.atox.ui.theme.StatusAway
+                                        ltd.evilcorp.domain.model.UserStatus.Busy -> ltd.evilcorp.atox.ui.theme.StatusBusy
+                                        else -> ltd.evilcorp.atox.ui.theme.StatusAvailable
+                                    }
+                                },
+                                shape = CircleShape
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = presenceInfo?.text ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+
+    val topAppBarNavigationIcon = @Composable {
+        Box(modifier = Modifier.padding(start = 4.dp)) {
+            MorphingNavigationIcon(
+                isBack = true,
+                onClick = {
+                    performHaptic()
+                    onBack()
+                }
+            )
+        }
+    }
+
+    val topAppBarActions = @Composable {
+        IconButton(onClick = {
+            performHaptic()
+            onCallClick()
+        }) {
+            Icon(
+                imageVector = Icons.Default.Call,
+                contentDescription = "Call",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+
+    val content = @Composable { paddingValues: PaddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            ChatScreenContent(
+                messages = messages,
+                toMessage = { it },
+                getBubbleConfig = {
+                    MessageBubbleConfig(
+                        contactName = contactName
+                    )
                 },
+                uiConfig = uiConfig,
+                fileTransfers = fileTransfers,
+                onSendMessage = onSendMessage,
+                onTypingChanged = onTypingChanged,
+                onSendFile = onSendFile,
+                onSendVoice = onSendVoice,
+                onAcceptFt = onAcceptFt,
+                onRejectFt = onRejectFt,
+                onCancelFt = onCancelFt,
+                onSaveFt = onSaveFt,
+                onOpenFile = onOpenFile,
+                systemSoundPlayer = systemSoundPlayer,
+                performHaptic = performHaptic,
+                contact = contact,
+                replyingToMessage = replyingToMessage,
+                onCancelReply = onCancelReply,
+                isTypingFlow = isTypingFlow,
+                showConversationContent = showConversationContent,
+                onCallHistoryClick = onCallHistoryClick,
+                onCopyClick = onCopyClick,
+                onReplyClick = onReplyClick,
+                onForwardClick = onForwardClick,
+                onJoinGroupClick = onJoinGroupClick,
+                isJoinedGroup = isJoinedGroup
+            )
+        }
+    }
+
+    if (isExpanded) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = topAppBarTitle,
+                    navigationIcon = topAppBarNavigationIcon,
+                    actions = { topAppBarActions() },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = surfaceContainerColor,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    )
+                )
+            }
+        ) { paddingValues ->
+            content(paddingValues)
+        }
+    } else {
+        AtoxAppBar(
+            route = AppRoutes.Chat::class.qualifiedName!!,
+            config = AppBarConfig(
+                title = topAppBarTitle,
+                navigationIcon = topAppBarNavigationIcon,
+                actions = { topAppBarActions() },
                 containerColor = surfaceContainerColor
             )
         )
+
+        content(PaddingValues(0.dp))
     }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            AppBarStateHolder.unregister(AppRoutes.Chat::class.qualifiedName!!)
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-    ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    reverseLayout = true,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 12.dp)
-                ) {
-                    item(key = "typing_bubble") {
-                        val isTyping by isTypingFlow.collectAsState(initial = false)
-                        Box(modifier = Modifier.animateContentSize()) {
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = showConversationContent && isTyping
-                            ) {
-                                TypingBubble()
-                            }
-                        }
-                    }
-                    if (!showConversationContent) {
-                        return@LazyColumn
-                    }
-                    items(
-                        count = messages.size,
-                        key = { index -> messages[messages.size - 1 - index].id }
-                    ) { index ->
-                        val rawIndex = messages.size - 1 - index
-                        val msg = messages[rawIndex]
-                        val previousMsg = messages.getOrNull(rawIndex - 1)
-                        val currentHeader = remember(msg.timestamp, settings.dateFormatPreference) {
-                            formatMessageDateHeader(
-                                context = context,
-                                timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
-                                dateFormatPreference = settings.dateFormatPreference,
-                            )
-                        }
-                        val previousHeader = previousMsg?.let {
-                            remember(it.timestamp, settings.dateFormatPreference) {
-                                formatMessageDateHeader(
-                                    context = context,
-                                    timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
-                                    dateFormatPreference = settings.dateFormatPreference,
-                                )
-                            }
-                        }
-
-                        Column {
-                            if (rawIndex == 0 || currentHeader != previousHeader) {
-                                DateSeparator(label = currentHeader)
-                            }
-
-                            MessageBubble(
-                                msg = msg,
-                                messages = messages,
-                                settings = settings,
-                                contactName = contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) }
-                                    ?: stringResource(R.string.contact_default_name),
-                                onHaptic = performHaptic,
-                                onCallHistoryClick = onCallHistoryClick,
-                                fileTransfers = fileTransfers,
-                                onAcceptFt = onAcceptFt,
-                                onRejectFt = onRejectFt,
-                                onCancelFt = onCancelFt,
-                                onSaveAsClick = { ftId, fileName ->
-                                    activeFtIdToSave.value = ftId
-                                    saveFileLauncher.launch(fileName)
-                                },
-                                onOpenFile = onOpenFile,
-                                onCopyMessage = onCopyClick,
-                                onReplyMessage = onReplyClick,
-                                onForwardMessage = onForwardClick,
-                                onParentMessageClick = { parentMsg ->
-                                    val parentIndex = messages.indexOfFirst { it.timestamp == parentMsg.timestamp }
-                                    if (parentIndex != -1) {
-                                        val scrollIndex = messages.size - 1 - parentIndex
-                                        coroutineScope.launch {
-                                            listState.animateScrollToItem(scrollIndex)
-                                        }
-                                    }
-                                },
-                                onJoinGroupClick = onJoinGroupClick,
-                                isJoinedGroup = isJoinedGroup
-                            )
-                        }
-                    }
-                }
-
-                if (showScrollToBottomFab) {
-                    val coroutineScope = rememberCoroutineScope()
-                    FloatingActionButton(
-                        onClick = {
-                            performHaptic()
-                            coroutineScope.launch {
-                                listState.scrollToItem(0)
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        shape = FloatingActionButtonDefaults.shape,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(bottom = 16.dp, end = 16.dp)
-                    ) {
-                        BadgedBox(
-                            badge = {
-                                if (unreadCount > 0) {
-                                    Badge {
-                                        Text(unreadCount.toString())
-                                    }
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Scroll to Bottom",
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Surface(
-                tonalElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                ChatInputBar(
-                    contact = contact,
-                    settings = settings,
-                    systemSoundPlayer = systemSoundPlayer,
-                    onSendMessage = onSendMessage,
-                    onTypingChanged = onTypingChanged,
-                    onAttachClick = { filePickerLauncher.launch("*/*") },
-                    onHaptic = performHaptic,
-                    replyingToMessage = replyingToMessage,
-                    onCancelReply = onCancelReply,
-                    onSendVoice = onSendVoice,
-                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer)
-                )
-            }
-        }
-    }
+}

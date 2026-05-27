@@ -6,21 +6,21 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.domain.model.FriendRequest
+import ltd.evilcorp.core.db.entity.FriendRequestEntity
 
 @Dao
 interface FriendRequestDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun save(friendRequest: FriendRequest)
+    fun save(friendRequest: FriendRequestEntity)
 
     @Delete
-    fun delete(friendRequest: FriendRequest)
+    fun delete(friendRequest: FriendRequestEntity)
 
     @Query("SELECT * FROM friend_requests")
-    fun loadAll(): Flow<List<FriendRequest>>
+    fun loadAll(): Flow<List<FriendRequestEntity>>
 
     @Query("SELECT * FROM friend_requests WHERE public_key == :publicKey")
-    fun load(publicKey: String): Flow<FriendRequest?>
+    fun load(publicKey: String): Flow<FriendRequestEntity?>
 
     @Query("SELECT COUNT(public_key) FROM friend_requests")
     fun count(): Int

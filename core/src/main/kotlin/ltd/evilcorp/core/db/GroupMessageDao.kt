@@ -5,21 +5,21 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.domain.model.GroupMessage
+import ltd.evilcorp.core.db.entity.GroupMessageEntity
 
 @Dao
 interface GroupMessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun save(message: GroupMessage)
+    fun save(message: GroupMessageEntity)
 
     @Query("SELECT * FROM group_messages WHERE group_chat_id = :groupChatId ORDER BY id ASC")
-    fun load(groupChatId: String): Flow<List<GroupMessage>>
+    fun load(groupChatId: String): Flow<List<GroupMessageEntity>>
 
     @Query("SELECT * FROM group_messages WHERE group_chat_id = :groupChatId AND timestamp = 0")
-    fun loadPending(groupChatId: String): List<GroupMessage>
+    fun loadPending(groupChatId: String): List<GroupMessageEntity>
 
     @Query("SELECT * FROM group_messages WHERE group_chat_id = :groupChatId AND correlation_id = -1 AND sender = 0 AND type != 3")
-    fun loadUnsent(groupChatId: String): List<GroupMessage>
+    fun loadUnsent(groupChatId: String): List<GroupMessageEntity>
 
     @Query("UPDATE group_messages SET correlation_id = :correlationId WHERE id = :id")
     fun setCorrelationId(id: Long, correlationId: Int)

@@ -1,8 +1,9 @@
 package ltd.evilcorp.domain.repository
 
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.model.User
+import ltd.evilcorp.domain.model.UserStatus
 
 interface IUserRepository {
     fun get(publicKey: String): Flow<User?>
@@ -11,4 +12,7 @@ interface IUserRepository {
     fun updateName(publicKey: String, name: String)
     fun updateStatusMessage(publicKey: String, statusMessage: String)
     fun updateStatus(publicKey: String, status: UserStatus)
+    fun update(user: User)
+    fun updateConnection(publicKey: String, connectionStatus: ConnectionStatus)
 }
+

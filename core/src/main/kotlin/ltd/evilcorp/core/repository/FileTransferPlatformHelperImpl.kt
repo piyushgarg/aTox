@@ -26,12 +26,12 @@ class FileTransferPlatformHelperImpl @Inject constructor(
     private val resolver: ContentResolver
         get() = context.contentResolver
 
-    override fun getFilesDir(): File {
-        return context.filesDir
+    override fun getFilesDir(): String {
+        return context.filesDir.absolutePath
     }
 
-    override fun getCacheDir(): File {
-        return context.cacheDir
+    override fun getCacheDir(): String {
+        return context.cacheDir.absolutePath
     }
 
     override fun getFileSizeAndName(uriString: String): Pair<String, Long>? {
@@ -65,7 +65,7 @@ class FileTransferPlatformHelperImpl @Inject constructor(
                 inp.copyTo(output)
             }
         }
-        return destFile.toURI().toString()
+        return Uri.fromFile(destFile).toString()
     }
 
     override fun openInputStream(uriString: String): InputStream? {
@@ -94,22 +94,32 @@ class FileTransferPlatformHelperImpl @Inject constructor(
             val sourceFile = File(sourceFilePath)
             if (!sourceFile.exists()) return null
 
-            val contentValues = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                val ext = sourceFile.extension.lowercase()
-                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
-                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/aTox")
-            }
-
-            val publicUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-            if (publicUri != null) {
-                resolver.openOutputStream(publicUri).use { out ->
-                    FileInputStream(sourceFile).use { ins ->
-                        ins.copyTo(out ?: return@use)
-                    }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    val ext = sourceFile.extension.lowercase()
+                    val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/aTox")
                 }
-                return publicUri.toString()
+
+                val publicUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (publicUri != null) {
+                    resolver.openOutputStream(publicUri).use { out ->
+                        FileInputStream(sourceFile).use { ins ->
+                            ins.copyTo(out ?: return@use)
+                        }
+                    }
+                    return publicUri.toString()
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                val atoxDir = File(downloadDir, "aTox")
+                atoxDir.mkdirs()
+                val targetFile = File(atoxDir, fileName)
+                sourceFile.copyTo(targetFile, overwrite = true)
+                return Uri.fromFile(targetFile).toString()
             }
         } catch (e: Exception) {
             android.util.Log.e("FileTransferHelper", "Failed to auto-save file to public downloads", e)

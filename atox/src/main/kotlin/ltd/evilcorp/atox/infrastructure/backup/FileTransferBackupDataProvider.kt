@@ -11,30 +11,30 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.core.db.FileTransferDao
-import ltd.evilcorp.domain.model.FileTransfer
 import ltd.evilcorp.domain.backup.BackupDataProvider
+import ltd.evilcorp.domain.backup.IFileTransferBackupHelper
+import ltd.evilcorp.domain.model.FileTransfer
 import org.json.JSONArray
 import org.json.JSONObject
 
 class FileTransferHistoryBackupDataProvider @Inject constructor(
-    private val fileTransferDao: FileTransferDao,
+    private val helper: IFileTransferBackupHelper,
 ) : BackupDataProvider {
     override val id: String = "file_transfer_history"
     override val displayNameRes: Int = R.string.backup_module_file_transfer_history
     override val descriptionRes: Int = R.string.backup_module_file_transfer_history_description
 
-    override fun serialize(): ByteArray = serializeFileTransfers(fileTransferDao.loadAllBlocking())
+    override fun serialize(): ByteArray = serializeFileTransfers(helper.serializeFileTransfers())
 
     override fun deserialize(data: ByteArray) {
-        fileTransferDao.saveAll(parseFileTransfers(data))
+        helper.deserializeFileTransfers(parseFileTransfers(data))
     }
 }
 
 class TransferredFilesBackupDataProvider @Inject constructor(
     private val context: Context,
     private val resolver: ContentResolver,
-    private val fileTransferDao: FileTransferDao,
+    private val helper: IFileTransferBackupHelper,
 ) : BackupDataProvider {
     override val id: String = "transferred_files"
     override val displayNameRes: Int = R.string.backup_module_transferred_files
@@ -42,7 +42,7 @@ class TransferredFilesBackupDataProvider @Inject constructor(
 
     override fun serialize(): ByteArray {
         val manifest = JSONArray()
-        val transfers = fileTransferDao.loadAllBlocking()
+        val transfers = helper.serializeFileTransfers()
             .filter { it.destination.isNotBlank() }
 
         return ByteArrayOutputStream().use { bytes ->
@@ -100,7 +100,7 @@ class TransferredFilesBackupDataProvider @Inject constructor(
             val content = files[entryName] ?: continue
             val restored = File(restoreDir, "$id-$fileName")
             restored.writeBytes(content)
-            fileTransferDao.setDestination(id, restored.toUri().toString())
+            helper.setDestination(id, restored.toUri().toString())
         }
     }
 }

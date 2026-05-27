@@ -15,11 +15,11 @@ import ltd.evilcorp.domain.model.TimeFormatPreference
 import ltd.evilcorp.atox.infrastructure.receiver.BootReceiver
 import ltd.evilcorp.domain.model.ProxyType
 import ltd.evilcorp.domain.model.UserSettings
-import ltd.evilcorp.core.repository.UserSettingsRepository
+import ltd.evilcorp.domain.repository.IUserSettingsRepository
 
 class Settings @Inject constructor(
     private val ctx: Context,
-    private val repository: UserSettingsRepository,
+    private val repository: IUserSettingsRepository,
 ) {
     val state: StateFlow<UserSettings> = repository.settings
 

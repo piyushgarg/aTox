@@ -65,9 +65,10 @@ import ltd.evilcorp.atox.ui.settings.backup.backupFrequencyTitle
 import ltd.evilcorp.atox.ui.theme.AToxMotion
 import ltd.evilcorp.domain.model.BackupDestination
 import ltd.evilcorp.domain.model.BackupFrequency
+import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import ltd.evilcorp.domain.backup.BackupDataProvider
 
-@Suppress("FunctionNaming", "UnstableCollections")
+@Suppress("FunctionNaming", "UnstableCollections", "UnusedParameter")
 @Composable
 fun BackupSettingsScreen(
     paddingValues: PaddingValues,
@@ -208,38 +209,11 @@ fun BackupSettingsScreen(
                     enter = AToxMotion.fadeEnter(),
                     exit = AToxMotion.fadeExit(),
                 ) {
-                    OutlinedTextField(
+                    AtoxPasswordField(
                         value = backupPassword,
                         onValueChange = onBackupPasswordChanged,
-                        label = { Text(stringResource(R.string.password)) },
-                        singleLine = true,
-                        visualTransformation = if (backupPasswordVisible) {
-                            VisualTransformation.None
-                        } else {
-                            PasswordVisualTransformation()
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { onBackupPasswordVisibleChanged(!backupPasswordVisible) }) {
-                                Icon(
-                                    imageVector = if (backupPasswordVisible) {
-                                        Icons.Default.VisibilityOff
-                                    } else {
-                                        Icons.Default.Visibility
-                                    },
-                                    contentDescription = if (backupPasswordVisible) {
-                                        stringResource(R.string.hide)
-                                    } else {
-                                        stringResource(R.string.show)
-                                    },
-                                )
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            capitalization = KeyboardCapitalization.None,
-                            autoCorrectEnabled = false,
-                            imeAction = ImeAction.Done
-                        ),
+                        label = stringResource(R.string.password),
+                        imeAction = ImeAction.Done,
                         keyboardActions = KeyboardActions(
                             onDone = { focusManager.clearFocus() }
                         ),

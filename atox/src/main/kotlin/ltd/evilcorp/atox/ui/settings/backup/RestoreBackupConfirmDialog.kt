@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 
 @Composable
 fun RestoreBackupConfirmDialog(
@@ -27,7 +28,6 @@ fun RestoreBackupConfirmDialog(
     focusManager: FocusManager
 ) {
     var restoreBackupPassword by remember { mutableStateOf("") }
-    var restoreBackupPasswordVisible by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -41,42 +41,15 @@ fun RestoreBackupConfirmDialog(
                         stringResource(R.string.backup_restore_confirm)
                     }
                 )
-                OutlinedTextField(
+                AtoxPasswordField(
                     value = restoreBackupPassword,
                     onValueChange = { restoreBackupPassword = it },
-                    label = { Text(stringResource(R.string.backup_password_optional)) },
-                    singleLine = true,
-                    visualTransformation = if (restoreBackupPasswordVisible) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { restoreBackupPasswordVisible = !restoreBackupPasswordVisible }) {
-                            Icon(
-                                imageVector = if (restoreBackupPasswordVisible) {
-                                    Icons.Default.VisibilityOff
-                                } else {
-                                    Icons.Default.Visibility
-                                },
-                                contentDescription = if (restoreBackupPasswordVisible) {
-                                    stringResource(R.string.hide)
-                                } else {
-                                    stringResource(R.string.show)
-                                },
-                            )
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        capitalization = KeyboardCapitalization.None,
-                        autoCorrectEnabled = false,
-                        imeAction = ImeAction.Done
-                    ),
+                    label = stringResource(R.string.backup_password_optional),
+                    imeAction = ImeAction.Done,
                     keyboardActions = KeyboardActions(
                         onDone = { focusManager.clearFocus() }
                     ),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },

@@ -5,13 +5,10 @@
 package ltd.evilcorp.atox.ui.common.chat
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.*
@@ -26,26 +23,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.infrastructure.settings.Settings
+import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.common.formatChatTime
 import ltd.evilcorp.atox.ui.common.ContactAvatar
-import ltd.evilcorp.atox.ui.chat.components.CallHistoryCard
-import ltd.evilcorp.atox.ui.chat.components.GroupInviteCard
 import android.content.Context
 import android.content.ClipboardManager
 import android.widget.Toast
-import ltd.evilcorp.atox.ui.stripReplyPrefix
 import ltd.evilcorp.domain.model.FileTransfer
 import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.Sender
+import ltd.evilcorp.domain.model.ReplyParser
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
     msg: Message,
     messages: List<Message>,
-    settings: Settings,
+    uiConfig: ChatUiConfig,
     contactName: String,
     onHaptic: () -> Unit,
     onCallHistoryClick: () -> Unit = {},
@@ -70,83 +65,29 @@ fun MessageBubble(
 ) {
     val isOutgoing = msg.sender == Sender.Sent
     val context = LocalContext.current
-    val isAction = msg.type == MessageType.Action
-    val isGroupEvent = msg.type == MessageType.GroupEvent
 
-    // 1. GroupEvent separator rendering
-    if (isGroupEvent) {
-        val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
-            val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
-            formatChatTime(context, time, settings.timeFormatPreference)
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Surface(
-                shape = RoundedCornerShape(999.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-                tonalElevation = 1.dp,
-            ) {
-                Text(
-                    text = msg.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = timeString,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                fontSize = 10.sp,
+    // Polymorphic routing based on MessageType
+    when (msg.type) {
+        MessageType.GroupEvent -> {
+            SystemEventBubble(
+                msg = msg,
+                uiConfig = uiConfig
             )
+            return
         }
-        return
-    }
-
-    // 2. Call history Action rendering
-    if (isAction) {
-        val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
-            val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
-            formatChatTime(context, time, settings.timeFormatPreference)
+        MessageType.Action -> {
+            CallHistoryBubble(
+                msg = msg,
+                isOutgoing = isOutgoing,
+                uiConfig = uiConfig,
+                onHaptic = onHaptic,
+                onCallHistoryClick = onCallHistoryClick
+            )
+            return
         }
-        val displayTitle = remember(msg.message) {
-            when (msg.message) {
-                "[CALL_HISTORY_OUTGOING]" -> context.getString(R.string.call_history_outgoing)
-                "[CALL_HISTORY_INCOMING]" -> context.getString(R.string.call_history_incoming)
-                "[CALL_HISTORY_MISSED]" -> context.getString(R.string.call_history_missed)
-                "[CALL_HISTORY_CANCELLED]" -> context.getString(R.string.call_history_cancelled)
-                
-                // English compatibility
-                "Outgoing call" -> context.getString(R.string.call_history_outgoing)
-                "Incoming call" -> context.getString(R.string.call_history_incoming)
-                "Missed call" -> context.getString(R.string.call_history_missed)
-                "Cancelled call" -> context.getString(R.string.call_history_cancelled)
-                
-                // Russian compatibility
-                "Исходящий звонок" -> context.getString(R.string.call_history_outgoing)
-                "Входящий звонок" -> context.getString(R.string.call_history_incoming)
-                "Пропущенный звонок" -> context.getString(R.string.call_history_missed)
-                "Отменённый звонок", "Отмененный звонок" -> context.getString(R.string.call_history_cancelled)
-                
-                else -> msg.message
-            }
+        else -> {
+            // Normal message rendering
         }
-        CallHistoryCard(
-            title = displayTitle,
-            timeString = timeString,
-            isOutgoing = isOutgoing,
-            onClick = {
-                onHaptic()
-                onCallHistoryClick()
-            },
-        )
-        return
     }
 
     val containerColor = if (isOutgoing) {
@@ -173,22 +114,23 @@ fun MessageBubble(
 
     var showMenu by remember { mutableStateOf(false) }
 
-    // Parse reply metadata
-    val isReply = remember(msg.message) { msg.message.startsWith("[reply:") }
-    val replyContent = remember(msg.message, isReply) {
-        if (isReply) {
-            val index = msg.message.indexOf("] ")
-            if (index != -1) {
-                val tag = msg.message.substring(0, index + 1)
-                val parentIdentifier = tag.removePrefix("[reply:").removeSuffix("]")
-                val actualText = msg.message.substring(index + 2)
-                Triple(true, parentIdentifier, actualText)
-            } else {
-                Triple(false, "", msg.message)
-            }
+    // Parse reply metadata using domain ReplyParser
+    val replyInfo = remember(msg.message) { ReplyParser.parse(msg.message) }
+
+    val ft = remember(msg.correlationId, fileTransfers) {
+        if (msg.type == MessageType.FileTransfer) {
+            fileTransfers.find { it.id == msg.correlationId || it.fileNumber == msg.correlationId }
         } else {
-            Triple(false, "", msg.message)
+            null
         }
+    }
+
+    val isVoice = remember(ft) {
+        ft != null && ft.fileName.startsWith("voice_message_")
+    }
+
+    val isGroupInvite = remember(msg.message) {
+        isGroupInviteMessage(msg.message)
     }
 
     Row(
@@ -247,112 +189,34 @@ fun MessageBubble(
                             )
                         }
 
-                        // Reply preview block inside the bubble
-                        if (replyContent.first && onParentMessageClick != null) {
-                            val parentIdentifier = replyContent.second
-                            val parentMsg = remember(messages, parentIdentifier) {
-                                messages.find { 
-                                    it.message.hashCode().toString() == parentIdentifier || 
-                                    it.timestamp.toString() == parentIdentifier
-                                }
+                        // Polymorphic body rendering
+                        when {
+                            isVoice && ft != null -> {
+                                VoiceMessageBubble(
+                                    ft = ft,
+                                    contentColor = contentColor,
+                                    onAcceptFt = onAcceptFt,
+                                    onRejectFt = onRejectFt,
+                                    msg = msg,
+                                    isOutgoing = isOutgoing,
+                                    uiConfig = uiConfig
+                                )
                             }
-                            if (parentMsg != null) {
-                                val replyTitleColor = if (isOutgoing) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.primary
-                                }
-                                val replyBarColor = if (isOutgoing) {
-                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                                } else {
-                                    MaterialTheme.colorScheme.primary
-                                }
-                                Surface(
-                                    color = contentColor.copy(alpha = 0.12f),
-                                    shape = RoundedCornerShape(4.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 6.dp)
-                                        .clickable { onParentMessageClick(parentMsg) }
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(IntrinsicSize.Min)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(3.dp)
-                                                .fillMaxHeight()
-                                                .background(replyBarColor)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Column(modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp)) {
-                                            Text(
-                                                text = if (parentMsg.sender == Sender.Sent) stringResource(R.string.reply_you) else contactName,
-                                                fontWeight = FontWeight.SemiBold,
-                                                fontSize = 12.sp,
-                                                color = replyTitleColor
-                                            )
-                                            Text(
-                                                text = if (parentMsg.type == MessageType.FileTransfer) stringResource(R.string.voice_message) else stripReplyPrefix(parentMsg.message),
-                                                fontSize = 11.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                color = contentColor.copy(alpha = 0.8f)
-                                            )
-                                        }
-                                    }
-                                }
+                            msg.type == MessageType.FileTransfer -> {
+                                FileTransferBubble(
+                                    msg = msg,
+                                    ft = ft,
+                                    contentColor = contentColor,
+                                    onHaptic = onHaptic,
+                                    onAcceptFt = onAcceptFt,
+                                    onRejectFt = onRejectFt,
+                                    onCancelFt = onCancelFt,
+                                    onSaveAsClick = onSaveAsClick,
+                                    onOpenFile = onOpenFile
+                                )
                             }
-                        }
-
-                        val isVoice = msg.type == MessageType.FileTransfer && 
-                                      fileTransfers.find { it.id == msg.correlationId }?.fileName?.startsWith("voice_message_") == true
-
-                        if (msg.type == MessageType.FileTransfer) {
-                            val ft = fileTransfers.find { it.id == msg.correlationId }
-                            if (ft != null) {
-                                if (ft.fileName.startsWith("voice_message_")) {
-                                    VoiceMessageCard(
-                                        ft = ft,
-                                        contentColor = contentColor,
-                                        onAcceptFt = onAcceptFt,
-                                        onRejectFt = onRejectFt,
-                                        msg = msg,
-                                        isOutgoing = isOutgoing,
-                                        settings = settings
-                                    )
-                                } else {
-                                    FileTransferCard(
-                                        ft = ft,
-                                        msg = msg,
-                                        onHaptic = onHaptic,
-                                        contentColor = contentColor,
-                                        onAcceptFt = onAcceptFt,
-                                        onRejectFt = onRejectFt,
-                                        onCancelFt = onCancelFt,
-                                        onSaveAsClick = onSaveAsClick,
-                                        onOpenFile = onOpenFile
-                                    )
-                                }
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null, tint = contentColor)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = msg.message,
-                                        fontSize = 15.sp,
-                                        color = contentColor
-                                    )
-                                }
-                            }
-                        } else {
-                            val isGroupInvite = remember(msg.message) {
-                                msg.message.startsWith("[GROUP_INVITE:") && msg.message.contains("|") && msg.message.endsWith("]")
-                            }
-                            if (isGroupInvite) {
-                                GroupInviteCard(
+                            isGroupInvite -> {
+                                GroupInviteBubble(
                                     msg = msg,
                                     contentColor = contentColor,
                                     isOutgoing = isOutgoing,
@@ -361,21 +225,26 @@ fun MessageBubble(
                                     onJoinGroupClick = onJoinGroupClick,
                                     isJoinedGroup = isJoinedGroup
                                 )
-                            } else {
-                                val textToDisplay = if (replyContent.first) replyContent.third else msg.message
-                                Text(
-                                    text = textToDisplay,
-                                    fontSize = 15.sp,
-                                    color = contentColor
+                            }
+                            else -> {
+                                TextMessageBubble(
+                                    msg = msg,
+                                    replyInfo = replyInfo,
+                                    messages = messages,
+                                    contactName = contactName,
+                                    contentColor = contentColor,
+                                    isOutgoing = isOutgoing,
+                                    onParentMessageClick = onParentMessageClick
                                 )
                             }
                         }
 
+                        // Message time & status delivery ticks
                         if (!isVoice) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
+                            val timeString = remember(msg.timestamp, uiConfig.timeFormatPreference) {
                                 val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
-                                formatChatTime(context, time, settings.timeFormatPreference)
+                                formatChatTime(context, time, uiConfig.timeFormatPreference)
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -418,42 +287,17 @@ fun MessageBubble(
                     }
                 }
 
-                if (onCopyMessage != null || onReplyMessage != null || onForwardMessage != null) {
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        if (msg.type != MessageType.FileTransfer && !isAction && onCopyMessage != null) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.copy)) },
-                                onClick = {
-                                    showMenu = false
-                                    onCopyMessage(msg)
-                                }
-                            )
-                        }
-                        if (!isAction) {
-                            if (settings.enableReplies && onReplyMessage != null) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.reply)) },
-                                    onClick = {
-                                        showMenu = false
-                                        onReplyMessage(msg)
-                                    }
-                                )
-                            }
-                            if (onForwardMessage != null) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.forward)) },
-                                    onClick = {
-                                        showMenu = false
-                                        onForwardMessage(msg)
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
+                // Extracted Context menu dropdown
+                MessageContextDropdown(
+                    msg = msg,
+                    uiConfig = uiConfig,
+                    showMenu = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    onCopyMessage = onCopyMessage,
+                    onReplyMessage = onReplyMessage,
+                    onForwardMessage = onForwardMessage,
+                    isAction = false
+                )
             }
         }
     }

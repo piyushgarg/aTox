@@ -37,6 +37,7 @@ import ltd.evilcorp.atox.R
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
+import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import ltd.evilcorp.domain.model.GroupPrivacyState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,7 +50,6 @@ fun CreateGroupScreen(
     var groupName by remember { mutableStateOf("") }
     var privacyState by remember { mutableStateOf(GroupPrivacyState.Public) }
     var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
 
     val isCreating by isCreatingState.collectAsState()
 
@@ -195,25 +195,14 @@ fun CreateGroupScreen(
                         enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                         exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
                     ) {
-                        OutlinedTextField(
+                        AtoxPasswordField(
                             value = password,
                             onValueChange = { password = it },
-                            label = { Text(stringResource(R.string.group_password)) },
-                            placeholder = { Text(stringResource(R.string.group_password_placeholder)) },
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            singleLine = true,
+                            label = stringResource(R.string.group_password),
+                            placeholder = stringResource(R.string.group_password_placeholder),
                             enabled = !isCreating,
                             shape = MaterialTheme.shapes.medium,
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            trailingIcon = {
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(
-                                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = null
-                                    )
-                                }
-                            }
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                         )
                     }
 

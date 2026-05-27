@@ -6,14 +6,11 @@ package ltd.evilcorp.domain.feature
 
 import ltd.evilcorp.domain.repository.IUserSettingsRepository
 import ltd.evilcorp.domain.tox.enums.ToxFileControl
-import java.io.File
 import java.io.InputStream
-import java.io.RandomAccessFile
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.collections.forEach as kForEach
-import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -49,7 +46,6 @@ private data class Chunk(val pos: Long, val data: ByteArray)
 private data class OutgoingFile(val inputStream: InputStream, val unsentChunks: MutableList<Chunk>)
 
 @Singleton
-@Suppress("LargeClass")
 class FileTransferManager @Inject constructor(
     private val scope: CoroutineScope,
     private val platformHelper: IFileTransferPlatformHelper,
@@ -58,14 +54,10 @@ class FileTransferManager @Inject constructor(
     private val fileTransferRepository: IFileTransferRepository,
     private val tox: ITox,
     private val userSettingsRepository: IUserSettingsRepository,
+    private val fileStorageHelper: IFileStorageHelper,
 ) {
     private val fileTransfers: MutableList<FileTransfer> = mutableListOf()
     private val outgoingFiles = mutableMapOf<Pair<String, Int>, OutgoingFile>()
-
-    init {
-        File(platformHelper.getFilesDir(), "ft").mkdir()
-        File(platformHelper.getFilesDir(), "avatar").mkdir()
-    }
 
     fun reset() {
         fileTransfers.clear()
@@ -85,10 +77,7 @@ class FileTransferManager @Inject constructor(
                 platformHelper.releaseFilePermission(uriStr)
             } else {
                 scope.launch(Dispatchers.IO) {
-                    val path = getPathFromUri(ft.destination)
-                    if (path != null) {
-                        File(path).delete()
-                    }
+                    fileStorageHelper.deleteFile(ft.destination)
                 }
             }
         }
@@ -148,17 +137,13 @@ class FileTransferManager @Inject constructor(
     fun accept(ft: FileTransfer) {
         println("$TAG: Accept ${ft.fileNumber} for ${ft.publicKey.fingerprint()}")
         scope.launch(Dispatchers.IO) {
-            val file = when (ft.fileKind) {
+            val destUri = when (ft.fileKind) {
                 FileKind.Data.ordinal -> {
-                    val destPath = makeDestination(ft)
-                    val file = File(destPath)
-                    file.parentFile!!.mkdirs()
-                    file
+                    val destPath = fileStorageHelper.makeLocalDestinationPath(ft.publicKey.fingerprint(), ft.fileName)
+                    "file://$destPath"
                 }
                 FileKind.Avatar.ordinal -> {
-                    val file = wipAvatar(ft.fileName)
-                    file.parentFile?.mkdirs()
-                    file
+                    fileStorageHelper.makeWipAvatarPath(ft.fileName)
                 }
                 else -> {
                     println("$TAG: Got unknown file kind when accepting ft: $ft")
@@ -167,10 +152,13 @@ class FileTransferManager @Inject constructor(
             }
 
             try {
-                RandomAccessFile(file, "rwd").use { it.setLength(ft.fileSize) }
-                setDestination(ft, file.toURI().toString())
-                setProgress(ft, FT_STARTED)
-                tox.startFileTransfer(PublicKey(ft.publicKey), ft.fileNumber)
+                if (fileStorageHelper.createEmptyFile(destUri, ft.fileSize)) {
+                    setDestination(ft, destUri)
+                    setProgress(ft, FT_STARTED)
+                    tox.startFileTransfer(PublicKey(ft.publicKey), ft.fileNumber)
+                } else {
+                    println("$TAG: Failed to create empty file for destination $destUri")
+                }
             } catch (e: Exception) {
                 println("$TAG: Failed to accept file transfer: ${e.message}")
             }
@@ -195,10 +183,7 @@ class FileTransferManager @Inject constructor(
                     outgoingFiles.remove(Pair(ft.publicKey, ft.fileNumber))?.inputStream?.close()
                     platformHelper.releaseFilePermission(uriStr)
                 } else {
-                    val path = getPathFromUri(uriStr)
-                    if (path != null) {
-                        File(path).delete()
-                    }
+                    fileStorageHelper.deleteFile(uriStr)
                 }
             }
         }
@@ -236,23 +221,18 @@ class FileTransferManager @Inject constructor(
             return
         }
 
-        val path = getPathFromUri(ft.destination)
-        if (path != null) {
-            RandomAccessFile(File(path), "rwd").use {
-                it.seek(position)
-                it.write(data)
-            }
-        }
+        fileStorageHelper.writeChunk(ft.destination, position, data)
 
         setProgress(ft, ft.progress + data.size)
 
         if (ft.isComplete()) {
             println("$TAG: Finished ${ft.fileNumber} for ${ft.publicKey.fingerprint()}")
             if (ft.fileKind == FileKind.Avatar.ordinal) {
-                wipAvatar(ft.fileName).copyTo(avatar(ft.fileName), overwrite = true)
-                wipAvatar(ft.fileName).delete()
-                val avatarUriWithTimestamp = "${avatar(ft.fileName).toURI()}?t=${System.currentTimeMillis()}"
-                contactRepository.setAvatarUri(ft.publicKey, avatarUriWithTimestamp)
+                val finalAvatarUri = fileStorageHelper.finalizeAvatar(ft.fileName, ft.fileName)
+                if (finalAvatarUri != null) {
+                    val avatarUriWithTimestamp = "$finalAvatarUri?t=${System.currentTimeMillis()}"
+                    contactRepository.setAvatarUri(ft.publicKey, avatarUriWithTimestamp)
+                }
             } else if (ft.fileKind == FileKind.Data.ordinal) {
                 autoSaveFileToPublicDownloads(ft)
             }
@@ -372,11 +352,9 @@ class FileTransferManager @Inject constructor(
     }
 
     suspend fun sendAvatar(pkStr: String) = withContext(Dispatchers.IO) {
-        val selfAvatarFile = File(platformHelper.getFilesDir(), "self_avatar.png")
-        if (!selfAvatarFile.exists() || selfAvatarFile.length() == 0L) {
-            return@withContext
-        }
-        val size = selfAvatarFile.length()
+        val avatarInfo = fileStorageHelper.getSelfAvatarInfo() ?: return@withContext
+        val avatarUriStr = avatarInfo.first
+        val size = avatarInfo.second
         val pk = PublicKey(pkStr)
         
         val existing = fileTransfers.find { it.publicKey == pkStr && it.fileKind == FileKind.Avatar.ordinal }
@@ -401,11 +379,11 @@ class FileTransferManager @Inject constructor(
             "avatar",
             true,
             FT_NOT_STARTED,
-            selfAvatarFile.toURI().toString()
+            avatarUriStr
         )
         fileTransfers.add(ft)
         
-        val inputStream = selfAvatarFile.inputStream()
+        val inputStream = platformHelper.openInputStream(avatarUriStr) ?: return@withContext
         outgoingFiles[Pair(pkStr, fileNo)] = OutgoingFile(inputStream, mutableListOf())
     }
 
@@ -427,11 +405,8 @@ class FileTransferManager @Inject constructor(
             fileTransfers.remove(it)
         }
         fileTransferRepository.get(id).take(1).collect {
-            if (!it.outgoing && it.destination.startsWith("file://")) {
-                val path = getPathFromUri(it.destination)
-                if (path != null) {
-                    File(path).delete()
-                }
+            if (!it.outgoing) {
+                fileStorageHelper.deleteFile(it.destination)
             }
             fileTransferRepository.delete(id)
         }
@@ -439,21 +414,11 @@ class FileTransferManager @Inject constructor(
 
     fun get(id: Int) = fileTransferRepository.get(id)
 
-    private fun makeDestination(ft: FileTransfer): String {
-        val ext = File(ft.fileName).extension
-        val suffix = if (ext.isNotEmpty()) ".$ext" else ""
-        return File(File(File(platformHelper.getFilesDir(), "ft"), ft.publicKey.fingerprint()), "${Random.nextLong()}$suffix").absolutePath
-    }
-
-    private fun wipAvatar(name: String): File = File(File(platformHelper.getFilesDir(), "avatar"), "$name.wip")
-    private fun avatar(name: String): File = File(File(platformHelper.getFilesDir(), "avatar"), name)
-
     private fun autoSaveFileToPublicDownloads(ft: FileTransfer) {
         if (ft.outgoing || !userSettingsRepository.settings.value.autoSaveToDownloads) return
         try {
-            val path = getPathFromUri(ft.destination) ?: return
-            val sourceFile = File(path)
-            if (!sourceFile.exists()) return
+            val path = fileStorageHelper.getPathFromUri(ft.destination) ?: return
+            if (!fileStorageHelper.fileExists(ft.destination)) return
 
             val configuredDirectory = userSettingsRepository.settings.value.autoSaveDirectoryUri
             if (configuredDirectory.isNotBlank()) {
@@ -476,56 +441,10 @@ class FileTransferManager @Inject constructor(
     }
 
     fun getCacheSize(): Long {
-        var size = 0L
-        val outgoingDir = File(platformHelper.getCacheDir(), "outgoing")
-        if (outgoingDir.exists()) {
-            size += getFolderSize(outgoingDir)
-        }
-        val ftDir = File(platformHelper.getFilesDir(), "ft")
-        if (ftDir.exists()) {
-            size += getFolderSize(ftDir)
-        }
-        return size
-    }
-
-    private fun getFolderSize(file: File): Long {
-        if (file.isFile) return file.length()
-        var size = 0L
-        val list = file.listFiles()
-        if (list != null) {
-            for (f in list) {
-                size += getFolderSize(f)
-            }
-        }
-        return size
+        return fileStorageHelper.getCacheSize()
     }
 
     fun clearCache() {
-        val outgoingDir = File(platformHelper.getCacheDir(), "outgoing")
-        if (outgoingDir.exists()) {
-            val list = outgoingDir.listFiles()
-            if (list != null) {
-                for (f in list) {
-                    f.delete()
-                }
-            }
-        }
-        val ftDir = File(platformHelper.getFilesDir(), "ft")
-        if (ftDir.exists()) {
-            ftDir.deleteRecursively()
-            ftDir.mkdir()
-        }
-    }
-
-    private fun getPathFromUri(uriString: String): String? {
-        if (uriString.startsWith("file://")) {
-            try {
-                return java.net.URI(uriString).path
-            } catch (e: Exception) {
-                // fallback manual parse
-                return uriString.substringAfter("file://")
-            }
-        }
-        return null
+        fileStorageHelper.clearCache()
     }
 }

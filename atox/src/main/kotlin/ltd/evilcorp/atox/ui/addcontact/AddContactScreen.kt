@@ -31,6 +31,7 @@ import ltd.evilcorp.domain.tox.ToxID
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
 import ltd.evilcorp.atox.ui.navigation.AppBarConfig
+import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 
 @Composable
 fun AddContactScreen(
@@ -183,24 +184,16 @@ fun AddContactContent(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(
+                    AtoxLoadingButton(
                         onClick = { submitContactRequest() },
-                        enabled = !isLoading && toxIdInput.isNotEmpty(),
+                        text = stringResource(R.string.add),
+                        isLoading = isLoading,
+                        enabled = toxIdInput.isNotEmpty(),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
                         shape = MaterialTheme.shapes.medium
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(stringResource(R.string.add), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    )
                 }
             }
         }

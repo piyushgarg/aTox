@@ -27,6 +27,14 @@ object AToxMotion {
     private const val DurationTabTransition = 250
     private const val DurationTabFadeOut = 83
     private const val DurationTabFadeIn = 167
+    private const val DurationBottomBarEnter = 300
+    private const val DurationBottomBarExit = 200
+    private const val DurationFabEnter = 300
+    private const val DurationFabExit = 200
+    private const val DurationReplyPreviewEnter = 200
+    private const val DurationReplyPreviewFadeIn = 150
+    private const val DurationReplyPreviewExit = 150
+    private const val DurationReplyPreviewFadeOut = 100
 
     fun sharedAxisZEnter(forward: Boolean): EnterTransition =
         fadeIn(
@@ -159,4 +167,44 @@ object AToxMotion {
                 easing = EmphasizedAccelerate,
             ),
         )
+
+    fun bottomBarEnter(): EnterTransition =
+        fadeIn(animationSpec = tween(DurationBottomBarEnter)) + 
+                slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(DurationBottomBarEnter, easing = EmphasizedDecelerate)
+                )
+
+    fun bottomBarExit(): ExitTransition =
+        fadeOut(animationSpec = tween(DurationBottomBarExit)) + 
+               slideOutVertically(
+                   targetOffsetY = { it },
+                   animationSpec = tween(DurationBottomBarExit, easing = EmphasizedAccelerate)
+               )
+
+    fun fabEnter(): EnterTransition =
+        fadeIn(animationSpec = tween(DurationFabEnter)) + 
+                slideInVertically(
+                    initialOffsetY = { it / 2 },
+                    animationSpec = tween(DurationFabEnter, easing = EmphasizedDecelerate)
+                )
+
+    fun fabExit(): ExitTransition =
+        fadeOut(animationSpec = tween(DurationFabExit)) + 
+               slideOutVertically(
+                   targetOffsetY = { it / 2 },
+                   animationSpec = tween(DurationFabExit, easing = EmphasizedAccelerate)
+               )
+
+    fun replyPreviewEnter(): EnterTransition =
+        slideInVertically(
+            initialOffsetY = { it },
+            animationSpec = tween(DurationReplyPreviewEnter, easing = EmphasizedDecelerate)
+        ) + fadeIn(animationSpec = tween(DurationReplyPreviewFadeIn))
+
+    fun replyPreviewExit(): ExitTransition =
+        slideOutVertically(
+            targetOffsetY = { it },
+            animationSpec = tween(DurationReplyPreviewExit, easing = EmphasizedAccelerate)
+        ) + fadeOut(animationSpec = tween(DurationReplyPreviewFadeOut))
 }

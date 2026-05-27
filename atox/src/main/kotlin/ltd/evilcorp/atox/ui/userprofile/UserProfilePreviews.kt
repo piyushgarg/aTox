@@ -24,12 +24,16 @@ private fun UserProfileScreenPreview() {
             user = mockUser,
             toxId = "1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890AB",
             avatar = null,
+            selectedImageUri = null,
+            onSelectedImageUriChanged = {},
+            onLaunchCamera = {},
+            onLaunchGallery = {},
             onSetName = {},
             onSetStatusMessage = {},
             onSetStatus = {},
             onLogout = {},
             onAvatarChanged = {},
-            onCropAndSaveAvatar = { _, _, _, _, _, _ -> true }
+            onCropAndSaveAvatar = { _, _, _, _, _, _ -> }
         )
     }
 }

@@ -21,7 +21,7 @@ class DeleteContactUseCase @Inject constructor(
         callManager.endCall(publicKey)
         notificationHelper.dismissNotifications(publicKey)
         notificationHelper.dismissCallNotification(publicKey)
-        contactManager.delete(publicKey).join()
+        contactManager.delete(publicKey)
         chatManager.clearHistory(publicKey)
         fileTransferManager.deleteAll(publicKey)
     }

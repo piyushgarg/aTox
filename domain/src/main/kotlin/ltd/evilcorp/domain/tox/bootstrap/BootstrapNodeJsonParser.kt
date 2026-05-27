@@ -4,7 +4,6 @@
 
 package ltd.evilcorp.domain.tox.bootstrap
 
-import android.util.Log
 import javax.inject.Inject
 import ltd.evilcorp.domain.model.PublicKey
 import org.json.JSONObject
@@ -43,7 +42,7 @@ class BootstrapNodeJsonParser @Inject constructor() {
 
         nodes
     } catch (e: Exception) {
-        Log.e(TAG, e.toString())
+        System.err.println("[$TAG] Error parsing bootstrap nodes: $e")
         listOf()
     }
 }

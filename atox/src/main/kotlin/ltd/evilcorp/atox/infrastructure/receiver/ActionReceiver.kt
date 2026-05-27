@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.core.repository.ContactRepository
+import ltd.evilcorp.domain.repository.IContactRepository
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.UserStatus
@@ -61,7 +61,7 @@ class ActionReceiver : BroadcastReceiver() {
     lateinit var contactManager: ContactManager
 
     @Inject
-    lateinit var contactRepository: ContactRepository
+    lateinit var contactRepository: IContactRepository
 
     @Inject
     lateinit var notificationHelper: NotificationHelper

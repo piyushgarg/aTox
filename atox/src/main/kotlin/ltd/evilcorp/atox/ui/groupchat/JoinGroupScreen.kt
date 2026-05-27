@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
+import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 
@@ -45,7 +46,6 @@ fun JoinGroupScreen(
 ) {
     var chatIdHex by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val isJoining by isJoiningState.collectAsState()
@@ -128,28 +128,17 @@ fun JoinGroupScreen(
                         )
                     )
 
-                    OutlinedTextField(
+                    AtoxPasswordField(
                         value = password,
                         onValueChange = {
                             password = it
                             errorMessage = null
                         },
-                        label = { Text(stringResource(R.string.group_password)) },
-                        placeholder = { Text(stringResource(R.string.group_password_placeholder)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
+                        label = stringResource(R.string.group_password),
+                        placeholder = stringResource(R.string.group_password_placeholder),
                         enabled = !isJoining,
                         shape = MaterialTheme.shapes.medium,
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        trailingIcon = {
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                Icon(
-                                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = null
-                                )
-                            }
-                        }
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))

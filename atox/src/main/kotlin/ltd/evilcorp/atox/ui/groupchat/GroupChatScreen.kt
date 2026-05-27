@@ -34,46 +34,32 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
-import ltd.evilcorp.atox.infrastructure.settings.Settings
+import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.common.formatChatTime
 import ltd.evilcorp.atox.ui.common.ContactAvatar
-import ltd.evilcorp.atox.ui.common.chat.ChatInputBar
-import ltd.evilcorp.atox.ui.common.chat.MessageBubble
-import ltd.evilcorp.atox.ui.common.chat.DateSeparator
+import ltd.evilcorp.atox.ui.common.chat.ChatScreenContent
+import ltd.evilcorp.atox.ui.common.chat.MessageBubbleConfig
 import android.widget.Toast
 import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
 import ltd.evilcorp.atox.ui.navigation.AppBarConfig
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
+import ltd.evilcorp.atox.ui.common.AtoxAppBar
+import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 import ltd.evilcorp.atox.ui.groupchat.components.GroupPeersSheet
 import ltd.evilcorp.atox.ui.groupchat.components.GroupInviteSheet
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.DateFormatPreference
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.domain.model.Group
-import ltd.evilcorp.domain.model.GroupMessage
 import ltd.evilcorp.domain.model.GroupPeer
+import ltd.evilcorp.domain.model.GroupMessage
+import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.Sender
 import ltd.evilcorp.domain.model.FileTransfer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-
-// Material 3 Pastel Colors for Sender Names and Avatars
-private val PeerColors = listOf(
-    Color(0xFFBA68C8), // Purple
-    Color(0xFF7986CB), // Indigo
-    Color(0xFF64B5F6), // Blue
-    Color(0xFF4DD0E1), // Cyan
-    Color(0xFF4DB6AC), // Teal
-    Color(0xFF81C784), // Green
-    Color(0xFFFFB74D), // Orange
-    Color(0xFFF06292), // Pink
-)
-
-private fun getPeerColor(peerName: String): Color {
-    val hash = peerName.hashCode().let { if (it < 0) -it else it }
-    return PeerColors[hash % PeerColors.size]
-}
+import ltd.evilcorp.atox.ui.theme.getPeerColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,7 +70,8 @@ fun GroupChatScreen(
     contactsState: State<List<Contact>>,
     connectionStatusState: State<GroupConnectionStatus>,
     fileTransfersState: State<List<FileTransfer>>,
-    settings: Settings,
+    selfAvatarUriState: State<String>,
+    uiConfig: ChatUiConfig,
     onBack: () -> Unit,
     onSendMessage: (String) -> Unit,
     onSendFile: (android.net.Uri) -> Unit,
@@ -105,40 +92,14 @@ fun GroupChatScreen(
 ) {
     val group = groupState.value
     val messages = messagesState.value ?: emptyList()
-    val mappedMessages = remember(messages) {
-        messages.map { m ->
-            ltd.evilcorp.domain.model.Message(
-                publicKey = m.groupChatId,
-                message = m.message,
-                sender = m.sender,
-                type = m.type,
-                correlationId = m.correlationId,
-                timestamp = m.timestamp
-            ).apply { this.id = m.id }
-        }
-    }
     val peers = peersState.value ?: emptyList()
     val connStatus = connectionStatusState.value
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            if (listState.firstVisibleItemIndex <= 2) {
-                listState.scrollToItem(0)
-            }
-        }
-    }
-
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val selfAvatarUri = remember {
-        val file = java.io.File(context.filesDir, "self_avatar.png")
-        if (file.exists()) file.toURI().toString() else ""
-    }
+    val selfAvatarUri = selfAvatarUriState.value
 
-    val isKeyboardOpen = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showPeersDialog by remember { mutableStateOf(false) }
     var showInviteDialog by remember { mutableStateOf(false) }
@@ -154,33 +115,8 @@ fun GroupChatScreen(
     val contacts = contactsState.value
     val fileTransfers = fileTransfersState.value
 
-    val inviteCopiedText = stringResource(R.string.group_invite_copied)
-    val inviteSentText = stringResource(R.string.group_invite_sent)
-    val inviteFailedText = stringResource(R.string.group_invite_failed)
-
-    val scope = rememberCoroutineScope()
-    var isCopying by remember { mutableStateOf(false) }
-    var invitingContactId by remember { mutableStateOf<String?>(null) }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: android.net.Uri? ->
-        if (uri != null) {
-            onSendFile(uri)
-        }
-    }
-
-    val activeFtIdToSave = remember { mutableStateOf(-1) }
-    val saveFileLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("*/*")
-    ) { uri: android.net.Uri? ->
-        if (uri != null && activeFtIdToSave.value != -1) {
-            onSaveAsClick(activeFtIdToSave.value, uri.toString())
-        }
-    }
-
     val performHaptic = {
-        if (settings.hapticEnabled) {
+        if (uiConfig.hapticEnabled) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
@@ -212,24 +148,18 @@ fun GroupChatScreen(
 
 
     if (showLeaveDialog) {
-        AlertDialog(
-            onDismissRequest = { showLeaveDialog = false },
-            title = { Text(stringResource(R.string.group_leave)) },
-            text = { Text(stringResource(R.string.group_leave_confirm, group?.name ?: "")) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showLeaveDialog = false
-                    onLeaveGroup()
-                    onBack()
-                }) {
-                    Text(stringResource(R.string.confirm))
-                }
+        AtoxConfirmDialog(
+            onDismiss = { showLeaveDialog = false },
+            onConfirm = {
+                showLeaveDialog = false
+                onLeaveGroup()
+                onBack()
             },
-            dismissButton = {
-                TextButton(onClick = { showLeaveDialog = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.group_leave),
+            text = stringResource(R.string.group_leave_confirm, group?.name ?: ""),
+            confirmText = stringResource(R.string.confirm),
+            dismissText = stringResource(android.R.string.cancel),
+            isDangerous = true
         )
     }
 
@@ -249,7 +179,6 @@ fun GroupChatScreen(
             onInviteFriend = onInviteFriend,
             peers = peers,
             contacts = contacts,
-            settings = settings,
             onInviteResult = { inviteResultText = it }
         )
     }
@@ -269,315 +198,221 @@ fun GroupChatScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     val surfaceContainerColor = MaterialTheme.colorScheme.surfaceContainer
 
-    LaunchedEffect(group, group?.name, connStatus, peers.size, menuExpanded, showInviteDialog, showPeersDialog, showLeaveDialog, settings.hapticEnabled) {
-        AppBarStateHolder.register(
-            route = AppRoutes.GroupChat::class.qualifiedName!!,
-            cfg = AppBarConfig(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .combinedClickable(
-                                onClick = {},
-                                onLongClick = {
-                                    if (settings.hapticEnabled) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    }
-                                    val id = group?.chatId ?: ""
-                                    if (id.isNotEmpty()) {
-                                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                        val clip = android.content.ClipData.newPlainText("group ID", id)
-                                        clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.group_invite_copied),
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Group,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = group?.name?.ifEmpty {
-                                    context.getString(R.string.contact_default_name)
-                                } ?: context.getString(R.string.contact_default_name),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                val dotColor = when (connStatus) {
-                                    GroupConnectionStatus.Connected -> ltd.evilcorp.atox.ui.theme.StatusAvailable
-                                    GroupConnectionStatus.Connecting,
-                                    GroupConnectionStatus.Reconnecting -> ltd.evilcorp.atox.ui.theme.StatusAway
-                                    GroupConnectionStatus.Disconnected -> ltd.evilcorp.atox.ui.theme.StatusOffline
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(dotColor)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                val statusText = when (connStatus) {
-                                    GroupConnectionStatus.Connected -> context.getString(R.string.group_connected)
-                                    GroupConnectionStatus.Connecting,
-                                    GroupConnectionStatus.Reconnecting -> context.getString(R.string.group_connecting)
-                                    GroupConnectionStatus.Disconnected -> context.getString(R.string.group_offline)
-                                }
-                                Text(
-                                    text = "$statusText • ${context.getString(R.string.group_peer_count, peers.size)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                },
-                navigationIcon = {
-                    Box(modifier = Modifier.padding(start = 4.dp)) {
-                        ltd.evilcorp.atox.ui.common.MorphingNavigationIcon(
-                            isBack = true,
-                            onClick = {
-                                if (settings.hapticEnabled) {
+    AtoxAppBar(
+        route = AppRoutes.GroupChat::class.qualifiedName!!,
+        config = AppBarConfig(
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = {
+                                if (uiConfig.hapticEnabled) {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 }
-                                onBack()
+                                val id = group?.chatId ?: ""
+                                if (id.isNotEmpty()) {
+                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("group ID", id)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.group_invite_copied),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
                         )
-                    }
-                },
-                actions = {
-                    Box {
-                        IconButton(onClick = {
-                            if (settings.hapticEnabled) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
-                            menuExpanded = true
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(context.getString(R.string.group_invite_friend)) },
-                                leadingIcon = {
-                                    Icon(Icons.Default.PersonAdd, contentDescription = null)
-                                },
-                                onClick = {
-                                    menuExpanded = false
-                                    if (settings.hapticEnabled) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    }
-                                    showInviteDialog = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(context.getString(R.string.group_peers)) },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Person, contentDescription = null)
-                                },
-                                onClick = {
-                                    menuExpanded = false
-                                    if (settings.hapticEnabled) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    }
-                                    showPeersDialog = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(context.getString(R.string.group_leave), color = MaterialTheme.colorScheme.error) },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                                },
-                                onClick = {
-                                    menuExpanded = false
-                                    if (settings.hapticEnabled) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    }
-                                    showLeaveDialog = true
-                                }
-                            )
-                        }
-                    }
-                },
-                containerColor = surfaceContainerColor
-            )
-        )
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            AppBarStateHolder.unregister(AppRoutes.GroupChat::class.qualifiedName!!)
-        }
-    }
-
-    val showScrollToBottomFab by remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 2 }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .navigationBarsPadding()
-            .imePadding()
-    ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    reverseLayout = true,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 12.dp)
                 ) {
-                    items(
-                        count = messages.size,
-                        key = { index -> messages[messages.size - 1 - index].id }
-                    ) { index ->
-                        val rawIndex = messages.size - 1 - index
-                        val msg = messages[rawIndex]
-                        val previousMsg = messages.getOrNull(rawIndex - 1)
-                        val currentHeader = remember(msg.timestamp, settings.dateFormatPreference) {
-                            ltd.evilcorp.atox.ui.common.formatMessageDateHeader(
-                                context = context,
-                                timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
-                                dateFormatPreference = settings.dateFormatPreference,
-                            )
-                        }
-                        val previousHeader = previousMsg?.let {
-                            remember(it.timestamp, settings.dateFormatPreference) {
-                                ltd.evilcorp.atox.ui.common.formatMessageDateHeader(
-                                    context = context,
-                                    timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
-                                    dateFormatPreference = settings.dateFormatPreference,
-                                )
-                            }
-                        }
-
-                        Column {
-                            if (rawIndex == 0 || currentHeader != previousHeader) {
-                                DateSeparator(label = currentHeader)
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
-
-                            val isOutgoing = msg.sender == Sender.Sent
-                            val senderPeer = peers.find { it.peerId == msg.peerId }
-                            val senderName = senderPeer?.name ?: msg.senderName
-                            val peerColor = remember(senderName) { getPeerColor(senderName) }
-                            val matchingContact = contacts.find { it.publicKey.equals(senderPeer?.publicKey ?: "", ignoreCase = true) }
-                            val mappedMessage = mappedMessages[rawIndex]
-
-                            MessageBubble(
-                                msg = mappedMessage,
-                                messages = mappedMessages,
-                                settings = settings,
-                                contactName = senderName,
-                                onHaptic = performHaptic,
-                                fileTransfers = fileTransfers,
-                                onAcceptFt = onAcceptFt,
-                                onRejectFt = onRejectFt,
-                                onCancelFt = { onCancelFt(msg) },
-                                onSaveAsClick = { ftId, fileName ->
-                                    performHaptic()
-                                    activeFtIdToSave.value = ftId
-                                    saveFileLauncher.launch(fileName)
-                                },
-                                onOpenFile = onOpenFile,
-                                showAvatar = !isOutgoing,
-                                senderName = if (isOutgoing) null else senderName,
-                                senderColor = if (isOutgoing) null else peerColor,
-                                avatarUri = if (isOutgoing) "" else (matchingContact?.avatarUri ?: "")
-                            )
-                        }
-                    }
-                }
-
-                if (showScrollToBottomFab) {
-                    FloatingActionButton(
-                        onClick = {
-                            performHaptic()
-                            scope.launch {
-                                listState.scrollToItem(0)
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        shape = CircleShape,
+                    Box(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(bottom = 16.dp, end = 16.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Scroll to Bottom",
-                            modifier = Modifier.size(28.dp)
+                            imageVector = Icons.Default.Group,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = group?.name?.ifEmpty {
+                                context.getString(R.string.contact_default_name)
+                            } ?: context.getString(R.string.contact_default_name),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val dotColor = when (connStatus) {
+                                GroupConnectionStatus.Connected -> ltd.evilcorp.atox.ui.theme.StatusAvailable
+                                GroupConnectionStatus.Connecting,
+                                GroupConnectionStatus.Reconnecting -> ltd.evilcorp.atox.ui.theme.StatusAway
+                                GroupConnectionStatus.Disconnected -> ltd.evilcorp.atox.ui.theme.StatusOffline
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(dotColor)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            val statusText = when (connStatus) {
+                                GroupConnectionStatus.Connected -> context.getString(R.string.group_connected)
+                                GroupConnectionStatus.Connecting,
+                                GroupConnectionStatus.Reconnecting -> context.getString(R.string.group_connecting)
+                                GroupConnectionStatus.Disconnected -> context.getString(R.string.group_offline)
+                            }
+                            Text(
+                                text = "$statusText • ${context.getString(R.string.group_peer_count, peers.size)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            },
+            navigationIcon = {
+                Box(modifier = Modifier.padding(start = 4.dp)) {
+                    ltd.evilcorp.atox.ui.common.MorphingNavigationIcon(
+                        isBack = true,
+                        onClick = {
+                            if (uiConfig.hapticEnabled) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                            onBack()
+                        }
+                    )
+                }
+            },
+            actions = {
+                Box {
+                    IconButton(onClick = {
+                        if (uiConfig.hapticEnabled) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                        menuExpanded = true
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More options",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(context.getString(R.string.group_invite_friend)) },
+                            leadingIcon = {
+                                Icon(Icons.Default.PersonAdd, contentDescription = null)
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                if (uiConfig.hapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
+                                showInviteDialog = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(context.getString(R.string.group_peers)) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Person, contentDescription = null)
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                if (uiConfig.hapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
+                                showPeersDialog = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(context.getString(R.string.group_leave), color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                if (uiConfig.hapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
+                                showLeaveDialog = true
+                            }
                         )
                     }
                 }
-            }
+            },
+            containerColor = surfaceContainerColor
+        )
+    )
 
-            // Beautiful Unified Chat Input Bar!
-            Surface(
-                tonalElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                ChatInputBar(
-                    contact = null, // Passing null forces group chat defaults
-                    settings = settings,
-                    systemSoundPlayer = systemSoundPlayer,
-                    onSendMessage = { msg ->
-                        performHaptic()
-                        onSendMessage(msg)
-                    },
-                    onTypingChanged = {},
-                    onAttachClick = {
-                        performHaptic()
-                        filePickerLauncher.launch("*/*")
-                    },
-                    onHaptic = performHaptic,
-                    replyingToMessage = null,
-                    onCancelReply = {},
-                    onSendVoice = { uri ->
-                        performHaptic()
-                        onSendVoice(uri)
-                    },
-                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer)
-                )
-            }
-        }
+    val peerColorsCache = remember { mutableMapOf<String, Color>() }
+
+    ChatScreenContent(
+        messages = messages,
+        toMessage = { m ->
+            Message(
+                publicKey = m.groupChatId,
+                message = m.message,
+                sender = m.sender,
+                type = m.type,
+                correlationId = m.correlationId,
+                timestamp = m.timestamp
+            ).apply { this.id = m.id }
+        },
+        getBubbleConfig = { msg ->
+            val isOutgoing = msg.sender == Sender.Sent
+            val senderPeer = peers.find { it.peerId == msg.peerId }
+            val senderName = senderPeer?.name ?: msg.senderName
+            val peerColor = peerColorsCache.getOrPut(senderName) { getPeerColor(senderName) }
+            val matchingContact = contacts.find { it.publicKey.equals(senderPeer?.publicKey ?: "", ignoreCase = true) }
+            MessageBubbleConfig(
+                contactName = senderName,
+                showAvatar = !isOutgoing,
+                senderName = if (isOutgoing) null else senderName,
+                senderColor = if (isOutgoing) null else peerColor,
+                avatarUri = if (isOutgoing) "" else (matchingContact?.avatarUri ?: "")
+            )
+        },
+        uiConfig = uiConfig,
+        fileTransfers = fileTransfers,
+        onSendMessage = { msg ->
+            performHaptic()
+            onSendMessage(msg)
+        },
+        onTypingChanged = {},
+        onSendFile = onSendFile,
+        onSendVoice = { uri ->
+            performHaptic()
+            onSendVoice(uri)
+        },
+        onAcceptFt = onAcceptFt,
+        onRejectFt = onRejectFt,
+        onCancelFt = onCancelFt,
+        onSaveFt = { ftId, uri ->
+            onSaveAsClick(ftId, uri.toString())
+        },
+        onOpenFile = onOpenFile,
+        systemSoundPlayer = systemSoundPlayer,
+        performHaptic = performHaptic,
+        contact = null,
+        onCopyClick = {},
+        onReplyClick = {},
+        onForwardClick = {}
+    )
 }
 

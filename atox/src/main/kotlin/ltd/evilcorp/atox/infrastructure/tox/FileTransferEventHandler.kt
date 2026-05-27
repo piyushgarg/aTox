@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.core.repository.ContactRepository
+import ltd.evilcorp.domain.repository.IContactRepository
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.FtAutoAccept
 import ltd.evilcorp.domain.model.FileKind
@@ -36,7 +36,7 @@ private fun String.fingerprint() = this.take(FINGERPRINT_LEN)
 class FileTransferEventHandler @Inject constructor(
     private val scope: CoroutineScope,
     private val context: Context,
-    private val contactRepository: ContactRepository,
+    private val contactRepository: IContactRepository,
     private val fileTransferManager: FileTransferManager,
     private val chatManager: ChatManager,
     private val notificationHelper: NotificationHelper,

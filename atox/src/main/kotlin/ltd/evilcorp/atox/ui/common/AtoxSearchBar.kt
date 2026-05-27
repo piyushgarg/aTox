@@ -37,19 +37,10 @@ fun AtoxSearchBar(
         onActiveChange = onActiveChange,
         placeholder = { Text(placeholder) },
         leadingIcon = {
-            if (active) {
-                IconButton(onClick = { onActiveChange(false) }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back"
-                    )
-                }
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search"
-                )
-            }
+            MorphingNavigationIcon(
+                isBack = active,
+                onClick = { onActiveChange(!active) }
+            )
         },
         trailingIcon = {
             if (query.isNotEmpty()) {

@@ -17,7 +17,7 @@ kotlin {
 android {
     namespace = "ltd.evilcorp.atox"
     compileSdk = libs.versions.sdk.target.get().toInt()
-    ndkVersion = "30.0.14904198"
+    ndkVersion = libs.versions.ndk.get()
     defaultConfig {
         applicationId = "ltd.evilcorp.atox"
         minSdk = libs.versions.sdk.min.get().toInt()
@@ -34,6 +34,11 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+        }
+    }
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
         }
     }
     signingConfigs {
@@ -78,6 +83,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation("androidx.compose.material3:material3-window-size-class")
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.navigation.fragment)
@@ -96,6 +102,7 @@ dependencies {
     implementation(libs.google.hilt.android)
     ksp(libs.google.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.biometric)
 
     implementation(libs.nayuki.qrcodegen)
 
@@ -105,6 +112,7 @@ dependencies {
 
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.konsist.junit5)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.test.rules)

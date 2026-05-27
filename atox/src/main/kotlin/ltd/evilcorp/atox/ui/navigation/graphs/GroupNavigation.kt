@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
@@ -28,6 +30,7 @@ import ltd.evilcorp.atox.ui.groupchat.CreateGroupScreen
 import ltd.evilcorp.atox.ui.groupchat.GroupChatScreen
 import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
+import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.groupchat.JoinGroupScreen
 import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
 import ltd.evilcorp.atox.ui.navigation.AppBarConfig
@@ -168,6 +171,19 @@ fun NavGraphBuilder.groupGraph(
         val peersState = viewModel.peers.collectAsStateWithLifecycle()
         val connectionStatusState = viewModel.connectionStatus.collectAsStateWithLifecycle()
         val fileTransfersState = viewModel.fileTransfers.collectAsStateWithLifecycle()
+        val selfAvatarUriState = viewModel.selfAvatarUri.collectAsStateWithLifecycle()
+
+        val userSettingsState by settings.state.collectAsStateWithLifecycle()
+        val uiConfig = remember(userSettingsState) {
+            ChatUiConfig(
+                hapticEnabled = userSettingsState.hapticEnabled,
+                dateFormatPreference = userSettingsState.dateFormatPreference,
+                timeFormatPreference = userSettingsState.timeFormatPreference,
+                sentMessageSoundUri = userSettingsState.sentMessageSoundUri,
+                sentMessageSoundVolume = userSettingsState.sentMessageSoundVolume,
+                enableReplies = userSettingsState.enableReplies,
+            )
+        }
 
         GroupChatScreen(
             groupState = groupState,
@@ -176,7 +192,8 @@ fun NavGraphBuilder.groupGraph(
             contactsState = contactsState,
             connectionStatusState = connectionStatusState,
             fileTransfersState = fileTransfersState,
-            settings = settings,
+            selfAvatarUriState = selfAvatarUriState,
+            uiConfig = uiConfig,
             onBack = { navController.popBackStack() },
             onSendMessage = { msg -> viewModel.sendMessage(msg) },
             onSendFile = { uri -> viewModel.sendFile(uri) },

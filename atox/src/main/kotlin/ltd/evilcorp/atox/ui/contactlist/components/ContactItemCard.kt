@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.ContactAvatar
+import ltd.evilcorp.atox.ui.common.AtoxItemCard
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import ltd.evilcorp.atox.ui.navigation.LocalSharedTransitionScope
 import ltd.evilcorp.atox.ui.navigation.LocalAnimatedVisibilityScope
@@ -75,46 +76,29 @@ fun ContactItemCard(
         )
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onDelete
+    AtoxItemCard(
+        avatar = { ContactAvatarWithStatus(contact = contact) },
+        title = {
+            Text(
+                text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ContactAvatarWithStatus(contact = contact)
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            ContactTextBlock(
-                contact = contact,
-                presence = presence,
-                modifier = Modifier.weight(1f)
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
+        },
+        subtitle = {
+            ContactSubtitleBlock(contact = contact, presence = presence)
+        },
+        meta = {
             ContactMetaBlock(
                 contact = contact,
                 timeFormatPreference = timeFormatPreference
             )
-        }
-
-        HorizontalDivider(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(start = 76.dp),
-            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)
-        )
-    }
+        },
+        onClick = onClick,
+        onLongClick = onDelete,
+        modifier = modifier
+    )
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -173,44 +157,33 @@ private fun ContactAvatarWithStatus(contact: Contact) {
 }
 
 @Composable
-private fun ContactTextBlock(
+@Suppress("FunctionNaming")
+private fun ContactSubtitleBlock(
     contact: Contact,
     presence: PresenceText,
-    modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
-        Text(
-            text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
+    when {
+        contact.typing -> TypingPreviewText()
+        contact.draftMessage.isNotEmpty() -> Text(
+            text = stringResource(R.string.draft_message, contact.draftMessage),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.tertiary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        when {
-            contact.typing -> TypingPreviewText()
-            contact.draftMessage.isNotEmpty() -> Text(
-                text = stringResource(R.string.draft_message, contact.draftMessage),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.tertiary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            else -> Text(
-                text = presence.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = when (presence.color) {
-                    PresenceTone.Online -> StatusAvailable
-                    PresenceTone.Away -> StatusAway
-                    PresenceTone.Busy -> StatusBusy
-                    PresenceTone.Accent -> MaterialTheme.colorScheme.primary
-                    PresenceTone.Muted -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        else -> Text(
+            text = presence.text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = when (presence.color) {
+                PresenceTone.Online -> StatusAvailable
+                PresenceTone.Away -> StatusAway
+                PresenceTone.Busy -> StatusBusy
+                PresenceTone.Accent -> MaterialTheme.colorScheme.primary
+                PresenceTone.Muted -> MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

@@ -7,25 +7,25 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.domain.model.GroupPeer
+import ltd.evilcorp.core.db.entity.GroupPeerEntity
 import ltd.evilcorp.domain.model.UserStatus
 
 @Dao
 interface GroupPeerDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun save(peer: GroupPeer)
+    fun save(peer: GroupPeerEntity)
 
     @Update
-    fun update(peer: GroupPeer)
+    fun update(peer: GroupPeerEntity)
 
     @Delete
-    fun delete(peer: GroupPeer)
+    fun delete(peer: GroupPeerEntity)
 
     @Query("SELECT * FROM group_peers WHERE group_chat_id = :groupChatId")
-    fun loadAllForGroup(groupChatId: String): Flow<List<GroupPeer>>
+    fun loadAllForGroup(groupChatId: String): Flow<List<GroupPeerEntity>>
 
     @Query("SELECT * FROM group_peers WHERE group_chat_id = :groupChatId AND peer_id = :peerId")
-    fun load(groupChatId: String, peerId: Int): Flow<GroupPeer?>
+    fun load(groupChatId: String, peerId: Int): Flow<GroupPeerEntity?>
 
     @Query("SELECT name FROM group_peers WHERE group_chat_id = :groupChatId AND peer_id = :peerId")
     fun getPeerNameDirect(groupChatId: String, peerId: Int): String?
@@ -37,7 +37,7 @@ interface GroupPeerDao {
     fun peerExistsByPublicKeyDirect(groupChatId: String, publicKey: String): Int
 
     @Query("SELECT * FROM group_peers WHERE group_chat_id = :groupChatId AND public_key = :publicKey")
-    fun loadByPublicKey(groupChatId: String, publicKey: String): Flow<GroupPeer?>
+    fun loadByPublicKey(groupChatId: String, publicKey: String): Flow<GroupPeerEntity?>
 
     @Query("DELETE FROM group_peers WHERE group_chat_id = :groupChatId AND public_key = :publicKey")
     fun deleteByPublicKey(groupChatId: String, publicKey: String)

@@ -56,3 +56,19 @@ val ContactBackgroundsInts = intArrayOf(
     0xFF29B6F6.toInt(),
     0xFFAB47BC.toInt()
 )
+
+val PeerColors = listOf(
+    Color(0xFFBA68C8), // Purple
+    Color(0xFF7986CB), // Indigo
+    Color(0xFF64B5F6), // Blue
+    Color(0xFF4DD0E1), // Cyan
+    Color(0xFF4DB6AC), // Teal
+    Color(0xFF81C784), // Green
+    Color(0xFFFFB74D), // Orange
+    Color(0xFFF06292), // Pink
+)
+
+fun getPeerColor(peerName: String): Color {
+    val hash = peerName.hashCode().let { if (it < 0) -it else it }
+    return PeerColors[hash % PeerColors.size]
+}

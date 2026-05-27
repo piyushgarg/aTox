@@ -7,31 +7,31 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.domain.model.Group
+import ltd.evilcorp.core.db.entity.GroupEntity
 import ltd.evilcorp.domain.model.GroupPrivacyState
 
 @Dao
 interface GroupDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun save(group: Group)
+    fun save(group: GroupEntity)
 
     @Update
-    fun update(group: Group)
+    fun update(group: GroupEntity)
 
     @Delete
-    fun delete(group: Group)
+    fun delete(group: GroupEntity)
 
     @Query("SELECT * FROM groups WHERE chat_id = :chatId")
-    fun load(chatId: String): Flow<Group?>
+    fun load(chatId: String): Flow<GroupEntity?>
 
     @Query("SELECT * FROM groups WHERE chat_id = :chatId")
-    fun loadDirect(chatId: String): Group?
+    fun loadDirect(chatId: String): GroupEntity?
 
     @Query("SELECT COUNT(*) FROM groups WHERE chat_id = :chatId")
     fun exists(chatId: String): Int
 
     @Query("SELECT * FROM groups")
-    fun loadAll(): Flow<List<Group>>
+    fun loadAll(): Flow<List<GroupEntity>>
 
     @Query("UPDATE groups SET name = :name WHERE chat_id = :chatId")
     fun setName(chatId: String, name: String)

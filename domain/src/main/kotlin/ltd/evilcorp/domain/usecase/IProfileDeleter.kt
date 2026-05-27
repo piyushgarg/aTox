@@ -8,4 +8,8 @@ import ltd.evilcorp.domain.model.PublicKey
 
 interface IProfileDeleter {
     suspend fun deleteProfile(publicKey: PublicKey)
+    suspend fun clearDatabase()
+    suspend fun createCheckpoint(): Boolean
+    suspend fun restoreFromCheckpoint(): Boolean
+    suspend fun clearCheckpoint()
 }

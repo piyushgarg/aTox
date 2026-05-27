@@ -26,7 +26,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
+import ltd.evilcorp.atox.ui.common.AtoxPasswordField
+import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -91,7 +93,6 @@ fun CreateProfileContent(
     val context = LocalContext.current
     var nameInput by remember { mutableStateOf("") }
     var backupPassword by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
 
     val backupPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && !isLoading) {
@@ -177,58 +178,39 @@ fun CreateProfileContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Button(
+                AtoxLoadingButton(
                     onClick = { submitProfile() },
-                    enabled = !isLoading && nameInput.isNotEmpty(),
+                    text = stringResource(R.string.create_profile_btn),
+                    isLoading = isLoading,
+                    enabled = nameInput.isNotEmpty(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Text(stringResource(R.string.create_profile_btn), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
+                    shape = MaterialTheme.shapes.medium
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
+                AtoxPasswordField(
                     value = backupPassword,
                     onValueChange = { backupPassword = it },
-                    label = { Text(stringResource(R.string.backup_password_optional)) },
-                    singleLine = true,
+                    label = stringResource(R.string.backup_password_optional),
                     enabled = !isLoading,
                     shape = MaterialTheme.shapes.medium,
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                        val description = if (passwordVisible) "Hide password" else "Show password"
-                        IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = !isLoading) {
-                            Icon(imageVector = image, contentDescription = description)
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        capitalization = KeyboardCapitalization.None,
-                        autoCorrectEnabled = false,
-                        imeAction = ImeAction.Done
-                    ),
+                    imeAction = ImeAction.Done,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedButton(
+                AtoxLoadingButton(
                     onClick = { backupPicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
+                    text = stringResource(R.string.backup_restore_from_file),
+                    isLoading = isLoading,
+                    isOutlined = true,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    enabled = !isLoading,
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.backup_restore_from_file))
-                    }
-                }
+                    shape = MaterialTheme.shapes.medium
+                )
             }
         }
     }

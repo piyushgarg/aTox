@@ -10,12 +10,12 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
-import ltd.evilcorp.core.db.Database
 import ltd.evilcorp.domain.model.User
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
 import ltd.evilcorp.domain.usecase.BackupUseCase
+import ltd.evilcorp.domain.usecase.IProfileDeleter
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +43,7 @@ sealed interface CreateProfileUiState {
 @HiltViewModel
 class CreateProfileViewModel @Inject constructor(
     private val backupProcessor: ProfileBackupProcessor,
-    private val database: Database,
+    private val profileDeleter: IProfileDeleter,
     private val backupUseCase: BackupUseCase,
     private val userManager: UserManager,
     private val tox: ITox,
@@ -63,7 +63,7 @@ class CreateProfileViewModel @Inject constructor(
                 val toxCore = runCatching {
                     backupUseCase.providerData(backup, password, "tox_core")
                 }.getOrNull() ?: return@withContext ToxSaveStatus.Encrypted
-                database.clearAllTables()
+                profileDeleter.clearDatabase()
                 val status = startTox(toxCore, password.takeIf { !it.isNullOrBlank() })
                 if (status != ToxSaveStatus.Ok) return@withContext status
                 runCatching {

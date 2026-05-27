@@ -50,9 +50,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.navigation.AuthViewModel
-import ltd.evilcorp.core.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.tox.save.ToxSaveStatus
 import ltd.evilcorp.atox.ui.navigation.components.UnlockScreenContent
 
 @Composable
@@ -159,12 +161,27 @@ fun LaunchScreenContent() {
     }
 }
 
+private fun Context.findActivity(): androidx.fragment.app.FragmentActivity? {
+    var context = this
+    while (context is android.content.ContextWrapper) {
+        if (context is androidx.fragment.app.FragmentActivity) {
+            return context
+        }
+        context = context.baseContext
+    }
+    return null
+}
+
 @Composable
 fun UnlockScreen(
     viewModel: AuthViewModel,
     onUnlockSuccess: () -> Unit,
     onQuit: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
+    val isBiometricEnabled = remember(context) { ltd.evilcorp.atox.infrastructure.security.BiometricStorage.isBiometricEnabled(context) }
+    
     val unlockState by viewModel.unlockState.collectAsState()
     val scope = rememberCoroutineScope()
 
@@ -174,12 +191,70 @@ fun UnlockScreen(
         }
     }
 
+    val showBiometricPrompt = {
+        if (activity != null) {
+            val executor = androidx.core.content.ContextCompat.getMainExecutor(context)
+            val biometricPrompt = androidx.biometric.BiometricPrompt(
+                activity,
+                executor,
+                object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        super.onAuthenticationError(errorCode, errString)
+                    }
+
+                    override fun onAuthenticationSucceeded(result: androidx.biometric.BiometricPrompt.AuthenticationResult) {
+                        super.onAuthenticationSucceeded(result)
+                        val cipher = result.cryptoObject?.cipher
+                        if (cipher != null) {
+                            val password = viewModel.decryptPassword(context, cipher)
+                            if (password != null) {
+                                scope.launch {
+                                    val success = viewModel.unlockProfileAsync(password)
+                                    if (success) {
+                                        viewModel.enableBiometric(context, password)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
+
+            val promptInfo = androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+                .setTitle(context.getString(R.string.unlock_profile_title))
+                .setSubtitle(context.getString(R.string.unlock_profile_desc))
+                .setNegativeButtonText(context.getString(android.R.string.cancel))
+                .build()
+
+            try {
+                val iv = ltd.evilcorp.atox.infrastructure.security.BiometricStorage.getIv(context)
+                if (iv != null) {
+                    val cipher = ltd.evilcorp.atox.infrastructure.security.BiometricCipherHelper.getInitializedCipherForDecryption(iv)
+                    biometricPrompt.authenticate(promptInfo, androidx.biometric.BiometricPrompt.CryptoObject(cipher))
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("UnlockScreen", "Failed to start biometric auth: $e")
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (isBiometricEnabled) {
+            showBiometricPrompt()
+        }
+    }
+
     UnlockScreenContent(
         isError = unlockState is UnlockUiState.Error,
         isLoading = unlockState is UnlockUiState.Loading,
+        isBiometricEnabled = isBiometricEnabled,
+        onBiometricClick = { showBiometricPrompt() },
         onSubmitUnlock = { password ->
             scope.launch {
-                viewModel.unlockProfileAsync(password)
+                val success = viewModel.unlockProfileAsync(password)
+                if (success) {
+                    viewModel.enableBiometric(context, password)
+                }
             }
         },
         onQuit = onQuit,
