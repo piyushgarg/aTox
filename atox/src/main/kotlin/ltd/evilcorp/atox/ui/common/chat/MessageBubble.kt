@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.common.formatChatTime
 import ltd.evilcorp.atox.ui.common.ContactAvatar
 import ltd.evilcorp.atox.ui.chat.components.CallHistoryCard

@@ -4,15 +4,15 @@
 
 package ltd.evilcorp.domain.tox
 
-import ltd.evilcorp.core.tox.ToxID
+import ltd.evilcorp.domain.tox.ToxID
 import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.model.FileKind
 import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.core.tox.enums.ToxGroupRole
-import ltd.evilcorp.core.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.tox.enums.ToxGroupRole
+import ltd.evilcorp.domain.tox.enums.ToxMessageType
 
 interface ITox {
     val toxId: ToxID

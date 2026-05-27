@@ -65,7 +65,7 @@ private fun UnlockScreenLoadingPreview() {
 private fun MainTabsChatsPreview() {
     AToxTheme {
         MainTabsScreen(
-            currentRoute = AppRoutes.Chats,
+            currentRoute = AppRoutes.Chats::class.qualifiedName!!,
             attentionCount = 5,
             hapticEnabled = true,
             onTabSelected = {},
@@ -82,7 +82,7 @@ private fun MainTabsChatsPreview() {
 private fun MainTabsSettingsPreview() {
     AToxTheme {
         MainTabsScreen(
-            currentRoute = AppRoutes.Settings,
+            currentRoute = AppRoutes.Settings::class.qualifiedName!!,
             attentionCount = 0,
             hapticEnabled = true,
             onTabSelected = {},

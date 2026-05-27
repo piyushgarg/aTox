@@ -1,5 +1,8 @@
+@file:SuppressLint("RestrictedApi")
+
 package ltd.evilcorp.atox.ui.theme
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme

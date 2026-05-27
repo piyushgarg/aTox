@@ -1,41 +1,27 @@
 package ltd.evilcorp.atox.ui.navigation.graphs
 
+import android.content.ClipData
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModelProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.media.SystemSoundPlayer
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.common.MorphingNavigationIcon
 import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
 import ltd.evilcorp.atox.ui.groupchat.CreateGroupScreen
@@ -44,29 +30,28 @@ import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.groupchat.JoinGroupScreen
 import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
+import ltd.evilcorp.atox.ui.navigation.AppBarConfig
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.feature.GroupConnectionStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.groupGraph(
-    mainNavController: NavHostController,
-    vmFactory: ViewModelProvider.Factory,
+    navController: NavHostController,
+
     contactListViewModel: ContactListViewModel,
     settings: Settings,
     onOpenFile: (FileTransfer) -> Unit,
     systemSoundPlayer: SystemSoundPlayer,
 ) {
-    composable(AppRoutes.CreateGroup) {
+    composable<AppRoutes.CreateGroup> {
         val context = LocalContext.current
-        LaunchedEffect(Unit) {
-            AppBarStateHolder.config.value = null
-        }
+        val containerColor = MaterialTheme.colorScheme.surfaceContainer
+        val createGroupRouteName = AppRoutes.CreateGroup::class.qualifiedName!!
 
-        Scaffold(
-            contentWindowInsets = WindowInsets(0),
-            topBar = {
-                TopAppBar(
+        LaunchedEffect(Unit) {
+            AppBarStateHolder.register(
+                route = createGroupRouteName,
+                cfg = AppBarConfig(
                     title = {
                         Text(
                             text = context.getString(R.string.create_group),
@@ -78,46 +63,48 @@ fun NavGraphBuilder.groupGraph(
                         Box(modifier = Modifier.padding(start = 4.dp)) {
                             MorphingNavigationIcon(
                                 isBack = true,
-                                onClick = { mainNavController.popBackStack() }
+                                onClick = { navController.popBackStack() }
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
-                    windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+                    containerColor = containerColor
                 )
+            )
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                AppBarStateHolder.unregister(createGroupRouteName)
             }
-        ) { paddingValues ->
-            Box(modifier = Modifier.padding(paddingValues)) {
-                val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                CreateGroupScreen(
-                    onBack = { mainNavController.popBackStack() },
-                    isCreatingState = groupListViewModel.isCreating,
-                    onCreateGroup = { name, privacyState, password ->
-                        val num = groupListViewModel.createGroup(name, privacyState, password)
-                        if (num >= 0) {
-                            mainNavController.popBackStack()
-                            true
-                        } else {
-                            false
-                        }
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            val groupListViewModel: GroupListViewModel = hiltViewModel()
+            CreateGroupScreen(
+                onBack = { navController.popBackStack() },
+                isCreatingState = groupListViewModel.isCreating,
+                onCreateGroup = { name, privacyState, password ->
+                    val num = groupListViewModel.createGroup(name, privacyState, password)
+                    if (num >= 0) {
+                        navController.popBackStack()
+                        true
+                    } else {
+                        false
                     }
-                )
-            }
+                }
+            )
         }
     }
 
-    composable(AppRoutes.JoinGroup) {
+    composable<AppRoutes.JoinGroup> {
         val context = LocalContext.current
-        LaunchedEffect(Unit) {
-            AppBarStateHolder.config.value = null
-        }
+        val containerColor = MaterialTheme.colorScheme.surfaceContainer
+        val joinGroupRouteName = AppRoutes.JoinGroup::class.qualifiedName!!
 
-        Scaffold(
-            contentWindowInsets = WindowInsets(0),
-            topBar = {
-                TopAppBar(
+        LaunchedEffect(Unit) {
+            AppBarStateHolder.register(
+                route = joinGroupRouteName,
+                cfg = AppBarConfig(
                     title = {
                         Text(
                             text = context.getString(R.string.join_group),
@@ -129,52 +116,51 @@ fun NavGraphBuilder.groupGraph(
                         Box(modifier = Modifier.padding(start = 4.dp)) {
                             MorphingNavigationIcon(
                                 isBack = true,
-                                onClick = { mainNavController.popBackStack() }
+                                onClick = { navController.popBackStack() }
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
-                    windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+                    containerColor = containerColor
                 )
+            )
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                AppBarStateHolder.unregister(joinGroupRouteName)
             }
-        ) { paddingValues ->
-            Box(modifier = Modifier.padding(paddingValues)) {
-                val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                JoinGroupScreen(
-                    onBack = { mainNavController.popBackStack() },
-                    isJoiningState = groupListViewModel.isJoining,
-                    onValidateChatId = { groupListViewModel.validateChatId(it) },
-                    onJoinGroup = { chatIdHex, password ->
-                        val num = groupListViewModel.joinByChatId(chatIdHex, password)
-                        if (num >= 0) {
-                            mainNavController.popBackStack()
-                            true
-                        } else {
-                            false
-                        }
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            val groupListViewModel: GroupListViewModel = hiltViewModel()
+            JoinGroupScreen(
+                onBack = { navController.popBackStack() },
+                isJoiningState = groupListViewModel.isJoining,
+                onValidateChatId = { groupListViewModel.validateChatId(it) },
+                onJoinGroup = { chatIdHex, password ->
+                    val num = groupListViewModel.joinByChatId(chatIdHex, password)
+                    if (num >= 0) {
+                        navController.popBackStack()
+                        true
+                    } else {
+                        false
                     }
-                )
-            }
+                }
+            )
         }
     }
 
-    composable(
-        route = AppRoutes.GroupChat,
-        arguments = listOf(navArgument(AppRoutes.ChatIdArg) { type = NavType.StringType }),
-    ) { backStackEntry ->
+    composable<AppRoutes.GroupChat> { backStackEntry ->
         val context = LocalContext.current
-        LaunchedEffect(Unit) {
-            AppBarStateHolder.config.value = null
-        }
+        val groupChatRoute = backStackEntry.toRoute<AppRoutes.GroupChat>()
+        val chatIdStr = groupChatRoute.chatId
 
-        val chatIdStr = backStackEntry.arguments?.getString(AppRoutes.ChatIdArg).orEmpty()
-        val viewModel: GroupChatViewModel = viewModel(factory = vmFactory)
+        val viewModel: GroupChatViewModel = hiltViewModel()
         val contactsState = contactListViewModel.contacts.collectAsStateWithLifecycle()
         
-        remember(chatIdStr) {
+        DisposableEffect(chatIdStr) {
             viewModel.setActiveGroup(chatIdStr)
+            onDispose {}
         }
         
         val groupState = viewModel.group.collectAsStateWithLifecycle()
@@ -191,7 +177,7 @@ fun NavGraphBuilder.groupGraph(
             connectionStatusState = connectionStatusState,
             fileTransfersState = fileTransfersState,
             settings = settings,
-            onBack = { mainNavController.popBackStack() },
+            onBack = { navController.popBackStack() },
             onSendMessage = { msg -> viewModel.sendMessage(msg) },
             onSendFile = { uri -> viewModel.sendFile(uri) },
             onSendVoice = { uri -> viewModel.sendVoice(uri) },

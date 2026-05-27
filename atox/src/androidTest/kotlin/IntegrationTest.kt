@@ -32,7 +32,7 @@ import ltd.evilcorp.atox.di.AndroidModule
 import ltd.evilcorp.atox.di.AppComponent
 import ltd.evilcorp.atox.di.DaoModule
 import ltd.evilcorp.atox.di.ViewModelModule
-import ltd.evilcorp.atox.tox.BootstrapNodeRegistryImpl
+import ltd.evilcorp.atox.infrastructure.tox.BootstrapNodeRegistryImpl
 import ltd.evilcorp.core.db.Database
 import ltd.evilcorp.core.vo.PublicKey
 import ltd.evilcorp.domain.tox.BootstrapNodeRegistry

@@ -15,8 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.first
-import ltd.evilcorp.atox.settings.Settings
-import ltd.evilcorp.atox.tox.ToxStarter
+import ltd.evilcorp.atox.infrastructure.settings.Settings
+import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.FriendRequest

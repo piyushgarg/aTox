@@ -36,9 +36,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.media.SystemSoundPlayer
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.common.ContactAvatar
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import ltd.evilcorp.atox.ui.navigation.LocalSharedTransitionScope
+import ltd.evilcorp.atox.ui.navigation.LocalAnimatedVisibilityScope
 import ltd.evilcorp.atox.ui.common.MorphingNavigationIcon
 import ltd.evilcorp.atox.ui.common.PresenceTone
 import ltd.evilcorp.atox.ui.common.formatChatTime
@@ -88,10 +91,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
+import ltd.evilcorp.atox.ui.navigation.AppBarConfig
+import ltd.evilcorp.atox.ui.navigation.AppRoutes
 
 private const val CHAT_ENTER_CONTENT_DELAY_MS = 320L
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Suppress("LongMethod", "FunctionNaming")
 @Composable
 fun ChatScreen(
@@ -226,46 +232,66 @@ fun ChatScreen(
         )
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            TopAppBar(
+    val contactName = contact?.name?.ifEmpty { context.getString(R.string.contact_default_name) } ?: context.getString(R.string.contact_default_name)
+    val presenceInfo = contact?.let {
+        formatPresenceText(
+            context = context,
+            contact = it,
+            dateFormatPreference = settings.dateFormatPreference,
+            timeFormatPreference = settings.timeFormatPreference
+        )
+    }
+    val connectionStatus = contact?.connectionStatus
+    val userStatus = contact?.status
+    val surfaceContainerColor = MaterialTheme.colorScheme.surfaceContainer
+
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
+
+    LaunchedEffect(contactName, presenceInfo?.text, connectionStatus, userStatus, settings.hapticEnabled, sharedTransitionScope, animatedVisibilityScope) {
+        AppBarStateHolder.register(
+            route = AppRoutes.Chat::class.qualifiedName!!,
+            cfg = AppBarConfig(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val avatarModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null && contact != null) {
+                            with(sharedTransitionScope) {
+                                Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "avatar_${contact.publicKey}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                            }
+                        } else {
+                            Modifier
+                        }
+
                         ContactAvatar(
-                            name = contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) } ?: stringResource(R.string.contact_default_name),
+                            name = contactName,
                             publicKey = contact?.publicKey ?: "",
                             avatarUri = contact?.avatarUri ?: "",
                             size = 36.dp,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
+                            modifier = avatarModifier
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) } ?: stringResource(R.string.contact_default_name),
+                                text = contactName,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            val presenceInfo = contact?.let {
-                                formatPresenceText(
-                                    context = LocalContext.current,
-                                    contact = it,
-                                    dateFormatPreference = settings.dateFormatPreference,
-                                    timeFormatPreference = settings.timeFormatPreference
-                                )
-                            }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .background(
-                                            color = when (contact?.connectionStatus) {
+                                            color = when (connectionStatus) {
                                                 ltd.evilcorp.domain.model.ConnectionStatus.None -> ltd.evilcorp.atox.ui.theme.StatusOffline
-                                                else -> when (contact?.status) {
+                                                else -> when (userStatus) {
                                                     ltd.evilcorp.domain.model.UserStatus.Away -> ltd.evilcorp.atox.ui.theme.StatusAway
                                                     ltd.evilcorp.domain.model.UserStatus.Busy -> ltd.evilcorp.atox.ui.theme.StatusBusy
                                                     else -> ltd.evilcorp.atox.ui.theme.StatusAvailable
@@ -309,20 +335,23 @@ fun ChatScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                ),
-                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+                containerColor = surfaceContainerColor
             )
+        )
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            AppBarStateHolder.unregister(AppRoutes.Chat::class.qualifiedName!!)
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(top = paddingValues.calculateTopPadding())
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-        ) {
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+    ) {
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -426,7 +455,7 @@ fun ChatScreen(
                         },
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
-                        shape = CircleShape,
+                        shape = FloatingActionButtonDefaults.shape,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(bottom = 16.dp, end = 16.dp)
@@ -470,4 +499,3 @@ fun ChatScreen(
             }
         }
     }
-}

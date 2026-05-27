@@ -38,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.ContactAvatar
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import ltd.evilcorp.atox.ui.navigation.LocalSharedTransitionScope
+import ltd.evilcorp.atox.ui.navigation.LocalAnimatedVisibilityScope
 import ltd.evilcorp.atox.ui.common.PresenceText
 import ltd.evilcorp.atox.ui.common.PresenceTone
 import ltd.evilcorp.atox.ui.common.formatChatTime
@@ -114,8 +117,24 @@ fun ContactItemCard(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
+@Suppress("FunctionNaming")
 private fun ContactAvatarWithStatus(contact: Contact) {
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
+
+    val avatarModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = "avatar_${contact.publicKey}"),
+                animatedVisibilityScope = animatedVisibilityScope
+            )
+        }
+    } else {
+        Modifier
+    }
+
     Box(modifier = Modifier.size(48.dp)) {
         ContactAvatar(
             name = contact.name,
@@ -123,7 +142,7 @@ private fun ContactAvatarWithStatus(contact: Contact) {
             avatarUri = contact.avatarUri,
             size = 48.dp,
             fontSize = 18.sp,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().then(avatarModifier)
         )
 
         val statusColor = when (contact.connectionStatus) {

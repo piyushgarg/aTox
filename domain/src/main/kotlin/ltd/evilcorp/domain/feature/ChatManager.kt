@@ -19,7 +19,7 @@ import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.Sender
-import ltd.evilcorp.core.tox.MAX_MESSAGE_LENGTH
+import ltd.evilcorp.domain.tox.MAX_MESSAGE_LENGTH
 import ltd.evilcorp.domain.tox.ITox
 
 private fun String.chunked(chunkSizeInBytes: Int): MutableList<String> {

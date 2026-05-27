@@ -1,27 +1,23 @@
 [versions]
+kotlin-compose = "2.3.21"
 detekt = "1.23.8"
-archunit = "1.3.0"
-konsist = "0.14.0"
-detekt-compose = "0.3.13"
+archunit = "1.4.2"
+konsist = "0.17.3"
+detekt-compose = "0.5.9"
 
 sdk-min = "23"
-sdk-target = "35"
+sdk-target = "36"
 
 ksp = "2.3.6"
-android-plugin = "9.0.1"
+android-plugin = "9.2.1"
 ndk = "30.0.14904198"
 
-coroutines = "1.10.2"
-# TODO(robinlinden): dagger 2.56.x (last tested 2.56.2) results in:
-#  java.lang.NoSuchMethodError:
-#   No direct method <init>(Lltd/evilcorp/atox/di/AndroidModule;Lltd/evilcorp/atox/di/AppModule;Lltd/evilcorp/atox/di/DatabaseModule;Lltd/evilcorp/atox/di/DaoModule;Landroid/content/Context;Lltd/evilcorp/atox/di/DaggerAppComponent-IA;)V
-#   in class Lltd/evilcorp/atox/di/DaggerAppComponent$AppComponentImpl; or its super classes (declaration of 'ltd.evilcorp.atox.di.DaggerAppComponent$AppComponentImpl'
-#   appears in /data/app/~~thc_LJkWCWx8397z9eqxhg==/ltd.evilcorp.atox.debug-Msb0l4sq9lyyE79UBO_1Tg==/base.apk!classes11.dex)
+coroutines = "1.11.0"
 dagger = "2.59.2"
 espresso = "3.7.0"
-lifecycle = "2.9.3"
-navigation = "2.9.4"
-room = "2.7.2" # >=2.8.0 needs minSdk 23.
+lifecycle = "2.10.0"
+navigation = "2.9.8"
+room = "2.8.4"
 libsodium = "1.0.20-RELEASE"
 opus = "1.4"
 libvpx = "v1.14.1"
@@ -30,6 +26,8 @@ compose-bom = "2026.05.01"
 
 
 [plugins]
+kotlinCompose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin-compose" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin-compose" }
 kotlinKsp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidApplication = { id = "com.android.application", version.ref = "android-plugin" }
 androidLibrary = { id = "com.android.library", version.ref = "android-plugin" }
@@ -40,18 +38,19 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "dagger" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 konsist-junit5 = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 detekt-compose = { module = "io.nlopez.compose.rules:detekt", version.ref = "detekt-compose" }
-androidx-activity = "androidx.activity:activity:1.10.1" # >=1.11.0 needs compileSdk 36.
-androidx-activity-compose = "androidx.activity:activity-compose:1.10.1"
+androidx-activity = "androidx.activity:activity:1.13.0" # >=1.11.0 needs compileSdk 36.
+androidx-activity-compose = "androidx.activity:activity-compose:1.13.0"
 androidx-appcompat = "androidx.appcompat:appcompat:1.7.1"
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-constraintlayout = "androidx.constraintlayout:constraintlayout:2.2.1"
-androidx-core-ktx = "androidx.core:core-ktx:1.16.0" # >=1.17.0 needs compileSdk 36.
-androidx-datastore-preferences = "androidx.datastore:datastore-preferences:1.1.1"
+androidx-core-ktx = "androidx.core:core-ktx:1.18.0" # >=1.17.0 needs compileSdk 36.
+androidx-datastore-preferences = "androidx.datastore:datastore-preferences:1.2.1"
 androidx-fragment = "androidx.fragment:fragment:1.8.9"
 
 androidx-navigation-fragment = { module = "androidx.navigation:navigation-fragment", version.ref = "navigation" }
 androidx-navigation-ui = { module = "androidx.navigation:navigation-ui", version.ref = "navigation" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
+androidx-hilt-navigation-compose = "androidx.hilt:hilt-navigation-compose:1.3.0"
 androidx-preference = "androidx.preference:preference:1.2.1"
 
 androidx-lifecycle-livedata-ktx = { module = "androidx.lifecycle:lifecycle-livedata-ktx", version.ref = "lifecycle" }
@@ -70,9 +69,10 @@ androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graph
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
-androidx-compose-runtime-livedata = "androidx.compose.runtime:runtime-livedata:1.7.6"
+androidx-compose-material3-lint = { group = "androidx.compose.material3", name = "material3-lint" }
+androidx-compose-runtime-livedata = "androidx.compose.runtime:runtime-livedata:1.11.2"
 
-google-android-material = "com.google.android.material:material:1.13.0"
+google-android-material = "com.google.android.material:material:1.14.0"
 google-dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
 google-dagger-core = { module = "com.google.dagger:dagger", version.ref = "dagger" }
 google-hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "dagger" }
@@ -83,11 +83,12 @@ javax-inject = "javax.inject:javax.inject:1"
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-serialization-json = "org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0"
 
 nayuki-qrcodegen = "io.nayuki:qrcodegen:1.8.0"
 
 square-leakcanary = "com.squareup.leakcanary:leakcanary-android:2.14"
-square-picasso = "com.squareup.picasso:picasso:2.8"
+square-picasso = "com.squareup.picasso:picasso:2.71828"
 
 
 test-espresso-contrib = { module = "androidx.test.espresso:espresso-contrib", version.ref = "espresso" }

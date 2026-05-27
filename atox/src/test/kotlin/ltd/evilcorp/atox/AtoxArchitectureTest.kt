@@ -7,7 +7,7 @@ package ltd.evilcorp.atox
 import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.architecture.KoArchitectureCreator.assertArchitecture
 import com.lemonappdev.konsist.api.architecture.Layer
-import com.lemonappdev.konsist.api.verify.assert
+import com.lemonappdev.konsist.api.verify.assertTrue
 import org.junit.Test
 
 class AtoxArchitectureTest {
@@ -32,6 +32,27 @@ class AtoxArchitectureTest {
         Konsist
             .scopeFromPackage("ltd.evilcorp.atox..")
             .classes()
-            .assert { !it.name.endsWith("UseCase") }
+            .assertTrue { !it.name.endsWith("UseCase") }
+    }
+
+    @Test
+    fun `composables inside atox should not use hardcoded string literals`() {
+        Konsist
+            .scopeFromPackage("ltd.evilcorp.atox.ui..")
+            .files
+            .assertTrue { file ->
+                if (file.name.endsWith("Previews")) {
+                    true
+                } else {
+                    val text = file.text
+                    val textPattern = """Text\(\s*"[^"]*"\s*\)""".toRegex()
+                    val namedTextPattern = """Text\(.*text\s*=\s*"[^"]*".*\)""".toRegex()
+                    val hasHardcoded = textPattern.containsMatchIn(text) || namedTextPattern.containsMatchIn(text)
+                    if (hasHardcoded) {
+                        println("Violating file: ${file.name}")
+                    }
+                    !hasHardcoded
+                }
+            }
     }
 }

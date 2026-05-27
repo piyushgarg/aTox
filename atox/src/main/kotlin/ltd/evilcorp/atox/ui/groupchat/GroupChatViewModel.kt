@@ -20,8 +20,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ltd.evilcorp.atox.media.SystemSoundPlayer
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.Group
 import ltd.evilcorp.domain.model.GroupMessage

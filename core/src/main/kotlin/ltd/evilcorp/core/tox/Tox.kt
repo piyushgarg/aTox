@@ -14,10 +14,11 @@ import ltd.evilcorp.domain.model.FileKind
 import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.core.tox.enums.ToxGroupRole
-import ltd.evilcorp.core.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.tox.enums.ToxGroupRole
+import ltd.evilcorp.domain.tox.enums.ToxMessageType
 import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.tox.ToxID
 
 @Singleton
 class Tox @Inject constructor(

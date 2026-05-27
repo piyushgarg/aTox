@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.tox.ToxStarter
+import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.core.repository.MessageRepository
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.Message
@@ -27,7 +27,7 @@ import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.Sender
 import ltd.evilcorp.domain.feature.ContactManager
 import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.core.tox.ToxID
+import ltd.evilcorp.domain.tox.ToxID
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 
 import ltd.evilcorp.domain.usecase.AddContactUseCase

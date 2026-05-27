@@ -14,6 +14,8 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,15 +37,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModelProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.appearance.AppAppearance
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.ui.appearance.AppAppearance
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.common.MorphingNavigationIcon
 import ltd.evilcorp.atox.ui.settings.common.SettingsDestination
 import ltd.evilcorp.atox.ui.settings.common.SettingsRootContent
@@ -74,17 +78,22 @@ fun SettingsScreen(
     onDisableScreenshotsChanged: (Boolean) -> Unit,
     onBack: () -> Unit = {},
     showBackButton: Boolean = true,
-    vmFactory: ViewModelProvider.Factory? = null,
+
     onTitleChanged: (String) -> Unit = {},
     onBackActionChanged: ((() -> Unit)?) -> Unit = {},
     onSearchActionChanged: ((() -> Unit)?) -> Unit = {},
-    viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory)
+    viewModel: SettingsViewModel = hiltViewModel(),
+    backupViewModel: BackupSettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val backupViewModel: BackupSettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = vmFactory)
     val focusManager = LocalFocusManager.current
     val storedSettings by settings.state.collectAsState()
-    val performHaptic = { if (storedSettings.hapticEnabled) { /* haptic callback */ } }
+    val haptic = LocalHapticFeedback.current
+    val performHaptic = {
+        if (storedSettings.hapticEnabled) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
 
     var destination by remember { mutableStateOf(SettingsDestination.Root) }
     var searchQuery by remember { mutableStateOf("") }
@@ -123,6 +132,7 @@ fun SettingsScreen(
     var selectedBackupIds by remember(backupViewModel.backupProviders) { mutableStateOf(backupViewModel.backupProviders.map { it.id }.toSet()) }
     var soundPickerTarget by remember { mutableStateOf(SoundPickerTarget.Call) }
     val backupExporting by backupViewModel.backupExporting.collectAsState()
+    val backupImporting by backupViewModel.backupImporting.collectAsState()
     
     val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) {
@@ -239,31 +249,8 @@ fun SettingsScreen(
         }
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            if (showBackButton && destination != SettingsDestination.Search) {
-                TopAppBar(
-                    title = { Text(title, fontWeight = FontWeight.SemiBold) },
-                    navigationIcon = {
-                        if (destination != SettingsDestination.Root) {
-                            IconButton(onClick = {
-                                destination = when (destination) {
-                                    SettingsDestination.Language, SettingsDestination.Theme -> SettingsDestination.Appearance
-                                    SettingsDestination.Search -> SettingsDestination.Root
-                                    else -> SettingsDestination.Root
-                                }
-                            }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                        } else {
-                            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-                )
-            }
-        }
-    ) { scaffoldPadding ->
-        val paddingValues = if (showBackButton) scaffoldPadding else PaddingValues(0.dp)
+    @Composable
+    fun SettingsScreenContent(paddingValues: PaddingValues) {
         when (destination) {
             SettingsDestination.Root -> SettingsRootContent(
                 paddingValues = paddingValues,
@@ -344,7 +331,7 @@ fun SettingsScreen(
             )
             SettingsDestination.Backup -> BackupSettingsScreen(
                 paddingValues = paddingValues, backupProviders = backupViewModel.backupProviders, backupExporting = backupExporting,
-                backupImporting = backupViewModel.backupImporting.value, backupPasswordEnabled = backupPasswordEnabled, backupPassword = backupPassword,
+                backupImporting = backupImporting, backupPasswordEnabled = backupPasswordEnabled, backupPassword = backupPassword,
                 backupPasswordVisible = false, automaticBackupEnabled = storedSettings.automaticBackupEnabled, backupFrequency = storedSettings.backupFrequency,
                 backupUseCellular = storedSettings.backupUseCellular, backupDestinations = settings.backupDestinations,
                 backupEndToEndEncryptionEnabled = storedSettings.backupEndToEndEncryptionEnabled, backupGoogleAccount = storedSettings.backupGoogleAccount,
@@ -356,6 +343,39 @@ fun SettingsScreen(
                 onSelectedBackupIdsChanged = { selectedBackupIds = it }, onCreateBackupClick = { backupLauncher.launch("atox-backup.zip") },
                 onRestoreBackupClick = { restoreBackupLauncher.launch(arrayOf("application/zip")) }, performHaptic = performHaptic
             )
+        }
+    }
+
+    if (showBackButton) {
+        Scaffold(
+            contentWindowInsets = WindowInsets(0),
+            topBar = {
+                if (destination != SettingsDestination.Search) {
+                    TopAppBar(
+                        title = { Text(title, fontWeight = FontWeight.SemiBold) },
+                        navigationIcon = {
+                            if (destination != SettingsDestination.Root) {
+                                IconButton(onClick = {
+                                    destination = when (destination) {
+                                        SettingsDestination.Language, SettingsDestination.Theme -> SettingsDestination.Appearance
+                                        SettingsDestination.Search -> SettingsDestination.Root
+                                        else -> SettingsDestination.Root
+                                    }
+                                }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_back)) }
+                            } else {
+                                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_back)) }
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                    )
+                }
+            }
+        ) { scaffoldPadding ->
+            SettingsScreenContent(scaffoldPadding)
+        }
+    } else {
+        Box(modifier = Modifier.fillMaxSize()) {
+            SettingsScreenContent(PaddingValues(0.dp))
         }
     }
 

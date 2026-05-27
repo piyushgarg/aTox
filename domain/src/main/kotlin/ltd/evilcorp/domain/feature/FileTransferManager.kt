@@ -5,7 +5,7 @@
 package ltd.evilcorp.domain.feature
 
 import ltd.evilcorp.domain.repository.IUserSettingsRepository
-import ltd.evilcorp.core.tox.enums.ToxFileControl
+import ltd.evilcorp.domain.tox.enums.ToxFileControl
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
@@ -35,7 +35,7 @@ import ltd.evilcorp.domain.model.Sender
 import ltd.evilcorp.domain.model.isComplete
 import ltd.evilcorp.domain.model.isStarted
 import ltd.evilcorp.domain.model.isRejected
-import ltd.evilcorp.core.tox.MAX_AVATAR_SIZE
+import ltd.evilcorp.domain.tox.MAX_AVATAR_SIZE
 import ltd.evilcorp.domain.tox.ITox
 
 private const val TAG = "FileTransferManager"

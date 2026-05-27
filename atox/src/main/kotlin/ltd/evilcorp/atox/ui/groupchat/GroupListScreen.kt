@@ -87,7 +87,7 @@ fun GroupListScreen(
                     modifier = Modifier
                         .width(220.dp)
                         .height(48.dp),
-                    shape = CircleShape
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text(stringResource(R.string.create_group))
                 }
@@ -100,18 +100,13 @@ fun GroupListScreen(
                     modifier = Modifier
                         .width(220.dp)
                         .height(48.dp),
-                    shape = CircleShape
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text(stringResource(R.string.join_group))
                 }
             }
         } else {
             val lazyListState = rememberLazyListState()
-            val isExpanded = remember {
-                derivedStateOf {
-                    lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset == 0
-                }
-            }
 
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
@@ -137,44 +132,7 @@ fun GroupListScreen(
                     }
                 }
 
-                // Modern M3 FAB Stack - Double padding bottom issue fixed!
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(bottom = 16.dp, end = 16.dp),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Secondary FAB: Join Group
-                    SmallFloatingActionButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onJoinGroupClick()
-                        },
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        shape = CircleShape
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Link,
-                            contentDescription = stringResource(R.string.join_group)
-                        )
-                    }
 
-                    // Primary Extended FAB: Create Group
-                    ExtendedFloatingActionButton(
-                        expanded = isExpanded.value,
-                        icon = { Icon(Icons.Default.GroupAdd, contentDescription = null) },
-                        text = { Text(stringResource(R.string.create_group)) },
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onCreateGroupClick()
-                        },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        shape = CircleShape
-                    )
-                }
             }
         }
     }

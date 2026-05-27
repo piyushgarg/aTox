@@ -26,9 +26,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
 import kotlinx.coroutines.flow.collectLatest
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.core.tox.ToxID
+import ltd.evilcorp.domain.tox.ToxID
 
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
+import ltd.evilcorp.atox.ui.navigation.AppBarConfig
 
 @Composable
 fun AddContactScreen(
@@ -205,27 +207,28 @@ fun AddContactContent(
     }
 
     if (showBackButton) {
-        Scaffold(
-            contentWindowInsets = WindowInsets(0),
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.add_contact), fontWeight = FontWeight.SemiBold) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack, enabled = !isLoading) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    )
-                )
-            }
-        ) { paddingValues ->
-            addContactContent(paddingValues)
+        val titleString = stringResource(R.string.add_contact)
+        val containerColor = MaterialTheme.colorScheme.surfaceContainer
+        LaunchedEffect(isLoading) {
+            AppBarStateHolder.config.value = AppBarConfig(
+                title = { Text(titleString, fontWeight = FontWeight.SemiBold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack, enabled = !isLoading) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                containerColor = containerColor
+            )
         }
-    } else {
-        addContactContent(PaddingValues(0.dp))
+
+        DisposableEffect(Unit) {
+            onDispose {
+                AppBarStateHolder.config.value = null
+            }
+        }
     }
+
+    addContactContent(PaddingValues(0.dp))
 }
 
 @Preview(showBackground = true)

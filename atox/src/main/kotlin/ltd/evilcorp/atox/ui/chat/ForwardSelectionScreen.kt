@@ -23,10 +23,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.common.AtoxSearchBar
 import ltd.evilcorp.atox.ui.contactlist.components.ContactItemCard
 import ltd.evilcorp.domain.model.Contact
+import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
+import ltd.evilcorp.atox.ui.navigation.AppBarConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,129 +62,116 @@ fun ForwardSelectionScreen(
         contacts.filter { it.publicKey in selectedKeys }
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            if (isSearching) {
-                AtoxSearchBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    onSearch = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                    },
-                    active = isSearching,
-                    onActiveChange = { active ->
-                        isSearching = active
-                        if (!active) {
-                            searchQuery = ""
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                        }
-                    },
-                    placeholder = stringResource(R.string.contact_list_search_placeholder)
-                ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background)
-                    ) {
-                        items(filteredContacts, key = { it.publicKey }) { contact ->
-                            val isSelected = contact.publicKey in selectedKeys
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        selectedKeys = if (isSelected) {
-                                            selectedKeys - contact.publicKey
-                                        } else {
-                                            selectedKeys + contact.publicKey
-                                        }
-                                    },
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = { checked ->
-                                        selectedKeys = if (checked == true) {
-                                            selectedKeys + contact.publicKey
-                                        } else {
-                                            selectedKeys - contact.publicKey
-                                        }
-                                    },
-                                    modifier = Modifier.padding(start = 16.dp)
-                                )
-                                ContactItemCard(
-                                    contact = contact,
-                                    dateFormatPreference = settings.dateFormatPreference,
-                                    timeFormatPreference = settings.timeFormatPreference,
-                                    onClick = {
-                                        selectedKeys = if (isSelected) {
-                                            selectedKeys - contact.publicKey
-                                        } else {
-                                            selectedKeys + contact.publicKey
-                                        }
-                                    },
-                                    onDelete = {},
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
+    val titleString = stringResource(R.string.forward_message_title)
+    LaunchedEffect(isSearching, titleString) {
+        if (isSearching) {
+            AppBarStateHolder.config.value = null
+        } else {
+            AppBarStateHolder.config.value = AppBarConfig(
+                title = {
+                    Text(
+                        text = titleString,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { isSearching = true }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search")
                     }
                 }
-            } else {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = stringResource(R.string.forward_message_title),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { isSearching = true }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
-                        }
+            )
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            AppBarStateHolder.config.value = null
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        if (isSearching) {
+            AtoxSearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                onSearch = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                },
+                active = isSearching,
+                onActiveChange = { active ->
+                    isSearching = active
+                    if (!active) {
+                        searchQuery = ""
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
                     }
-                )
-            }
-        },
-        bottomBar = {
-            if (selectedKeys.isNotEmpty()) {
-                Surface(
-                    tonalElevation = 8.dp,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.fillMaxWidth()
+                },
+                placeholder = stringResource(R.string.contact_list_search_placeholder)
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
                 ) {
-                    Button(
-                        onClick = {
-                            onContactsSelect(selectedContacts)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                            .height(52.dp),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text(
-                            text = "Forward (${selectedKeys.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                    items(filteredContacts, key = { it.publicKey }) { contact ->
+                        val isSelected = contact.publicKey in selectedKeys
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedKeys = if (isSelected) {
+                                        selectedKeys - contact.publicKey
+                                    } else {
+                                        selectedKeys + contact.publicKey
+                                    }
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked ->
+                                    selectedKeys = if (checked == true) {
+                                        selectedKeys + contact.publicKey
+                                    } else {
+                                        selectedKeys - contact.publicKey
+                                    }
+                                },
+                                modifier = Modifier.padding(start = 16.dp)
+                            )
+                            ContactItemCard(
+                                contact = contact,
+                                dateFormatPreference = settings.dateFormatPreference,
+                                timeFormatPreference = settings.timeFormatPreference,
+                                onClick = {
+                                    selectedKeys = if (isSelected) {
+                                        selectedKeys - contact.publicKey
+                                    } else {
+                                        selectedKeys + contact.publicKey
+                                    }
+                                },
+                                onDelete = {},
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
         }
-    ) { innerPadding ->
+
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
+                .weight(1f)
+                .fillMaxWidth()
         ) {
             if (filteredContacts.isEmpty()) {
                 Box(
@@ -238,6 +227,31 @@ fun ForwardSelectionScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        if (selectedKeys.isNotEmpty()) {
+            Surface(
+                tonalElevation = 8.dp,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Button(
+                    onClick = {
+                        onContactsSelect(selectedContacts)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .height(52.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(
+                        text = "Forward (${selectedKeys.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

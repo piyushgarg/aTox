@@ -1,74 +1,82 @@
 package ltd.evilcorp.atox.ui.navigation
 
-import androidx.navigation.NavController
+import kotlinx.serialization.Serializable
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.runtime.compositionLocalOf
 
-private const val ARG_PUBLIC_KEY = "publicKey"
-private const val ARG_TOX_ID = "toxId"
-private const val ARG_CHAT_ID = "chatId"
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Suppress("CompositionLocalAllowlist")
+val LocalSharedTransitionScope = compositionLocalOf<SharedTransitionScope?> { null }
 
-object AppRoutes {
-    const val Launch = "launch"
-    const val Unlock = "unlock"
-    const val ContactList = "contact_list"
-    const val Chats = "main/chats"
-    const val Groups = "main/groups"
-    const val AddContactTab = "main/add_contact"
-    const val Profile = "main/profile"
-    const val Settings = "main/settings"
-    const val SettingsLanguage = "settings/language"
-    const val SettingsTheme = "settings/theme"
-    const val SettingsSounds = "settings/sounds"
-    const val SettingsBackup = "settings/backup"
-    const val SettingsAppearance = "settings/appearance"
-    const val SettingsChat = "settings/chat"
-    const val SettingsConnection = "settings/connection"
-    const val CreateProfile = "create_profile"
-    const val Chat = "chat/{$ARG_PUBLIC_KEY}"
-    const val Call = "call/{$ARG_PUBLIC_KEY}"
-    const val AddContact = "add_contact?${ARG_TOX_ID}={${ARG_TOX_ID}}"
-    const val ForwardSelection = "chat/forward?message={message}"
-    const val GroupChat = "group_chat/{$ARG_CHAT_ID}"
-    const val CreateGroup = "create_group"
-    const val JoinGroup = "join_group"
+@Suppress("CompositionLocalAllowlist")
+val LocalAnimatedVisibilityScope = compositionLocalOf<AnimatedVisibilityScope?> { null }
 
-    fun forwardSelection(message: String) = "chat/forward?message=${android.net.Uri.encode(message)}"
+sealed interface AppRoutes {
+    @Serializable
+    data object Launch : AppRoutes
 
-    fun chat(publicKey: String) = "chat/$publicKey"
+    @Serializable
+    data object Unlock : AppRoutes
 
-    fun call(publicKey: String) = "call/$publicKey"
+    @Serializable
+    data object Chats : AppRoutes
 
-    fun groupChat(chatId: String) = "group_chat/$chatId"
+    @Serializable
+    data object Groups : AppRoutes
 
-    fun addContact(toxId: String? = null): String {
-        return if (toxId.isNullOrBlank()) {
-            "add_contact"
-        } else {
-            "add_contact?$ARG_TOX_ID=$toxId"
-        }
+    @Serializable
+    data object AddContactTab : AppRoutes
+
+    @Serializable
+    data object Profile : AppRoutes
+
+    @Serializable
+    data object Settings : AppRoutes
+
+    @Serializable
+    data object CreateProfile : AppRoutes
+
+    @Serializable
+    data class Chat(val publicKey: String) : AppRoutes
+
+    @Serializable
+    data class Call(val publicKey: String) : AppRoutes
+
+    @Serializable
+    data class AddContact(val toxId: String? = null) : AppRoutes
+
+    @Serializable
+    data class ForwardSelection(val message: String) : AppRoutes
+
+    @Serializable
+    data object ForwardShared : AppRoutes
+
+    @Serializable
+    data class GroupChat(val chatId: String) : AppRoutes
+
+    @Serializable
+    data object CreateGroup : AppRoutes
+
+    @Serializable
+    data object JoinGroup : AppRoutes
+
+    companion object {
+        fun isMainTab(route: String?) = route != null && (
+            route.endsWith("AppRoutes.Chats") ||
+            route.endsWith("AppRoutes.Groups") ||
+            route.endsWith("AppRoutes.AddContactTab") ||
+            route.endsWith("AppRoutes.Profile") ||
+            route.endsWith("AppRoutes.Settings")
+        )
+
+        fun isCall(route: String?) = route != null && route.contains("AppRoutes.Call")
     }
-
-    fun isChat(route: String?) = route?.startsWith("chat/") == true
-
-    fun isGroupChat(route: String?) = route?.startsWith("group_chat/") == true
-
-    fun isCall(route: String?) = route?.startsWith("call/") == true
-
-    fun isAddContact(route: String?) = route?.startsWith("add_contact") == true
-
-    fun isMainTab(route: String?) = route == Chats ||
-        route == Groups ||
-        route == AddContactTab ||
-        route == Profile ||
-        route == Settings
-
-    const val PublicKeyArg = ARG_PUBLIC_KEY
-    const val ToxIdArg = ARG_TOX_ID
-    const val ChatIdArg = ARG_CHAT_ID
 }
 
-fun NavController.navigateSingleTop(route: String) {
+fun <T : Any> androidx.navigation.NavController.navigateSingleTop(route: T) {
     navigate(route) {
         launchSingleTop = true
     }
 }
-

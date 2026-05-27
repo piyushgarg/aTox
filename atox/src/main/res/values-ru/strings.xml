@@ -441,4 +441,8 @@
     <string name="launch_timeout_title">Таймаут подключения</string>
     <string name="launch_timeout_desc">Не удалось подключиться к ядру Tox. Инициализация занимает слишком много времени или системные ресурсы перегружены.</string>
     <string name="retry">Повторить</string>
+    <string name="navigation_back">Назад</string>
+    <string name="navigation_add">Добавить</string>
+    <string name="backup_warning_title">Внимание!</string>
+    <string name="backup_warning_description">Обязательно сохраните пароль резервной копии. В случае его утери восстановить ваш Tox-профиль будет невозможно.</string>
 </resources>

@@ -16,12 +16,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import ltd.evilcorp.atox.settings.Settings
-import ltd.evilcorp.atox.tox.ToxStarter
+import ltd.evilcorp.atox.infrastructure.settings.Settings
+import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.domain.model.BootstrapNodeSource
 import ltd.evilcorp.domain.model.BackupFrequency
 import ltd.evilcorp.domain.model.BackupDestination
-import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeRegistry
+import ltd.evilcorp.domain.tox.bootstrap.BootstrapNodeRegistry
 import ltd.evilcorp.domain.model.ProxyType
 import ltd.evilcorp.domain.tox.ITox
 import ltd.evilcorp.domain.feature.FileTransferManager

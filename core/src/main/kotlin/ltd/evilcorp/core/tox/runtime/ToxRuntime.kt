@@ -16,13 +16,13 @@ import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.core.tox.NativeTox
-import ltd.evilcorp.core.tox.ToxID
-import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeRegistry
+import ltd.evilcorp.domain.tox.ToxID
+import ltd.evilcorp.domain.tox.bootstrap.BootstrapNodeRegistry
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
-import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.core.tox.enums.ToxGroupRole
-import ltd.evilcorp.core.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.tox.enums.ToxGroupRole
+import ltd.evilcorp.domain.tox.enums.ToxMessageType
 import ltd.evilcorp.core.tox.save.SaveManager
 import ltd.evilcorp.domain.tox.save.SaveOptions
 
@@ -34,9 +34,9 @@ private const val BOOTSTRAP_NODES_COUNT = 4
 private const val RECOVERY_DELAY_MS = 1000L
 
 /**
- * Главный исполнительный слой (Tox Runtime).
- * Управляет корутинными циклами фоновой обработки событий (`iterate()`), периодическим
- * автосохранением сессии, а также проксирует вызовы функций ядра Tox из прикладного уровня.
+ * Main execution layer (Tox Runtime).
+ * Manages coroutine loops for background event processing (`iterate()`), periodic
+ * session autosaving, and proxies Tox core function calls from the application layer.
  */
 @Singleton
 class ToxRuntime @Inject constructor(
@@ -44,28 +44,28 @@ class ToxRuntime @Inject constructor(
     private val saveManager: SaveManager,
     private val nodeRegistry: BootstrapNodeRegistry,
 ) {
-    /** Уникальный идентификатор Tox ID текущей сессии (76 символов). */
+    /** Unique Tox ID of the current session (76 characters). */
     val toxId: ToxID get() = toxWrapper.getToxId()
 
-    /** Публичный ключ текущего пользователя (32 байта). */
+    /** Public key of the current user (32 bytes). */
     val publicKey: PublicKey get() = toxWrapper.getPublicKey()
 
     /**
-     * Системное nospam-значение пользователя.
-     * Используется для защиты от нежелательных запросов добавления в друзья.
+     * System nospam value of the user.
+     * Used to protect against unwanted friend requests.
      */
     var nospam: Int
         get() = toxWrapper.getNospam()
         set(value) = toxWrapper.setNospam(value)
 
-    /** Указывает, запущена ли сессия Tox в данный момент. */
+    /** Indicates if the Tox session is currently running. */
     var started = false
         private set
 
-    /** Указывает, требуется ли выполнить повторное подключение к публичным DHT-узлам (bootstrap). */
+    /** Indicates if reconnection to public DHT nodes (bootstrap) is required. */
     var isBootstrapNeeded = true
 
-    /** Текущий пароль шифрования профиля (null, если профиль не зашифрован). */
+    /** Current profile encryption password (null if profile is not encrypted). */
     var password: String? = null
         private set
 
@@ -77,11 +77,11 @@ class ToxRuntime @Inject constructor(
     private val saveMutex = Mutex()
 
     /**
-     * Запускает нативное ядро Tox, расшифровывает профиль при наличии пароля и запускает асинхронные циклы итераций.
-     * @param saveOption Параметры инициализации и бинарные данные профиля.
-     * @param password Пароль шифрования профиля.
-     * @param listener Слушатель базовых событий Tox (сообщения, статусы, файлы).
-     * @param avListener Слушатель аудио- и видеозвонков.
+     * Starts the native Tox core, decrypts the profile if a password is provided, and starts async iteration loops.
+     * @param saveOption Initialization parameters and binary profile data.
+     * @param password Profile encryption password.
+     * @param listener Listener for basic Tox events (messages, statuses, files).
+     * @param avListener Listener for audio and video calls.
      */
     fun start(saveOption: SaveOptions, password: String?, listener: ToxEventListener, avListener: ToxAvEventListener) {
         val nativeTox = NativeTox()
@@ -114,8 +114,8 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Останавливает сессию Tox, завершает циклы обработки, сохраняет профиль на диск и очищает ключи шифрования в памяти.
-     * @return Объект корутины [Job].
+     * Stops the Tox session, terminates processing loops, saves the profile to disk, and clears encryption keys in memory.
+     * @return Coroutine [Job] object.
      */
     fun stop(): Job = scope.launch {
         running = false
@@ -128,8 +128,8 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Изменяет или снимает пароль шифрования текущего профиля, после чего инициирует немедленное сохранение.
-     * @param new Новый пароль. Передайте null или пустую строку для удаления шифрования.
+     * Changes or removes the encryption password of the current profile, then initiates an immediate save.
+     * @param new New password. Pass null or empty string to remove encryption.
      */
     fun changePassword(new: String?) {
         passkey = if (new.isNullOrEmpty()) {
@@ -144,13 +144,13 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Возвращает список всех друзей, добавленных в список контактов ядра Tox.
+     * Returns a list of all friends added to the Tox core contact list.
      */
     fun getContacts(): List<Pair<PublicKey, Int>> = toxWrapper.getContacts()
 
     /**
-     * Принимает запрос на добавление в друзья от другого пользователя.
-     * @param publicKey Публичный ключ отправителя запроса.
+     * Accepts a friend request from another user.
+     * @param publicKey Public key of the request sender.
      */
     fun acceptFriendRequest(publicKey: PublicKey) {
         toxWrapper.acceptFriendRequest(publicKey)
@@ -158,7 +158,7 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Инициирует возобновление или принятие передачи файла.
+     * Initiates resumption or acceptance of a file transfer.
      */
     fun startFileTransfer(pk: PublicKey, fileNumber: Int) {
         Log.i(TAG, "Starting file transfer $fileNumber from ${pk.fingerprint()}")
@@ -166,7 +166,7 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Приостанавливает передачу файла.
+     * Pauses a file transfer.
      */
     fun stopFileTransfer(pk: PublicKey, fileNumber: Int) {
         Log.i(TAG, "Stopping file transfer $fileNumber from ${pk.fingerprint()}")
@@ -174,24 +174,24 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Отправляет запрос на передачу файла другу.
+     * Sends a file transfer request to a friend.
      */
     fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String) =
         toxWrapper.sendFile(pk, fileKind, fileSize, fileName)
 
     /**
-     * Отправляет очередной бинарный блок данных в процессе передачи файла.
+     * Sends another binary chunk of data in the file transfer process.
      */
     fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> =
         toxWrapper.sendFileChunk(pk, fileNo, pos, data)
 
     /**
-     * Возвращает публичное имя текущего пользователя.
+     * Returns the public name of the current user.
      */
     fun getName() = toxWrapper.getName()
 
     /**
-     * Устанавливает новое имя пользователя и сохраняет профиль.
+     * Sets a new username and saves the profile.
      */
     fun setName(name: String) {
         toxWrapper.setName(name)
@@ -199,12 +199,12 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Возвращает текущее статусное сообщение пользователя.
+     * Returns the current status message of the user.
      */
     fun getStatusMessage() = toxWrapper.getStatusMessage()
 
     /**
-     * Устанавливает новое статусное сообщение и сохраняет профиль.
+     * Sets a new status message and saves the profile.
      */
     fun setStatusMessage(statusMessage: String) {
         toxWrapper.setStatusMessage(statusMessage)
@@ -212,7 +212,7 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Отправляет запрос на добавление нового друга по его адресу Tox ID.
+     * Sends a request to add a new friend by their Tox ID address.
      */
     fun addContact(toxId: ToxID, message: String) {
         toxWrapper.addContact(toxId, message)
@@ -220,7 +220,7 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Удаляет друга из списка контактов.
+     * Deletes a friend from the contact list.
      */
     fun deleteContact(publicKey: PublicKey) {
         toxWrapper.deleteContact(publicKey)
@@ -228,13 +228,13 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Отправляет текстовое сообщение другу.
+     * Sends a text message to a friend.
      */
     fun sendMessage(publicKey: PublicKey, message: String, type: MessageType) =
         toxWrapper.sendMessage(publicKey, message, type)
 
     /**
-     * Возвращает полную копию бинарных данных профиля (зашифрованных, если пароль установлен).
+     * Returns a full copy of the binary profile data (encrypted if password is set).
      */
     fun getSaveData(): ByteArray {
         val currentPasskey = passkey
@@ -247,18 +247,18 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Устанавливает или снимает статус набора текста (typing indicator) для друга.
+     * Sets or clears the typing indicator for a friend.
      */
     fun setTyping(publicKey: PublicKey, typing: Boolean) =
         toxWrapper.setTyping(publicKey, typing)
 
     /**
-     * Возвращает текущий сетевой статус присутствия (Online, Away, Busy).
+     * Returns the current network presence status (Online, Away, Busy).
      */
     fun getStatus() = toxWrapper.getStatus()
 
     /**
-     * Устанавливает новый статус присутствия пользователя и сохраняет профиль.
+     * Sets a new presence status for the user and saves the profile.
      */
     fun setStatus(status: UserStatus) {
         toxWrapper.setStatus(status)
@@ -266,233 +266,233 @@ class ToxRuntime @Inject constructor(
     }
 
     /**
-     * Отправляет произвольный непотеряемый пакет (lossless custom packet) другу.
+     * Sends an arbitrary lossless custom packet to a friend.
      */
     fun sendLosslessPacket(pk: PublicKey, packet: ByteArray) =
         toxWrapper.sendLosslessPacket(pk, packet)
 
     /**
-     * Отправляет кастомный ненадежный lossy-пакет другу.
+     * Sends a custom lossy packet to a friend.
      */
     fun sendLossyPacket(pk: PublicKey, data: ByteArray) =
         toxWrapper.sendLossyPacket(pk, data)
 
     /**
-     * Возвращает секретный (приватный) ключ нашего профиля.
+     * Returns the secret (private) key of our profile.
      */
     fun selfGetSecretKey(): ByteArray =
         toxWrapper.selfGetSecretKey()
 
     /**
-     * Возвращает активный UDP-порт локального узла.
+     * Returns the active UDP port of the local node.
      */
     fun selfGetUdpPort(): Int =
         toxWrapper.selfGetUdpPort()
 
     /**
-     * Возвращает активный TCP-порт локального узла.
+     * Returns the active TCP port of the local node.
      */
     fun selfGetTcpPort(): Int =
         toxWrapper.selfGetTcpPort()
 
     /**
-     * Возвращает временный DHT-ключ (DHT ID) нашего инстанса.
+     * Returns the temporary DHT key (DHT ID) of our instance.
      */
     fun selfGetDhtId(): ByteArray =
         toxWrapper.selfGetDhtId()
 
     /**
-     * Возвращает UNIX-время последнего визита контакта в сеть.
+     * Returns the UNIX time of the contact's last network visit.
      */
     fun friendGetLastOnline(pk: PublicKey): Long =
         toxWrapper.friendGetLastOnline(pk)
 
     /**
-     * Возвращает статус активного набора текста друга.
+     * Returns the active typing status of a friend.
      */
     fun friendGetTyping(pk: PublicKey): Boolean =
         toxWrapper.friendGetTyping(pk)
 
     /**
-     * Возвращает нативный номер друга по публичному ключу.
+     * Returns the native friend number by public key.
      */
     fun getFriendNumber(pk: PublicKey): Int =
         toxWrapper.getFriendNumberByPublicKey(pk)
 
     /**
-     * Возвращает публичный ключ друга по его нативному номеру.
+     * Returns the friend's public key by their native number.
      */
     fun getFriendPublicKey(friendNumber: Int): ByteArray? =
         toxWrapper.getFriendPublicKey(friendNumber)
 
-    /** Начинает аудио/видеовызов. */
+    /** Starts an audio/video call. */
     fun startCall(pk: PublicKey) = toxWrapper.startCall(pk)
-    /** Принимает входящий вызов. */
+    /** Answers an incoming call. */
     fun answerCall(pk: PublicKey) = toxWrapper.answerCall(pk)
-    /** Завершает вызов. */
+    /** Ends a call. */
     fun endCall(pk: PublicKey) = toxWrapper.endCall(pk)
 
-    /** Отправляет кадр звука PCM участнику вызова. */
+    /** Sends a PCM audio frame to the call participant. */
     fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) =
         toxWrapper.sendAudio(pk, pcm, channels, samplingRate)
 
     /**
-     * Отправляет видеокадр YUV420P собеседнику во время звонка.
+     * Sends a YUV420P video frame to the peer during a call.
      */
     fun sendVideoFrame(pk: PublicKey, width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray): Boolean =
         toxWrapper.sendVideoFrame(pk, width, height, y, u, v)
 
     /**
-     * Динамически регулирует битрейт аудио потока во время звонка.
+     * Dynamically adjusts the audio stream bitrate during a call.
      */
     fun audioSetBitRate(pk: PublicKey, bitrate: Int): Boolean =
         toxWrapper.audioSetBitRate(pk, bitrate)
 
     /**
-     * Динамически регулирует битрейт видео потока во время звонка.
+     * Dynamically adjusts the video stream bitrate during a call.
      */
     fun videoSetBitRate(pk: PublicKey, bitrate: Int): Boolean =
         toxWrapper.videoSetBitRate(pk, bitrate)
 
     /**
-     * Создает новую групповую NGC-конференцию.
+     * Creates a new group NGC conference.
      */
     fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int =
         toxWrapper.groupNew(privacyState, groupName, selfName)
 
     /**
-     * Присоединяется к групповой NGC-конференции.
+     * Joins a group NGC conference.
      */
     fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
         toxWrapper.groupJoin(friendNo, inviteData, selfName, password)
 
     /**
-     * Выходит из групповой NGC-конференции.
+     * Leaves a group NGC conference.
      */
     fun groupLeave(groupNumber: Int): Boolean =
         toxWrapper.groupLeave(groupNumber)
 
     /**
-     * Отправляет текстовое сообщение в NGC-группу.
+     * Sends a text message to the NGC group.
      */
     fun groupSendMessage(groupNumber: Int, type: ToxMessageType, message: ByteArray): Int =
         toxWrapper.groupSendMessage(groupNumber, type, message)
 
     /**
-     * Устанавливает тему для NGC-группы.
+     * Sets the topic for the NGC group.
      */
     fun groupSetTopic(groupNumber: Int, topic: ByteArray): Boolean =
         toxWrapper.groupSetTopic(groupNumber, topic)
 
     /**
-     * Получает тему NGC-группы.
+     * Gets the topic of the NGC group.
      */
     fun groupGetTopic(groupNumber: Int): ByteArray? =
         toxWrapper.groupGetTopic(groupNumber)
 
     /**
-     * Получает название NGC-группы.
+     * Gets the name of the NGC group.
      */
     fun groupGetName(groupNumber: Int): ByteArray? =
         toxWrapper.groupGetName(groupNumber)
 
     /**
-     * Возвращает уникальный постоянный 32-байтовый идентификатор NGC-чата (Chat ID).
+     * Returns a unique persistent 32-byte NGC chat ID (Chat ID).
      */
     fun groupGetChatId(groupNumber: Int): ByteArray? =
         toxWrapper.groupGetChatId(groupNumber)
 
     /**
-     * Устанавливает пароль для доступа к NGC-группе.
+     * Sets the password for accessing the NGC group.
      */
     fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean =
         toxWrapper.groupSetPassword(groupNumber, password)
 
     /**
-     * Возвращает текущий установленный пароль группы.
+     * Returns the currently set password of the group.
      */
     fun groupGetPassword(groupNumber: Int): ByteArray? =
         toxWrapper.groupGetPassword(groupNumber)
 
     /**
-     * Получает имя участника NGC-группы по его ID.
+     * Gets the name of the NGC group member by their ID.
      */
     fun groupPeerGetName(groupNumber: Int, peerId: Int): ByteArray? =
         toxWrapper.groupPeerGetName(groupNumber, peerId)
 
     /**
-     * Получает публичный ключ участника NGC-группы по его ID.
+     * Gets the public key of the NGC group member by their ID.
      */
     fun groupPeerGetPublicKey(groupNumber: Int, peerId: Int): ByteArray? =
         toxWrapper.groupPeerGetPublicKey(groupNumber, peerId)
 
     /**
-     * Возвращает наш собственный Peer ID в NGC-группе.
+     * Returns our own Peer ID in the NGC group.
      */
     fun groupSelfGetPeerId(groupNumber: Int): Int =
         toxWrapper.groupSelfGetPeerId(groupNumber)
 
     /**
-     * Возвращает нашу текущую роль в NGC-группе.
+     * Returns our current role in the NGC group.
      */
     fun groupSelfGetRole(groupNumber: Int): ToxGroupRole =
         toxWrapper.groupSelfGetRole(groupNumber)
 
     /**
-     * Отправляет приглашение в NGC-группу другу.
+     * Sends a group invitation to a friend.
      */
     fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean =
         toxWrapper.groupInviteSend(groupNumber, friendNumber)
 
     /**
-     * Присоединяется к NGC-группе напрямую по Chat ID.
+     * Joins an NGC group directly by Chat ID.
      */
     fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
         toxWrapper.groupJoinDirect(chatId, selfName, password)
 
     /**
-     * Переподключается к ранее сохранённой NGC-группе после загрузки профиля.
+     * Reconnects to a previously saved NGC group after profile load.
      */
     fun groupReconnect(groupNumber: Int): Boolean =
         toxWrapper.groupReconnect(groupNumber)
 
     /**
-     * Создает групповую аудио-конференцию.
+     * Creates a group audio conference.
      */
     fun groupavAdd(): Int =
         toxWrapper.groupavAdd()
 
     /**
-     * Присоединяется к групповой аудио-конференции.
+     * Joins a group audio conference.
      */
     fun groupavJoin(groupNumber: Int): Int =
         toxWrapper.groupavJoin(groupNumber)
 
     /**
-     * Отправляет аудио-кадр в групповой чат.
+     * Sends an audio frame to the group chat.
      */
     fun groupavSendAudio(groupNumber: Int, pcm: ShortArray, channels: Int, samplingRate: Int): Int =
         toxWrapper.groupavSendAudio(groupNumber, pcm, channels, samplingRate)
 
     /**
-     * Включает аудио/видео функции для указанного группового чата.
+     * Enables audio/video features for the specified group chat.
      */
     fun groupavEnableAudio(groupNumber: Int): Int =
         toxWrapper.groupavEnableAudio(groupNumber)
 
     /**
-     * Выключает аудио/видео функции для указанного группового чата.
+     * Disables audio/video features for the specified group chat.
      */
     fun groupavDisableAudio(groupNumber: Int): Int =
         toxWrapper.groupavDisableAudio(groupNumber)
 
     /**
-     * Проверяет, активны ли аудио/видео функции в указанном групповом чате.
+     * Checks if audio/video features are active in the specified group chat.
      */
     fun groupavIsEnabled(groupNumber: Int): Boolean =
         toxWrapper.groupavIsEnabled(groupNumber)
 
-    /** Фоновый цикл обработки аудио- и видеозвонков. */
+    /** Background loop for processing audio and video calls. */
     private fun iterateForeverAv() = scope.launch {
         toxAvRunning = true
         while (running) {
@@ -507,7 +507,7 @@ class ToxRuntime @Inject constructor(
         toxAvRunning = false
     }
 
-    /** Главный фоновый цикл обработки событий P2P-сети Tox Core. */
+    /** Main background loop for processing Tox Core P2P network events. */
     private fun iterateForever() = scope.launch {
         running = true
         while (running || toxAvRunning) {
@@ -537,7 +537,7 @@ class ToxRuntime @Inject constructor(
         started = false
     }
 
-    /** Выполняет подключение к предопределенному пулу публичных серверов DHT (Bootstrap). */
+    /** Connects to a predefined pool of public DHT servers (Bootstrap). */
     private fun bootstrap() {
         nodeRegistry.get(BOOTSTRAP_NODES_COUNT).kForEach { node ->
             Log.i(TAG, "Bootstrapping from $node")
@@ -545,7 +545,7 @@ class ToxRuntime @Inject constructor(
         }
     }
 
-    /** Фоновое асинхронное автосохранение файла настроек на накопитель устройства. */
+    /** Background asynchronous saving of settings file to device storage. */
     private fun save(): Job = scope.launch {
         saveMutex.withLock {
             if (!started) {

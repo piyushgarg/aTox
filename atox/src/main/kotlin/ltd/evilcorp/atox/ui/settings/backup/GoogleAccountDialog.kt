@@ -31,13 +31,13 @@ fun GoogleAccountDialog(
             OutlinedTextField(
                 value = googleAccountInput,
                 onValueChange = onGoogleAccountInputChange,
-                label = { Text("Email") },
+                label = { Text(stringResource(R.string.backup_google_account)) },
                 singleLine = true,
                 trailingIcon = {
                     IconButton(onClick = onChooseAccountClick) {
                         Icon(
                             imageVector = Icons.Default.Person,
-                            contentDescription = "Choose account"
+                            contentDescription = stringResource(R.string.backup_google_account_not_selected)
                         )
                     }
                 },

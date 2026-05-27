@@ -18,4 +18,33 @@ data class AppBarConfig @OptIn(ExperimentalMaterial3Api::class) constructor(
 
 object AppBarStateHolder {
     val config = MutableStateFlow<AppBarConfig?>(null)
+    private val configs = mutableMapOf<String, AppBarConfig>()
+    private var currentRoute: String? = null
+
+    private fun getBaseRoute(route: String?): String? {
+        if (route == null) return null
+        return route.substringBefore('/').substringBefore('?')
+    }
+
+    fun register(route: String, cfg: AppBarConfig) {
+        val baseRoute = getBaseRoute(route) ?: return
+        configs[baseRoute] = cfg
+        if (baseRoute == getBaseRoute(currentRoute)) {
+            config.value = cfg
+        }
+    }
+
+    fun unregister(route: String) {
+        val baseRoute = getBaseRoute(route) ?: return
+        configs.remove(baseRoute)
+        if (baseRoute == getBaseRoute(currentRoute)) {
+            config.value = null
+        }
+    }
+
+    fun updateRoute(route: String?) {
+        currentRoute = route
+        val baseRoute = getBaseRoute(route)
+        config.value = configs[baseRoute]
+    }
 }

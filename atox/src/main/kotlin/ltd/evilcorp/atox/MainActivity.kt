@@ -27,19 +27,19 @@ import ltd.evilcorp.domain.feature.GroupManager
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import ltd.evilcorp.atox.appearance.AppearanceManager
-import ltd.evilcorp.atox.service.AutoAway
-import ltd.evilcorp.atox.settings.Settings
-import ltd.evilcorp.atox.media.SystemSoundPlayer
+import ltd.evilcorp.atox.ui.appearance.AppearanceManager
+import ltd.evilcorp.atox.infrastructure.service.AutoAway
+import ltd.evilcorp.atox.infrastructure.settings.Settings
+import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.atox.util.PermissionManager
+import ltd.evilcorp.atox.infrastructure.util.PermissionManager
 import ltd.evilcorp.atox.ui.navigation.AToxNavGraph
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 import ltd.evilcorp.domain.model.FileTransfer
 import ltd.evilcorp.domain.model.FINGERPRINT_LEN
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.core.tox.TOX_ID_LENGTH
+import ltd.evilcorp.domain.tox.TOX_ID_LENGTH
 import java.io.File
 
 private const val TAG = "MainActivity"
@@ -60,7 +60,6 @@ class MainActivity : AppCompatActivity() {
         val sharedContentState = mutableStateOf<SharedContent?>(null)
     }
 
-    val vmFactory by lazy { defaultViewModelProviderFactory }
 
     @Inject
     lateinit var autoAway: AutoAway
@@ -117,7 +116,7 @@ class MainActivity : AppCompatActivity() {
                 AToxNavGraph(
                     appearance = appearance,
                     settings = settings,
-                    vmFactory = vmFactory,
+
                     callManager = callManager,
                     notificationHelper = notificationHelper,
                     permissionManager = permissionManager,

@@ -39,8 +39,8 @@ import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import kotlinx.coroutines.delay
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.media.SystemSoundPlayer
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.stripReplyPrefix
 import ltd.evilcorp.atox.ui.theme.AToxMotion
 import ltd.evilcorp.domain.model.ConnectionStatus

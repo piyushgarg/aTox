@@ -39,7 +39,11 @@ android {
             path("src/main/cpp/CMakeLists.txt")
         }
     }
-    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
+    sourceSets {
+        getByName("androidTest") {
+            assets.directories.add("$projectDir/schemas")
+        }
+    }
 }
 
 tasks.register<Exec>("buildNativeDependencies") {

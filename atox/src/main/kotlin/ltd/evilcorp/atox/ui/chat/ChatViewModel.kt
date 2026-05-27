@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.model.Contact

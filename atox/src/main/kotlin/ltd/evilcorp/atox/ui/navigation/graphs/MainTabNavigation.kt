@@ -10,29 +10,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import ltd.evilcorp.atox.ui.navigation.LocalAnimatedVisibilityScope
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModelProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.appearance.AppAppearance
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.ui.appearance.AppAppearance
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.addcontact.AddContactScreen
 import ltd.evilcorp.atox.ui.addcontact.AddContactViewModel
 import ltd.evilcorp.atox.ui.common.MorphingNavigationIcon
@@ -47,97 +47,95 @@ import ltd.evilcorp.atox.ui.navigation.LocalTabPadding
 import ltd.evilcorp.atox.ui.settings.SettingsScreen
 import ltd.evilcorp.atox.ui.userprofile.UserProfileScreen
 import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FriendRequest
 import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.feature.GroupInvite
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.mainTabGraph(
-    mainNavController: NavHostController,
     navController: NavHostController,
-    vmFactory: ViewModelProvider.Factory,
     contactListViewModel: ContactListViewModel,
     settings: Settings,
     appearance: AppAppearance,
-    isSearchingState: MutableState<Boolean>,
-    settingsTitleState: MutableState<String>,
-    settingsOnBackActionState: MutableState<(() -> Unit)?>,
-    settingsOnSearchActionState: MutableState<(() -> Unit)?>,
-    contactsState: State<List<Contact>>,
-    friendRequestsState: State<List<FriendRequest>>,
-    groupInviteState: State<GroupInvite?>,
-    groupInviteFriendNameState: State<String>,
-    coroutineScope: CoroutineScope,
     onThemeChanged: (Int) -> Unit,
     onDynamicColorChanged: (Boolean) -> Unit,
     onAccentColorSeedChanged: (Int) -> Unit,
     onLocaleTagChanged: (String) -> Unit,
     onDisableScreenshotsChanged: (Boolean) -> Unit,
 ) {
-    composable(route = AppRoutes.Chats) {
-        val context = LocalContext.current
-        val isSearchingLocal = isSearchingState.value
+    composable<AppRoutes.Chats> {
         val searchQuery by contactListViewModel.searchQuery.collectAsStateWithLifecycle()
-        val friendRequestsViewModel: ltd.evilcorp.atox.ui.friendrequest.FriendRequestsViewModel = viewModel(factory = vmFactory)
+        val friendRequestsViewModel: ltd.evilcorp.atox.ui.friendrequest.FriendRequestsViewModel = hiltViewModel()
 
-        LaunchedEffect(Unit) {
-            AppBarStateHolder.config.value = null
-        }
+        val contacts by contactListViewModel.contacts.collectAsStateWithLifecycle()
+        val friendRequests by friendRequestsViewModel.friendRequests.collectAsStateWithLifecycle(emptyList())
+        val groupInvite by contactListViewModel.groupInvite.collectAsStateWithLifecycle()
+        val groupInviteFriendName by contactListViewModel.groupInviteFriendName.collectAsStateWithLifecycle()
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
-        ) {
-            ChatsRouteScreen(
-                contacts = contactsState.value,
-                friendRequests = friendRequestsState.value,
-                groupInvite = groupInviteState.value,
-                groupInviteFriendName = groupInviteFriendNameState.value,
-                searchQuery = searchQuery,
-                onSearchQueryChanged = contactListViewModel::setSearchQuery,
-                dateFormatPreference = settings.dateFormatPreference,
-                timeFormatPreference = settings.timeFormatPreference,
-                onContactClick = { contact ->
-                    contactListViewModel.prepareOpenChat(contact)
-                    mainNavController.navigate(AppRoutes.chat(contact.publicKey))
-                },
-                onDeleteContact = { contact -> contactListViewModel.deleteContact(PublicKey(contact.publicKey)) },
-                onAcceptFriendRequest = { req -> friendRequestsViewModel.acceptFriendRequest(req) },
-                onRejectFriendRequest = { req -> friendRequestsViewModel.rejectFriendRequest(req) },
-                onAcceptGroupInvite = contactListViewModel::acceptGroupInvite,
-                onRejectGroupInvite = contactListViewModel::declineGroupInvite,
-                onAddContactClick = {
-                    mainNavController.navigate(AppRoutes.AddContactTab) {
-                        launchSingleTop = true
-                    }
-                },
-                onCreateGroupClick = {
-                    mainNavController.navigate(AppRoutes.CreateGroup)
-                },
-                onContactInteraction = {},
-                isSearching = isSearchingState.value,
-                onSearchingChanged = { isSearchingState.value = it }
-            )
+        val isSearchingState = rememberSaveable { mutableStateOf(false) }
+
+        CompositionLocalProvider(LocalAnimatedVisibilityScope provides this) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = LocalTabPadding.current.calculateBottomPadding())
+            ) {
+                ChatsRouteScreen(
+                    contacts = contacts,
+                    friendRequests = friendRequests,
+                    groupInvite = groupInvite,
+                    groupInviteFriendName = groupInviteFriendName,
+                    searchQuery = searchQuery,
+                    onSearchQueryChanged = contactListViewModel::setSearchQuery,
+                    dateFormatPreference = settings.dateFormatPreference,
+                    timeFormatPreference = settings.timeFormatPreference,
+                    onContactClick = { contact ->
+                        contactListViewModel.prepareOpenChat(contact)
+                        navController.navigate(AppRoutes.Chat(contact.publicKey))
+                    },
+                    onDeleteContact = { contact -> contactListViewModel.deleteContact(PublicKey(contact.publicKey)) },
+                    onAcceptFriendRequest = { req -> friendRequestsViewModel.acceptFriendRequest(req) },
+                    onRejectFriendRequest = { req -> friendRequestsViewModel.rejectFriendRequest(req) },
+                    onAcceptGroupInvite = contactListViewModel::acceptGroupInvite,
+                    onRejectGroupInvite = contactListViewModel::declineGroupInvite,
+                    onAddContactClick = {
+                        navController.navigate(AppRoutes.AddContactTab) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onContactInteraction = {},
+                    isSearching = isSearchingState.value,
+                    onSearchingChanged = { isSearchingState.value = it }
+                )
+            }
         }
     }
 
-    composable(route = AppRoutes.Groups) {
+    composable<AppRoutes.Groups> {
         val context = LocalContext.current
+        val coroutineScope = rememberCoroutineScope()
+        val groupsRouteName = AppRoutes.Groups::class.qualifiedName!!
+
         LaunchedEffect(Unit) {
-            AppBarStateHolder.config.value = AppBarConfig(
-                title = {
-                    Text(
-                        text = context.getString(R.string.groups),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            AppBarStateHolder.register(
+                route = groupsRouteName,
+                cfg = AppBarConfig(
+                    title = {
+                        Text(
+                            text = context.getString(R.string.groups),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                )
             )
         }
 
-        val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+        DisposableEffect(Unit) {
+            onDispose {
+                AppBarStateHolder.unregister(groupsRouteName)
+            }
+        }
+
+        val groupListViewModel: GroupListViewModel = hiltViewModel()
         val groupsState = groupListViewModel.groups.collectAsStateWithLifecycle()
         val connectionStatusesState = groupListViewModel.connectionStatuses.collectAsStateWithLifecycle()
 
@@ -150,13 +148,13 @@ fun NavGraphBuilder.mainTabGraph(
                 groupsState = groupsState,
                 connectionStatusesState = connectionStatusesState,
                 onGroupClick = { group ->
-                    mainNavController.navigate(AppRoutes.groupChat(group.chatId))
+                    navController.navigate(AppRoutes.GroupChat(group.chatId))
                 },
                 onCreateGroupClick = {
-                    mainNavController.navigate(AppRoutes.CreateGroup)
+                    navController.navigate(AppRoutes.CreateGroup)
                 },
                 onJoinGroupClick = {
-                    mainNavController.navigate(AppRoutes.JoinGroup)
+                    navController.navigate(AppRoutes.JoinGroup)
                 },
                 onLeaveGroup = { group ->
                     coroutineScope.launch {
@@ -167,20 +165,40 @@ fun NavGraphBuilder.mainTabGraph(
         }
     }
 
-    composable(AppRoutes.AddContactTab) {
+    composable<AppRoutes.AddContactTab> {
         val context = LocalContext.current
-        val addContactViewModel: AddContactViewModel = viewModel(factory = vmFactory)
+        val addContactViewModel: AddContactViewModel = hiltViewModel()
+        val addContactTabRouteName = AppRoutes.AddContactTab::class.qualifiedName!!
 
         LaunchedEffect(Unit) {
-            AppBarStateHolder.config.value = AppBarConfig(
-                title = {
-                    Text(
-                        text = context.getString(R.string.add_contact),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            AppBarStateHolder.register(
+                route = addContactTabRouteName,
+                cfg = AppBarConfig(
+                    title = {
+                        Text(
+                            text = context.getString(R.string.add_contact),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            navController.popBackStack()
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = context.getString(R.string.navigation_back)
+                            )
+                        }
+                    }
+                )
             )
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                AppBarStateHolder.unregister(addContactTabRouteName)
+            }
         }
 
         Box(
@@ -192,7 +210,7 @@ fun NavGraphBuilder.mainTabGraph(
                 viewModel = addContactViewModel,
                 showBackButton = false,
                 onSuccess = {
-                    mainNavController.navigate(AppRoutes.Chats) {
+                    navController.navigate(AppRoutes.Chats) {
                         launchSingleTop = true
                         popUpTo(AppRoutes.Chats)
                     }
@@ -201,20 +219,30 @@ fun NavGraphBuilder.mainTabGraph(
         }
     }
 
-    composable(AppRoutes.Profile) {
+    composable<AppRoutes.Profile> {
         val context = LocalContext.current
-        val profileViewModel: UserProfileViewModel = viewModel(factory = vmFactory)
+        val profileViewModel: UserProfileViewModel = hiltViewModel()
+        val profileRouteName = AppRoutes.Profile::class.qualifiedName!!
 
         LaunchedEffect(Unit) {
-            AppBarStateHolder.config.value = AppBarConfig(
-                title = {
-                    Text(
-                        text = context.getString(R.string.profile),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            AppBarStateHolder.register(
+                route = profileRouteName,
+                cfg = AppBarConfig(
+                    title = {
+                        Text(
+                            text = context.getString(R.string.profile),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                )
             )
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                AppBarStateHolder.unregister(profileRouteName)
+            }
         }
 
         val user by contactListViewModel.user.collectAsStateWithLifecycle()
@@ -258,39 +286,57 @@ fun NavGraphBuilder.mainTabGraph(
         }
     }
 
-    composable(AppRoutes.Settings) {
+    composable<AppRoutes.Settings> {
         val context = LocalContext.current
+        val settingsTitleState = remember { mutableStateOf("") }
+        val settingsOnBackActionState = remember { mutableStateOf<(() -> Unit)?>(null) }
+        val settingsOnSearchActionState = remember { mutableStateOf<(() -> Unit)?>(null) }
+
         val settingsTitle = settingsTitleState.value
         val settingsOnBackAction = settingsOnBackActionState.value
         val settingsOnSearchAction = settingsOnSearchActionState.value
+        val settingsRouteName = AppRoutes.Settings::class.qualifiedName!!
 
         LaunchedEffect(settingsTitle, settingsOnBackAction, settingsOnSearchAction) {
-            AppBarStateHolder.config.value = AppBarConfig(
-                title = {
-                    Text(
-                        text = if (settingsOnBackAction == null) context.getString(R.string.settings) else settingsTitle,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+            if (settingsTitle == context.getString(R.string.search_settings)) {
+                AppBarStateHolder.unregister(settingsRouteName)
+            } else {
+                AppBarStateHolder.register(
+                    route = settingsRouteName,
+                    cfg = AppBarConfig(
+                        title = {
+                            Text(
+                                text = if (settingsOnBackAction == null) context.getString(R.string.settings) else settingsTitle,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        navigationIcon = {
+                            if (settingsOnBackAction != null) {
+                                IconButton(onClick = { settingsOnBackAction.invoke() }) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = context.getString(R.string.navigation_back)
+                                    )
+                                }
+                            } else {
+                                Box(modifier = Modifier.padding(start = 4.dp)) {
+                                    MorphingNavigationIcon(
+                                        isBack = false,
+                                        onClick = { settingsOnSearchAction?.invoke() }
+                                    )
+                                }
+                            }
+                        }
                     )
-                },
-                navigationIcon = {
-                    if (settingsOnBackAction != null) {
-                        IconButton(onClick = { settingsOnBackAction.invoke() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
-                        }
-                    } else {
-                        Box(modifier = Modifier.padding(start = 4.dp)) {
-                            MorphingNavigationIcon(
-                                isBack = false,
-                                onClick = { settingsOnSearchAction?.invoke() }
-                            )
-                        }
-                    }
-                }
-            )
+                )
+            }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                AppBarStateHolder.unregister(settingsRouteName)
+            }
         }
 
         Box(
@@ -307,7 +353,7 @@ fun NavGraphBuilder.mainTabGraph(
                 onLocaleTagChanged = onLocaleTagChanged,
                 onDisableScreenshotsChanged = onDisableScreenshotsChanged,
                 showBackButton = false,
-                vmFactory = vmFactory,
+
                 onTitleChanged = { settingsTitleState.value = it },
                 onBackActionChanged = { settingsOnBackActionState.value = it },
                 onSearchActionChanged = { settingsOnSearchActionState.value = it }

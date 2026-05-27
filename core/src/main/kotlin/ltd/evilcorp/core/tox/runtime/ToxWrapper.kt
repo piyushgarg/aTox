@@ -8,17 +8,17 @@ import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.core.tox.NativeTox
 import ltd.evilcorp.core.tox.NativeToxAv
-import ltd.evilcorp.core.tox.ToxID
+import ltd.evilcorp.domain.tox.ToxID
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
-import ltd.evilcorp.core.tox.enums.ToxavCallControl
-import ltd.evilcorp.core.tox.enums.ToxFileControl
-import ltd.evilcorp.core.tox.enums.ToxMessageType
-import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.core.tox.enums.ToxGroupRole
+import ltd.evilcorp.domain.tox.enums.ToxavCallControl
+import ltd.evilcorp.domain.tox.enums.ToxFileControl
+import ltd.evilcorp.domain.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.tox.enums.ToxGroupRole
 import ltd.evilcorp.domain.tox.save.SaveOptions
-import ltd.evilcorp.core.tox.toToxtype
-import ltd.evilcorp.core.tox.toToxType
+import ltd.evilcorp.domain.tox.toToxtype
+import ltd.evilcorp.domain.tox.toToxType
 
 private const val TAG = "ToxWrapper"
 

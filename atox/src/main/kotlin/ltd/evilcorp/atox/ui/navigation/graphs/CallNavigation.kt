@@ -1,43 +1,39 @@
 package ltd.evilcorp.atox.ui.navigation.graphs
 
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.addcontact.AddContactScreen
 import ltd.evilcorp.atox.ui.addcontact.AddContactViewModel
 import ltd.evilcorp.atox.ui.call.CallScreen
 import ltd.evilcorp.atox.ui.call.CallViewModel
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.atox.ui.theme.AToxMotion
-import ltd.evilcorp.atox.util.PermissionManager
+import ltd.evilcorp.atox.infrastructure.util.PermissionManager
 import ltd.evilcorp.domain.model.PublicKey
 
 fun NavGraphBuilder.callGraph(
     navController: NavHostController,
-    vmFactory: ViewModelProvider.Factory,
+
     permissionManager: PermissionManager,
     callScreenMinimized: MutableState<Boolean>,
     settings: Settings,
 ) {
-    composable(
-        route = AppRoutes.Call,
-        arguments = listOf(navArgument(AppRoutes.PublicKeyArg) { type = NavType.StringType }),
+    composable<AppRoutes.Call>(
         enterTransition = { AToxMotion.slideUpEnter() },
         exitTransition = { AToxMotion.slideDownExit() },
         popEnterTransition = { AToxMotion.slideUpEnter() },
         popExitTransition = { AToxMotion.slideDownExit() },
     ) { backStackEntry ->
-        val publicKeyStr = backStackEntry.arguments?.getString(AppRoutes.PublicKeyArg).orEmpty()
-        val viewModel: CallViewModel = viewModel(factory = vmFactory)
+        val callRoute = backStackEntry.toRoute<AppRoutes.Call>()
+        val publicKeyStr = callRoute.publicKey
+        val viewModel: CallViewModel = hiltViewModel()
 
         androidx.compose.runtime.LaunchedEffect(publicKeyStr) {
             viewModel.setActiveContact(PublicKey(publicKeyStr))
@@ -80,16 +76,10 @@ fun NavGraphBuilder.callGraph(
         )
     }
 
-    composable(
-        route = AppRoutes.AddContact,
-        arguments = listOf(navArgument(AppRoutes.ToxIdArg) {
-            type = NavType.StringType
-            nullable = true
-            defaultValue = null
-        }),
-    ) { backStackEntry ->
-        val toxIdArg = backStackEntry.arguments?.getString(AppRoutes.ToxIdArg).orEmpty()
-        val viewModel: AddContactViewModel = viewModel(factory = vmFactory)
+    composable<AppRoutes.AddContact> { backStackEntry ->
+        val addContactRoute = backStackEntry.toRoute<AppRoutes.AddContact>()
+        val toxIdArg = addContactRoute.toxId.orEmpty()
+        val viewModel: AddContactViewModel = hiltViewModel()
         AddContactScreen(
             viewModel = viewModel,
             initialToxId = toxIdArg,

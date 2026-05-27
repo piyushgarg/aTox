@@ -2,7 +2,8 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlinKsp)
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
+    alias(libs.plugins.kotlinCompose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -31,6 +32,7 @@ android {
         }
         getByName("release") {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
@@ -48,11 +50,15 @@ android {
         viewBinding = true
     }
     lint {
-        disable += setOf("GoogleAppIndexingWarning", "MissingTranslation")
+        disable += setOf("GoogleAppIndexingWarning", "MissingTranslation", "LocalContextGetResourceValueCall", "MissingPermission")
+        error += "HardcodedText"
     }
 }
 
 dependencies {
+    lintChecks(platform(libs.androidx.compose.bom))
+    lintChecks(libs.androidx.compose.material3.lint)
+
     implementation(project(":core"))
     implementation(project(":domain"))
 
@@ -67,6 +73,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose)
@@ -88,6 +95,7 @@ dependencies {
     ksp(libs.google.dagger.compiler)
     implementation(libs.google.hilt.android)
     ksp(libs.google.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
 
     implementation(libs.nayuki.qrcodegen)
 

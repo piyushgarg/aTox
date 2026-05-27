@@ -9,7 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import ltd.evilcorp.atox.tox.ToxStarter
+import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.core.db.Database
 import ltd.evilcorp.domain.model.User
 import ltd.evilcorp.domain.feature.UserManager

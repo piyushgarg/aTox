@@ -23,17 +23,17 @@
             android:supportsRtl="true"
             android:localeConfig="@xml/locales_config"
             android:theme="@style/AppTheme">
-        <service android:name=".service.ToxService"
+        <service android:name=".infrastructure.service.ToxService"
                 android:exported="false"
                 android:foregroundServiceType="microphone" />
  
-        <receiver android:name=".receiver.BootReceiver" android:enabled="false" android:exported="false">
+        <receiver android:name=".infrastructure.receiver.BootReceiver" android:enabled="false" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
  
-        <receiver android:name=".receiver.ActionReceiver"/>
+        <receiver android:name=".infrastructure.receiver.ActionReceiver"/>
 
         <provider
                 android:name="androidx.core.content.FileProvider"

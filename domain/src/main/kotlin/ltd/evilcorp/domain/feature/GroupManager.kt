@@ -28,8 +28,8 @@ import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.repository.IContactRepository
 import ltd.evilcorp.domain.repository.IGroupRepository
 import ltd.evilcorp.domain.repository.IMessageRepository
-import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.core.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.tox.enums.ToxMessageType
 import ltd.evilcorp.domain.tox.ITox
 
 enum class GroupConnectionStatus {
@@ -117,7 +117,7 @@ class GroupManager @Inject constructor(
             val group = groupRepository.get(chatId).firstOrNull() ?: return@launch
             if (group.groupNumber < 0) return@launch
             
-            // 1. Проверяем и обновляем имя группы, если оно еще не прилетело по сети
+            // 1. Check and update the group name if it hasn't been received over the network yet
             if (group.name.isEmpty() || group.name == "Unknown Group" || group.name.startsWith("unknown_")) {
                 val groupNameBytes = tox.groupGetName(group.groupNumber)
                 val groupName = groupNameBytes?.decodeToString()
@@ -126,7 +126,7 @@ class GroupManager @Inject constructor(
                 }
             }
 
-            // 2. Проверяем и обновляем пустые publicKey у участников группы для загрузки аватарок
+            // 2. Check and update empty publicKeys of group peers to load avatars
             val peers = groupRepository.getPeers(chatId).firstOrNull() ?: emptyList()
             peers.forEach { peer ->
                 if (peer.publicKey.isEmpty() && peer.peerId >= 0 && !peer.isOurselves) {
@@ -157,10 +157,10 @@ class GroupManager @Inject constructor(
                 setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
             }
             
-            // Адаптивная задержка (Exponential Back-off) для экономии батареи и сети:
-            // - первые 10 попыток: каждые 5 секунд (быстрое переподключение)
-            // - следующие 20 попыток: каждые 15 секунд
-            // - все последующие попытки: каждые 30 секунд
+            // Adaptive delay (Exponential Back-off) to conserve battery and network:
+            // - first 10 attempts: every 5 seconds (fast reconnection)
+            // - next 20 attempts: every 15 seconds
+            // - all subsequent attempts: every 30 seconds
             val delayMs = when {
                 attempt < 10 -> 5000L
                 attempt < 30 -> 15000L
@@ -491,7 +491,7 @@ class GroupManager @Inject constructor(
             val pk = PublicKey(friendPublicKey)
             val friendNumber = tox.getFriendNumber(pk)
             
-            // Всегда отображаем красивую интерактивную карточку-приглашение в чате у себя (у отправителя)
+            // Always display a neat interactive invite card in our own chat (sender's side)
             val inviteText = "[GROUP_INVITE:${group.name}|${group.chatId}]"
             messageRepository.add(
                 Message(

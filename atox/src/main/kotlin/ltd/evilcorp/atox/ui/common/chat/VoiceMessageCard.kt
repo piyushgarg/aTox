@@ -26,7 +26,7 @@ import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.common.formatChatTime
 import ltd.evilcorp.domain.model.FileTransfer
 import ltd.evilcorp.domain.model.isComplete

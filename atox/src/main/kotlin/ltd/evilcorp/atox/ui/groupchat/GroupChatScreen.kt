@@ -33,17 +33,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.media.SystemSoundPlayer
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.common.formatChatTime
 import ltd.evilcorp.atox.ui.common.ContactAvatar
 import ltd.evilcorp.atox.ui.common.chat.ChatInputBar
 import ltd.evilcorp.atox.ui.common.chat.MessageBubble
 import ltd.evilcorp.atox.ui.common.chat.DateSeparator
 import android.widget.Toast
+import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
+import ltd.evilcorp.atox.ui.navigation.AppBarConfig
+import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.atox.ui.groupchat.components.GroupPeersSheet
 import ltd.evilcorp.atox.ui.groupchat.components.GroupInviteSheet
 import ltd.evilcorp.domain.model.Contact
+import ltd.evilcorp.domain.model.DateFormatPreference
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.domain.model.Group
 import ltd.evilcorp.domain.model.GroupMessage
@@ -263,14 +267,13 @@ fun GroupChatScreen(
     }
 
     var menuExpanded by remember { mutableStateOf(false) }
+    val surfaceContainerColor = MaterialTheme.colorScheme.surfaceContainer
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            TopAppBar(
+    LaunchedEffect(group, group?.name, connStatus, peers.size, menuExpanded, showInviteDialog, showPeersDialog, showLeaveDialog, settings.hapticEnabled) {
+        AppBarStateHolder.register(
+            route = AppRoutes.GroupChat::class.qualifiedName!!,
+            cfg = AppBarConfig(
                 title = {
-                    val ctx = LocalContext.current
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -283,12 +286,12 @@ fun GroupChatScreen(
                                     }
                                     val id = group?.chatId ?: ""
                                     if (id.isNotEmpty()) {
-                                        val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                         val clip = android.content.ClipData.newPlainText("group ID", id)
                                         clipboard.setPrimaryClip(clip)
                                         Toast.makeText(
-                                            ctx,
-                                            ctx.getString(R.string.group_invite_copied),
+                                            context,
+                                            context.getString(R.string.group_invite_copied),
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -312,7 +315,9 @@ fun GroupChatScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = group?.name?.ifEmpty { stringResource(R.string.contact_default_name) } ?: stringResource(R.string.contact_default_name),
+                                text = group?.name?.ifEmpty {
+                                    context.getString(R.string.contact_default_name)
+                                } ?: context.getString(R.string.contact_default_name),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
@@ -334,13 +339,13 @@ fun GroupChatScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 val statusText = when (connStatus) {
-                                    GroupConnectionStatus.Connected -> stringResource(R.string.group_connected)
+                                    GroupConnectionStatus.Connected -> context.getString(R.string.group_connected)
                                     GroupConnectionStatus.Connecting,
-                                    GroupConnectionStatus.Reconnecting -> stringResource(R.string.group_connecting)
-                                    GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
+                                    GroupConnectionStatus.Reconnecting -> context.getString(R.string.group_connecting)
+                                    GroupConnectionStatus.Disconnected -> context.getString(R.string.group_offline)
                                 }
                                 Text(
-                                    text = "$statusText • ${stringResource(R.string.group_peer_count, peers.size)}",
+                                    text = "$statusText • ${context.getString(R.string.group_peer_count, peers.size)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
@@ -382,7 +387,7 @@ fun GroupChatScreen(
                             onDismissRequest = { menuExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Пригласить друга") },
+                                text = { Text(context.getString(R.string.group_invite_friend)) },
                                 leadingIcon = {
                                     Icon(Icons.Default.PersonAdd, contentDescription = null)
                                 },
@@ -395,7 +400,7 @@ fun GroupChatScreen(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Список участников") },
+                                text = { Text(context.getString(R.string.group_peers)) },
                                 leadingIcon = {
                                     Icon(Icons.Default.Person, contentDescription = null)
                                 },
@@ -408,7 +413,7 @@ fun GroupChatScreen(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Выйти из группы", color = MaterialTheme.colorScheme.error) },
+                                text = { Text(context.getString(R.string.group_leave), color = MaterialTheme.colorScheme.error) },
                                 leadingIcon = {
                                     Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                                 },
@@ -423,26 +428,28 @@ fun GroupChatScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                ),
-                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+                containerColor = surfaceContainerColor
             )
-        },
-        bottomBar = {}
-    ) { paddingValues ->
-        val showScrollToBottomFab by remember {
-            derivedStateOf { listState.firstVisibleItemIndex > 2 }
-        }
+        )
+    }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(top = paddingValues.calculateTopPadding())
-                .navigationBarsPadding()
-                .imePadding()
-        ) {
+    DisposableEffect(Unit) {
+        onDispose {
+            AppBarStateHolder.unregister(AppRoutes.GroupChat::class.qualifiedName!!)
+        }
+    }
+
+    val showScrollToBottomFab by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 2 }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .navigationBarsPadding()
+            .imePadding()
+    ) {
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -572,6 +579,5 @@ fun GroupChatScreen(
                 )
             }
         }
-    }
 }
 

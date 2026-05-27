@@ -4,7 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import ltd.evilcorp.domain.feature.ISettingsFileProcessor
-import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeJsonParser
+import ltd.evilcorp.domain.tox.bootstrap.BootstrapNodeJsonParser
 
 class ImportBootstrapNodesUseCase @Inject constructor(
     private val fileProcessor: ISettingsFileProcessor,

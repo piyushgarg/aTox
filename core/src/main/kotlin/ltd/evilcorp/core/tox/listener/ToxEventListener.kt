@@ -1,21 +1,21 @@
 package ltd.evilcorp.core.tox.listener
 
-import ltd.evilcorp.core.tox.enums.ToxConnection
-import ltd.evilcorp.core.tox.enums.ToxFileControl
-import ltd.evilcorp.core.tox.enums.ToxMessageType
-import ltd.evilcorp.core.tox.enums.ToxUserStatus
-import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.core.tox.enums.ToxGroupTopicLock
-import ltd.evilcorp.core.tox.enums.ToxGroupVoiceState
-import ltd.evilcorp.core.tox.enums.ToxGroupRole
-import ltd.evilcorp.core.tox.enums.ToxGroupExitType
-import ltd.evilcorp.core.tox.enums.ToxGroupJoinFail
-import ltd.evilcorp.core.tox.enums.ToxGroupModEvent
+import ltd.evilcorp.domain.tox.enums.ToxConnection
+import ltd.evilcorp.domain.tox.enums.ToxFileControl
+import ltd.evilcorp.domain.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.tox.enums.ToxUserStatus
+import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.tox.enums.ToxGroupTopicLock
+import ltd.evilcorp.domain.tox.enums.ToxGroupVoiceState
+import ltd.evilcorp.domain.tox.enums.ToxGroupRole
+import ltd.evilcorp.domain.tox.enums.ToxGroupExitType
+import ltd.evilcorp.domain.tox.enums.ToxGroupJoinFail
+import ltd.evilcorp.domain.tox.enums.ToxGroupModEvent
 import javax.inject.Inject
 import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.core.tox.bytesToHex
+import ltd.evilcorp.domain.tox.bytesToHex
 
 // Вызывается при получении кастомного lossless-пакета от друга
 typealias FriendLosslessPacketHandler = (publicKey: String, data: ByteArray) -> Unit

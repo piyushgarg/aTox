@@ -4,10 +4,10 @@
 
 package ltd.evilcorp.domain.tox
 
-import ltd.evilcorp.core.tox.enums.ToxConnection
-import ltd.evilcorp.core.tox.enums.ToxFileKind
-import ltd.evilcorp.core.tox.enums.ToxMessageType
-import ltd.evilcorp.core.tox.enums.ToxUserStatus
+import ltd.evilcorp.domain.tox.enums.ToxConnection
+import ltd.evilcorp.domain.tox.enums.ToxFileKind
+import ltd.evilcorp.domain.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.tox.enums.ToxUserStatus
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -16,10 +16,10 @@ import ltd.evilcorp.domain.model.ConnectionStatus
 import ltd.evilcorp.domain.model.FileKind
 import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.core.tox.hexToBytes
-import ltd.evilcorp.core.tox.bytesToHex
-import ltd.evilcorp.core.tox.toToxType
-import ltd.evilcorp.core.tox.toToxtype
+import ltd.evilcorp.domain.tox.hexToBytes
+import ltd.evilcorp.domain.tox.bytesToHex
+import ltd.evilcorp.domain.tox.toToxType
+import ltd.evilcorp.domain.tox.toToxtype
 
 private fun byteArrayOf(vararg bytes: Int) = ByteArray(bytes.size) { bytes[it].toByte() }
 

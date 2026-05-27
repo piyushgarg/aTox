@@ -135,14 +135,14 @@ fun BackupSettingsScreen(
                     )
                     Column {
                         Text(
-                            text = "Attention!",
+                            text = stringResource(R.string.backup_warning_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Make sure to save your backup password. If lost, it will be impossible to recover your Tox profile.",
+                            text = stringResource(R.string.backup_warning_description),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

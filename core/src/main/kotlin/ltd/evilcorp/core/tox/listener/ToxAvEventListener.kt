@@ -1,6 +1,6 @@
 package ltd.evilcorp.core.tox.listener
 
-import ltd.evilcorp.core.tox.enums.ToxavFriendCallState
+import ltd.evilcorp.domain.tox.enums.ToxavFriendCallState
 import java.util.EnumSet
 import javax.inject.Inject
 import ltd.evilcorp.domain.model.PublicKey

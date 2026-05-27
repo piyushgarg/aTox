@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.widget.Toast
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.common.ContactAvatar
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.GroupPeer

@@ -478,4 +478,8 @@
     <string name="launch_timeout_title">Connection Timeout</string>
     <string name="launch_timeout_desc">Could not connect to the Tox core. The initialization is taking too long or the system resources are busy.</string>
     <string name="retry">Retry</string>
+    <string name="navigation_back">Back</string>
+    <string name="navigation_add">Add</string>
+    <string name="backup_warning_title">Attention!</string>
+    <string name="backup_warning_description">Make sure to save your backup password. If lost, it will be impossible to recover your Tox profile.</string>
 </resources>

@@ -8,7 +8,7 @@ import ltd.evilcorp.domain.repository.IContactRepository
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.PublicKey
 import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.core.tox.ToxID
+import ltd.evilcorp.domain.tox.ToxID
 
 class ContactManager @Inject constructor(
     private val scope: CoroutineScope,

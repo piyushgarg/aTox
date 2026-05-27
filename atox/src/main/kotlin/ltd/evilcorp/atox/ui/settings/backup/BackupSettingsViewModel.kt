@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.tox.ToxStarter
+import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.core.db.Database
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 import ltd.evilcorp.domain.backup.BackupDataProvider

@@ -20,7 +20,7 @@ import ltd.evilcorp.atox.ui.notification.CHANNEL_MESSAGE
 import ltd.evilcorp.atox.ui.notification.CHANNEL_FRIEND_REQUEST
 import ltd.evilcorp.atox.ui.notification.CHANNEL_CALL
 import ltd.evilcorp.atox.ui.notification.CHANNEL_GROUP_MESSAGE
-import ltd.evilcorp.atox.util.PermissionManager
+import ltd.evilcorp.atox.infrastructure.util.PermissionManager
 import ltd.evilcorp.domain.model.Contact
 import ltd.evilcorp.domain.model.FriendRequest
 import ltd.evilcorp.domain.model.PublicKey

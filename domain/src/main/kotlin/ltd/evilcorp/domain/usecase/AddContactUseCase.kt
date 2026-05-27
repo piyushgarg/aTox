@@ -8,7 +8,7 @@ import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.model.MessageType
 import ltd.evilcorp.domain.model.Sender
 import ltd.evilcorp.domain.repository.IMessageRepository
-import ltd.evilcorp.core.tox.ToxID
+import ltd.evilcorp.domain.tox.ToxID
 import ltd.evilcorp.domain.feature.ContactManager
 
 class AddContactUseCase @Inject constructor(

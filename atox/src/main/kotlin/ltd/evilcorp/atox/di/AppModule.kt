@@ -5,16 +5,16 @@ import dagger.Module
 import dagger.Provides
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import ltd.evilcorp.atox.tox.AndroidBootstrapNodeJsonSource
-import ltd.evilcorp.atox.backup.CallLogBackupDataProvider
-import ltd.evilcorp.atox.backup.ChatHistoryBackupDataProvider
-import ltd.evilcorp.atox.backup.ContactsBackupDataProvider
-import ltd.evilcorp.atox.backup.FileTransferHistoryBackupDataProvider
-import ltd.evilcorp.atox.backup.ToxCoreBackupDataProvider
-import ltd.evilcorp.atox.backup.TransferredFilesBackupDataProvider
-import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeRegistry
-import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeJsonSource
-import ltd.evilcorp.core.tox.bootstrap.DefaultBootstrapNodeRegistry
+import ltd.evilcorp.atox.infrastructure.tox.AndroidBootstrapNodeJsonSource
+import ltd.evilcorp.atox.infrastructure.backup.CallLogBackupDataProvider
+import ltd.evilcorp.atox.infrastructure.backup.ChatHistoryBackupDataProvider
+import ltd.evilcorp.atox.infrastructure.backup.ContactsBackupDataProvider
+import ltd.evilcorp.atox.infrastructure.backup.FileTransferHistoryBackupDataProvider
+import ltd.evilcorp.atox.infrastructure.backup.ToxCoreBackupDataProvider
+import ltd.evilcorp.atox.infrastructure.backup.TransferredFilesBackupDataProvider
+import ltd.evilcorp.domain.tox.bootstrap.BootstrapNodeRegistry
+import ltd.evilcorp.domain.tox.bootstrap.BootstrapNodeJsonSource
+import ltd.evilcorp.domain.tox.bootstrap.DefaultBootstrapNodeRegistry
 import ltd.evilcorp.core.tox.save.AndroidSaveManager
 import ltd.evilcorp.core.tox.save.SaveManager
 import ltd.evilcorp.domain.backup.BackupDataProvider
@@ -61,7 +61,7 @@ class AppModule {
     fun provideSettingsFileProcessor(processor: ltd.evilcorp.atox.ui.settings.AndroidSettingsFileProcessor): ltd.evilcorp.domain.feature.ISettingsFileProcessor = processor
 
     @Provides
-    fun provideProximityManager(manager: ltd.evilcorp.atox.service.AndroidProximityManager): ltd.evilcorp.domain.feature.ProximityManager = manager
+    fun provideProximityManager(manager: ltd.evilcorp.atox.infrastructure.service.AndroidProximityManager): ltd.evilcorp.domain.feature.ProximityManager = manager
 
     @Provides
     fun provideNotificationManager(manager: ltd.evilcorp.atox.ui.AndroidNotificationManager): ltd.evilcorp.domain.feature.NotificationManager = manager
@@ -73,13 +73,13 @@ class AppModule {
     fun provideNotificationHelper(helper: ltd.evilcorp.atox.ui.NotificationHelper): ltd.evilcorp.domain.feature.INotificationHelper = helper
 
     @Provides
-    fun provideToxStarter(starter: ltd.evilcorp.atox.tox.ToxStarter): ltd.evilcorp.domain.tox.IToxStarter = starter
+    fun provideToxStarter(starter: ltd.evilcorp.atox.infrastructure.tox.ToxStarter): ltd.evilcorp.domain.tox.IToxStarter = starter
 
     @Provides
     fun provideTox(impl: ltd.evilcorp.core.tox.Tox): ltd.evilcorp.domain.tox.ITox = impl
 
     @Provides
-    fun provideAudioRoutingManager(manager: ltd.evilcorp.atox.media.AudioRoutingManager): ltd.evilcorp.domain.feature.IAudioRoutingManager = manager
+    fun provideAudioRoutingManager(manager: ltd.evilcorp.atox.infrastructure.media.AudioRoutingManager): ltd.evilcorp.domain.feature.IAudioRoutingManager = manager
 
     @Provides
     fun provideFileTransferPlatformHelper(impl: ltd.evilcorp.core.repository.FileTransferPlatformHelperImpl): ltd.evilcorp.domain.feature.IFileTransferPlatformHelper = impl

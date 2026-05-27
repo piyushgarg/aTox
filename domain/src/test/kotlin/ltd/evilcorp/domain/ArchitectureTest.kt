@@ -7,7 +7,7 @@ package ltd.evilcorp.domain
 import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.architecture.KoArchitectureCreator.assertArchitecture
 import com.lemonappdev.konsist.api.architecture.Layer
-import com.lemonappdev.konsist.api.verify.assert
+import com.lemonappdev.konsist.api.verify.assertTrue
 import org.junit.Test
 
 class ArchitectureTest {
@@ -31,6 +31,6 @@ class ArchitectureTest {
             .scopeFromProject()
             .classes()
             .filter { it.name.endsWith("UseCase") }
-            .assert { it.resideInPackage("ltd.evilcorp.domain.usecase") }
+            .assertTrue { it.resideInPackage("ltd.evilcorp.domain.usecase") }
     }
 }
