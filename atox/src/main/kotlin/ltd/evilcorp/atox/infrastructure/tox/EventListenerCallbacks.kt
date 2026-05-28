@@ -4,7 +4,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
-import ltd.evilcorp.domain.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.core.network.enums.ToxMessageType
 
 @Singleton
 class EventListenerCallbacks @Inject constructor(

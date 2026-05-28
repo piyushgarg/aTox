@@ -7,12 +7,12 @@ package ltd.evilcorp.atox.ui
 
 import android.content.res.Resources
 import android.util.TypedValue
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
 
 
 
-import ltd.evilcorp.domain.model.ReplyParser
+import ltd.evilcorp.domain.features.chat.model.ReplyParser
 
 internal sealed interface Size
 

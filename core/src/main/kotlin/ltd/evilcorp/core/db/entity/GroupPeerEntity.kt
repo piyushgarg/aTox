@@ -2,8 +2,8 @@ package ltd.evilcorp.core.db.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import ltd.evilcorp.domain.model.GroupPeer
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.domain.features.group.model.GroupPeer
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 
 @Entity(
     tableName = "group_peers",

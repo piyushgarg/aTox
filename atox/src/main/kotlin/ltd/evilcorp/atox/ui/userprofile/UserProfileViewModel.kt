@@ -4,9 +4,6 @@
 
 package ltd.evilcorp.atox.ui.userprofile
 
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -15,23 +12,26 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.FlowPreview
-
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-import ltd.evilcorp.domain.model.User
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.domain.usecase.SaveAvatarUseCase
+import ltd.evilcorp.domain.features.auth.model.User
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.features.transfer.FileTransferManager
+import ltd.evilcorp.domain.features.transfer.broadcastAvatar
+import ltd.evilcorp.domain.features.auth.repository.IAvatarRepository
+import ltd.evilcorp.domain.features.auth.usecase.SaveAvatarUseCase
+import ltd.evilcorp.domain.features.auth.usecase.DeleteProfileUseCase
 import java.io.File
+
+private const val DEBOUNCE_DELAY_MS = 800L
 
 sealed interface AvatarCropUiState {
     object Idle : AvatarCropUiState
@@ -42,41 +42,44 @@ sealed interface AvatarCropUiState {
 
 @HiltViewModel
 class UserProfileViewModel @Inject constructor(
-    private val context: Context,
     private val userManager: UserManager,
     private val tox: ITox,
     private val fileTransferManager: FileTransferManager,
+    private val avatarRepository: IAvatarRepository,
     private val saveAvatarUseCase: SaveAvatarUseCase,
+    private val deleteProfileUseCase: DeleteProfileUseCase,
 ) : ViewModel() {
-    companion object {
-        private const val INITIAL_QUALITY = 90
-        private const val MIN_QUALITY = 10
-        private const val QUALITY_STEP = 10
-        private const val MAX_AVATAR_BYTES = 64 * 1024
+
+    fun deleteProfileAndData() {
+        viewModelScope.launch {
+            deleteProfileUseCase.execute()
+        }
     }
 
     val publicKey by lazy { tox.publicKey }
     val toxId by lazy { tox.toxId }
     val user: StateFlow<User?> = userManager.get(publicKey)
-        
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
 
-    private val _avatar = MutableStateFlow<Bitmap?>(null)
-    val avatar: StateFlow<Bitmap?> = _avatar.asStateFlow()
+    private val _avatarFile = MutableStateFlow<File?>(null)
+    val avatarFile: StateFlow<File?> = _avatarFile.asStateFlow()
 
     private val nameUpdates = MutableSharedFlow<String>()
     private val statusUpdates = MutableSharedFlow<String>()
+
+    private val _cropState = MutableStateFlow<AvatarCropUiState>(AvatarCropUiState.Idle)
+    val cropState = _cropState.asStateFlow()
 
     init {
         loadAvatar()
 
         @OptIn(FlowPreview::class)
         viewModelScope.launch {
-            nameUpdates.debounce(800).collectLatest { name ->
+            nameUpdates.debounce(DEBOUNCE_DELAY_MS).collectLatest { name ->
                 withContext(Dispatchers.IO) {
                     userManager.setName(name)
                 }
@@ -85,7 +88,7 @@ class UserProfileViewModel @Inject constructor(
 
         @OptIn(FlowPreview::class)
         viewModelScope.launch {
-            statusUpdates.debounce(800).collectLatest { status ->
+            statusUpdates.debounce(DEBOUNCE_DELAY_MS).collectLatest { status ->
                 withContext(Dispatchers.IO) {
                     userManager.setStatusMessage(status)
                 }
@@ -95,17 +98,11 @@ class UserProfileViewModel @Inject constructor(
 
     fun loadAvatar() {
         viewModelScope.launch {
-            val bmp = withContext(Dispatchers.IO) {
-                val file = File(context.filesDir, "self_avatar.png")
-                if (file.exists() && file.length() > 0L) {
-                    try {
-                        BitmapFactory.decodeFile(file.absolutePath)
-                    } catch (e: Exception) {
-                        null
-                    }
-                } else null
+            val file = withContext(Dispatchers.IO) {
+                val f = avatarRepository.getSelfAvatarFile()
+                if (f.exists() && f.length() > 0L) f else null
             }
-            _avatar.value = bmp
+            _avatarFile.value = file
         }
     }
 
@@ -121,7 +118,11 @@ class UserProfileViewModel @Inject constructor(
         }
     }
 
-    fun setStatus(status: UserStatus) = userManager.setStatus(status)
+    fun setStatus(status: UserStatus) {
+        viewModelScope.launch {
+            userManager.setStatus(status)
+        }
+    }
 
     fun broadcastAvatar() {
         viewModelScope.launch {
@@ -129,72 +130,18 @@ class UserProfileViewModel @Inject constructor(
         }
     }
 
-    private val _cropState = MutableStateFlow<AvatarCropUiState>(AvatarCropUiState.Idle)
-    val cropState = _cropState.asStateFlow()
-
     fun resetCropState() {
         _cropState.value = AvatarCropUiState.Idle
     }
 
-    fun cropAndSaveAvatar(
-        originalBitmap: Bitmap,
-        scale: Float,
-        offsetX: Float,
-        offsetY: Float,
-        rotation: Float,
-        viewportWidth: Float
-    ) {
+    fun saveAvatar(avatarBytes: ByteArray) {
         viewModelScope.launch {
             _cropState.value = AvatarCropUiState.Processing
-            val success = withContext(Dispatchers.IO) {
-                try {
-                    val cropped = AvatarCropUtils.cropAvatar(originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth)
-                    
-                    // Compress bitmap to bytes to pass to use case
-                    var quality = INITIAL_QUALITY
-                    var bytes: ByteArray? = null
-                    val maxBytes = MAX_AVATAR_BYTES
-                    
-                    try {
-                        while (quality > MIN_QUALITY) {
-                            java.io.ByteArrayOutputStream().use { bos ->
-                                cropped.compress(Bitmap.CompressFormat.JPEG, quality, bos)
-                                val currentBytes = bos.toByteArray()
-                                if (currentBytes.size <= maxBytes) {
-                                    bytes = currentBytes
-                                    break
-                                }
-                            }
-                            quality -= QUALITY_STEP
-                        }
-                        if (bytes == null) {
-                            java.io.ByteArrayOutputStream().use { bos ->
-                                cropped.compress(Bitmap.CompressFormat.JPEG, MIN_QUALITY, bos)
-                                val currentBytes = bos.toByteArray()
-                                if (currentBytes.size <= maxBytes) {
-                                    bytes = currentBytes
-                                }
-                            }
-                        }
-                    } finally {
-                        cropped.recycle()
-                    }
-                    
-                    val saveBytes = bytes ?: return@withContext false
-                    val saved = saveAvatarUseCase.execute(saveBytes)
-                    if (saved) {
-                        loadAvatar()
-                    }
-                    saved
-                } catch (e: Exception) {
-                    false
-                }
-            }
+            val success = saveAvatarUseCase.execute(avatarBytes)
             if (success) {
-                _cropState.value = AvatarCropUiState.Success
-            } else {
-                _cropState.value = AvatarCropUiState.Failure
+                loadAvatar()
             }
+            _cropState.value = if (success) AvatarCropUiState.Success else AvatarCropUiState.Failure
         }
     }
 }

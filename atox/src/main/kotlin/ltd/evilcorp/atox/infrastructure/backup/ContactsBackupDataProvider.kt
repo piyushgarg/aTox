@@ -2,22 +2,22 @@ package ltd.evilcorp.atox.infrastructure.backup
 
 import javax.inject.Inject
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.backup.BackupDataProvider
-import ltd.evilcorp.domain.backup.IContactsBackupHelper
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
+import ltd.evilcorp.domain.features.backup.repository.IContactsBackupHelper
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import org.json.JSONArray
 import org.json.JSONObject
 
 class ContactsBackupDataProvider @Inject constructor(
     private val helper: IContactsBackupHelper,
-) : BackupDataProvider {
+) : IBackupDataProvider {
     override val id: String = "contacts"
     override val displayNameRes: Int = R.string.backup_module_contacts
     override val descriptionRes: Int = R.string.backup_module_contacts_description
 
-    override fun serialize(): ByteArray {
+    override suspend fun serialize(): ByteArray {
         val contacts = JSONArray()
         helper.serializeContacts().forEach { contact ->
             contacts.put(JSONObject().apply {
@@ -36,7 +36,7 @@ class ContactsBackupDataProvider @Inject constructor(
         return JSONObject().put("contacts", contacts).toString().encodeToByteArray()
     }
 
-    override fun deserialize(data: ByteArray) {
+    override suspend fun deserialize(data: ByteArray) {
         val contacts = JSONObject(data.decodeToString()).getJSONArray("contacts")
         val restored = buildList {
             for (index in 0 until contacts.length()) {

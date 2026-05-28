@@ -4,7 +4,20 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,8 +27,14 @@ import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,9 +48,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.model.Contact
+import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.atox.ui.common.ContactAvatar
-import ltd.evilcorp.domain.feature.CallState
+import ltd.evilcorp.domain.features.call.CallState
 
 @Composable
 fun CallScreen(
@@ -54,8 +73,8 @@ fun CallScreen(
     val currentCallState = callState
     val durationText = callDuration
 
-    val name = contact?.name?.ifEmpty { publicKey.take(ltd.evilcorp.domain.model.FINGERPRINT_LEN) }
-        ?: publicKey.take(ltd.evilcorp.domain.model.FINGERPRINT_LEN)
+    val name = contact?.name?.ifEmpty { publicKey.take(ltd.evilcorp.domain.core.model.FINGERPRINT_LEN) }
+        ?: publicKey.take(ltd.evilcorp.domain.core.model.FINGERPRINT_LEN)
 
     val statusText = when (currentCallState) {
         is CallState.OutgoingRequesting -> stringResource(R.string.call_screen_requesting)
@@ -71,7 +90,6 @@ fun CallScreen(
         publicKey = publicKey,
         contact = contact,
         name = name,
-        currentCallState = currentCallState,
         sendingAudio = sendingAudio,
         speakerphoneOn = speakerphoneOn,
         statusText = statusText,
@@ -90,7 +108,6 @@ fun CallScreenContent(
     publicKey: String,
     contact: Contact?,
     name: String,
-    currentCallState: CallState,
     sendingAudio: Boolean,
     speakerphoneOn: Boolean,
     statusText: String,
@@ -255,7 +272,7 @@ fun CallScreenContent(
                 ) {
                     Icon(
                         imageVector = micIcon,
-                        contentDescription = "Toggle Microphone",
+                        contentDescription = stringResource(R.string.microphone_control),
                         tint = micTint,
                         modifier = Modifier.size(26.dp)
                     )
@@ -297,7 +314,7 @@ fun CallScreenContent(
                 ) {
                     Icon(
                         imageVector = speakerIcon,
-                        contentDescription = "Toggle Speakerphone",
+                        contentDescription = stringResource(R.string.speakerphone_toggle),
                         tint = speakerTint,
                         modifier = Modifier.size(26.dp)
                     )
@@ -315,7 +332,6 @@ fun CallScreenOutgoingPreview() {
             publicKey = "123",
             contact = Contact(name = "Alice", publicKey = "123"),
             name = "Alice",
-            currentCallState = CallState.OutgoingRequesting(ltd.evilcorp.domain.model.PublicKey("123"), System.currentTimeMillis()),
             sendingAudio = true,
             speakerphoneOn = false,
             statusText = "Requesting...",
@@ -337,12 +353,6 @@ fun CallScreenActivePreview() {
             publicKey = "456",
             contact = Contact(name = "Bob", publicKey = "456"),
             name = "Bob",
-            currentCallState = CallState.Active(
-                ltd.evilcorp.domain.model.PublicKey("456"),
-                System.currentTimeMillis() - 10000,
-                System.currentTimeMillis() - 5000,
-                true
-            ),
             sendingAudio = true,
             speakerphoneOn = true,
             statusText = "03:45",

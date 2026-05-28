@@ -63,16 +63,21 @@ import ltd.evilcorp.atox.ui.settings.backup.BackupModuleCard
 import ltd.evilcorp.atox.ui.settings.backup.BackupFrequencyDialog
 import ltd.evilcorp.atox.ui.settings.backup.backupFrequencyTitle
 import ltd.evilcorp.atox.ui.theme.AToxMotion
-import ltd.evilcorp.domain.model.BackupDestination
-import ltd.evilcorp.domain.model.BackupFrequency
+import ltd.evilcorp.domain.features.settings.model.BackupDestination
+import ltd.evilcorp.domain.features.settings.model.BackupFrequency
 import ltd.evilcorp.atox.ui.common.AtoxPasswordField
-import ltd.evilcorp.domain.backup.BackupDataProvider
+import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
+
+private val ContentPaddingTop = 16.dp
+private val ContentPaddingBottomDefault = 32.dp
+private val HorizontalMargin = 16.dp
+private val SpacingSpacedBy = 12.dp
 
 @Suppress("FunctionNaming", "UnstableCollections", "UnusedParameter")
 @Composable
 fun BackupSettingsScreen(
     paddingValues: PaddingValues,
-    backupProviders: List<BackupDataProvider>,
+    backupProviders: List<IBackupDataProvider>,
     backupExporting: Boolean,
     backupImporting: Boolean,
     backupPasswordEnabled: Boolean,
@@ -105,14 +110,19 @@ fun BackupSettingsScreen(
     val focusManager = LocalFocusManager.current
     var showBackupFrequencyDialog by remember { mutableStateOf(false) }
 
+    val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+            .padding(horizontal = HorizontalMargin),
+        verticalArrangement = Arrangement.spacedBy(SpacingSpacedBy),
+        contentPadding = PaddingValues(
+            top = ContentPaddingTop,
+            bottom = ContentPaddingBottomDefault + bottomPadding
+        )
     ) {
         item {
             Card(

@@ -2,24 +2,24 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package ltd.evilcorp.domain.tox
+package ltd.evilcorp.domain.core.network
 
-import ltd.evilcorp.domain.tox.enums.ToxConnection
-import ltd.evilcorp.domain.tox.enums.ToxFileKind
-import ltd.evilcorp.domain.tox.enums.ToxMessageType
-import ltd.evilcorp.domain.tox.enums.ToxUserStatus
+import ltd.evilcorp.domain.core.network.enums.ToxConnection
+import ltd.evilcorp.domain.core.network.enums.ToxFileKind
+import ltd.evilcorp.domain.core.network.enums.ToxMessageType
+import ltd.evilcorp.domain.core.network.enums.ToxUserStatus
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.FileKind
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.tox.hexToBytes
-import ltd.evilcorp.domain.tox.bytesToHex
-import ltd.evilcorp.domain.tox.toToxType
-import ltd.evilcorp.domain.tox.toToxtype
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.transfer.model.FileKind
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.core.network.hexToBytes
+import ltd.evilcorp.domain.core.network.bytesToHex
+import ltd.evilcorp.domain.core.network.toToxType
+import ltd.evilcorp.domain.core.network.toToxtype
 
 private fun byteArrayOf(vararg bytes: Int) = ByteArray(bytes.size) { bytes[it].toByte() }
 

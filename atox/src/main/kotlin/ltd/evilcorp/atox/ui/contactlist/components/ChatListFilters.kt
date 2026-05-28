@@ -1,8 +1,8 @@
 package ltd.evilcorp.atox.ui.contactlist.components
 
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FriendRequest
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
 
 fun visibleChatContacts(
     contacts: List<Contact>,

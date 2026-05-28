@@ -1,6 +1,6 @@
 package ltd.evilcorp.core.tox.runtime
 
-import ltd.evilcorp.domain.model.PublicKey
+import ltd.evilcorp.domain.core.model.PublicKey
 import javax.inject.Inject
 import javax.inject.Singleton
 

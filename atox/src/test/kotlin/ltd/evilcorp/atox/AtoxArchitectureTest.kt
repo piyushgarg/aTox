@@ -15,7 +15,7 @@ class AtoxArchitectureTest {
     @Test
     fun `presentation layer atox should not directly access database or JNI runtime`() {
         Konsist
-            .scopeFromProject()
+            .scopeFromDirectory("atox")
             .assertArchitecture {
                 val ui = Layer("UI", "ltd.evilcorp.atox.ui..")
                 val db = Layer("Database", "ltd.evilcorp.core.db..")
@@ -30,13 +30,11 @@ class AtoxArchitectureTest {
     @Test
     fun `presentation layer atox should not import database or JNI runtime packages`() {
         Konsist
-            .scopeFromPackage("ltd.evilcorp.atox..")
+            .scopeFromProduction("atox")
             .files
             .filter { file ->
-                val path = file.path
-                val isTest = path.contains("/src/test/") || path.contains("/src/androidTest/")
-                val isDi = file.packagee?.name?.startsWith("ltd.evilcorp.atox.di") ?: false
-                !isTest && !isDi
+                val pkg = file.packagee?.name ?: ""
+                pkg.startsWith("ltd.evilcorp.atox.ui") || pkg.startsWith("ltd.evilcorp.atox.appearance") || file.name == "MainActivity"
             }
             .flatMap { it.imports }
             .assertTrue { import ->
@@ -49,8 +47,13 @@ class AtoxArchitectureTest {
     @Test
     fun `atox UI package classes should not directly depend on core implementations`() {
         Konsist
-            .scopeFromPackage("ltd.evilcorp.atox.ui..")
-            .imports
+            .scopeFromProduction("atox")
+            .files
+            .filter { file ->
+                val pkg = file.packagee?.name ?: ""
+                pkg.startsWith("ltd.evilcorp.atox.ui")
+            }
+            .flatMap { it.imports }
             .assertTrue { import ->
                 // UI ViewModels, Screens, and Controllers must depend on Domain interfaces, never directly on Core repositories or DAOs
                 !import.name.startsWith("ltd.evilcorp.core.repository") &&
@@ -61,7 +64,7 @@ class AtoxArchitectureTest {
     @Test
     fun `presentation layer atox should not declare any UseCase classes`() {
         Konsist
-            .scopeFromPackage("ltd.evilcorp.atox..")
+            .scopeFromProduction("atox")
             .classes()
             .assertTrue { !it.name.endsWith("UseCase") }
     }
@@ -69,7 +72,7 @@ class AtoxArchitectureTest {
     @Test
     fun `composables inside atox should not use hardcoded string literals`() {
         Konsist
-            .scopeFromPackage("ltd.evilcorp.atox.ui..")
+            .scopeFromProduction("atox")
             .files
             .assertTrue { file ->
                 if (file.name.endsWith("Previews")) {

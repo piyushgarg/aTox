@@ -17,8 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.Message
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.Message
 
 @Composable
 fun FileTransferBubble(

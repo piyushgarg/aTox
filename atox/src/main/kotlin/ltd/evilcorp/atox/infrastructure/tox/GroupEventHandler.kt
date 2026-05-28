@@ -5,11 +5,11 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import ltd.evilcorp.domain.tox.enums.ToxGroupExitType
-import ltd.evilcorp.domain.tox.enums.ToxGroupJoinFail
-import ltd.evilcorp.domain.tox.enums.ToxGroupModEvent
-import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.domain.tox.enums.ToxMessageType
+import ltd.evilcorp.domain.core.network.enums.ToxGroupExitType
+import ltd.evilcorp.domain.core.network.enums.ToxGroupJoinFail
+import ltd.evilcorp.domain.core.network.enums.ToxGroupModEvent
+import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.core.network.enums.ToxMessageType
 
 @Singleton
 class GroupEventHandler @Inject constructor() {
@@ -50,7 +50,7 @@ class GroupEventHandler @Inject constructor() {
         _groupEvents.tryEmit(GroupJniEvent.GroupPassword(groupNo, password))
     }
 
-    fun onGroupPeerStatus(groupNo: Int, peerId: Int, status: ltd.evilcorp.domain.tox.enums.ToxUserStatus) {
+    fun onGroupPeerStatus(groupNo: Int, peerId: Int, status: ltd.evilcorp.domain.core.network.enums.ToxUserStatus) {
         _groupEvents.tryEmit(GroupJniEvent.GroupPeerStatus(groupNo, peerId, status))
     }
 
@@ -58,11 +58,11 @@ class GroupEventHandler @Inject constructor() {
         _groupEvents.tryEmit(GroupJniEvent.GroupPrivacyStateChanged(groupNo, privacyState))
     }
 
-    fun onGroupVoiceState(groupNo: Int, voiceState: ltd.evilcorp.domain.tox.enums.ToxGroupVoiceState) {
+    fun onGroupVoiceState(groupNo: Int, voiceState: ltd.evilcorp.domain.core.network.enums.ToxGroupVoiceState) {
         _groupEvents.tryEmit(GroupJniEvent.GroupVoiceState(groupNo, voiceState))
     }
 
-    fun onGroupTopicLock(groupNo: Int, topicLock: ltd.evilcorp.domain.tox.enums.ToxGroupTopicLock) {
+    fun onGroupTopicLock(groupNo: Int, topicLock: ltd.evilcorp.domain.core.network.enums.ToxGroupTopicLock) {
         _groupEvents.tryEmit(GroupJniEvent.GroupTopicLock(groupNo, topicLock))
     }
 

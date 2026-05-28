@@ -32,10 +32,9 @@ import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.groupchat.JoinGroupScreen
-import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
-import ltd.evilcorp.atox.ui.navigation.AppBarConfig
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
-import ltd.evilcorp.domain.model.FileTransfer
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.atox.ui.theme.AToxMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.groupGraph(
@@ -46,114 +45,57 @@ fun NavGraphBuilder.groupGraph(
     onOpenFile: (FileTransfer) -> Unit,
     systemSoundPlayer: SystemSoundPlayer,
 ) {
-    composable<AppRoutes.CreateGroup> {
-        val context = LocalContext.current
-        val containerColor = MaterialTheme.colorScheme.surfaceContainer
-        val createGroupRouteName = AppRoutes.CreateGroup::class.qualifiedName!!
-
-        LaunchedEffect(Unit) {
-            AppBarStateHolder.register(
-                route = createGroupRouteName,
-                cfg = AppBarConfig(
-                    title = {
-                        Text(
-                            text = context.getString(R.string.create_group),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        Box(modifier = Modifier.padding(start = 4.dp)) {
-                            MorphingNavigationIcon(
-                                isBack = true,
-                                onClick = { navController.popBackStack() }
-                            )
-                        }
-                    },
-                    containerColor = containerColor
-                )
-            )
-        }
-
-        DisposableEffect(Unit) {
-            onDispose {
-                AppBarStateHolder.unregister(createGroupRouteName)
-            }
-        }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            val groupListViewModel: GroupListViewModel = hiltViewModel()
-            CreateGroupScreen(
-                onBack = { navController.popBackStack() },
-                isCreatingState = groupListViewModel.isCreating,
-                onCreateGroup = { name, privacyState, password ->
-                    val num = groupListViewModel.createGroup(name, privacyState, password)
-                    if (num >= 0) {
-                        navController.popBackStack()
-                        true
-                    } else {
-                        false
-                    }
+    composable<AppRoutes.CreateGroup>(
+        enterTransition = { AToxMotion.slideXEnter(forward = true) },
+        exitTransition = { AToxMotion.slideXExit(forward = true) },
+        popEnterTransition = { AToxMotion.slideXEnter(forward = false) },
+        popExitTransition = { AToxMotion.slideXExit(forward = false) }
+    ) {
+        val groupListViewModel: GroupListViewModel = hiltViewModel()
+        CreateGroupScreen(
+            onBack = { navController.popBackStack() },
+            isCreatingState = groupListViewModel.isCreating,
+            onCreateGroup = { name, privacyState, password ->
+                val num = groupListViewModel.createGroup(name, privacyState, password)
+                if (num >= 0) {
+                    navController.popBackStack()
+                    true
+                } else {
+                    false
                 }
-            )
-        }
+            }
+        )
     }
 
-    composable<AppRoutes.JoinGroup> {
-        val context = LocalContext.current
-        val containerColor = MaterialTheme.colorScheme.surfaceContainer
-        val joinGroupRouteName = AppRoutes.JoinGroup::class.qualifiedName!!
-
-        LaunchedEffect(Unit) {
-            AppBarStateHolder.register(
-                route = joinGroupRouteName,
-                cfg = AppBarConfig(
-                    title = {
-                        Text(
-                            text = context.getString(R.string.join_group),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        Box(modifier = Modifier.padding(start = 4.dp)) {
-                            MorphingNavigationIcon(
-                                isBack = true,
-                                onClick = { navController.popBackStack() }
-                            )
-                        }
-                    },
-                    containerColor = containerColor
-                )
-            )
-        }
-
-        DisposableEffect(Unit) {
-            onDispose {
-                AppBarStateHolder.unregister(joinGroupRouteName)
-            }
-        }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            val groupListViewModel: GroupListViewModel = hiltViewModel()
-            JoinGroupScreen(
-                onBack = { navController.popBackStack() },
-                isJoiningState = groupListViewModel.isJoining,
-                onValidateChatId = { groupListViewModel.validateChatId(it) },
-                onJoinGroup = { chatIdHex, password ->
-                    val num = groupListViewModel.joinByChatId(chatIdHex, password)
-                    if (num >= 0) {
-                        navController.popBackStack()
-                        true
-                    } else {
-                        false
-                    }
+    composable<AppRoutes.JoinGroup>(
+        enterTransition = { AToxMotion.slideXEnter(forward = true) },
+        exitTransition = { AToxMotion.slideXExit(forward = true) },
+        popEnterTransition = { AToxMotion.slideXEnter(forward = false) },
+        popExitTransition = { AToxMotion.slideXExit(forward = false) }
+    ) {
+        val groupListViewModel: GroupListViewModel = hiltViewModel()
+        JoinGroupScreen(
+            onBack = { navController.popBackStack() },
+            isJoiningState = groupListViewModel.isJoining,
+            onValidateChatId = { groupListViewModel.validateChatId(it) },
+            onJoinGroup = { chatIdHex, password ->
+                val num = groupListViewModel.joinByChatId(chatIdHex, password)
+                if (num >= 0) {
+                    navController.popBackStack()
+                    true
+                } else {
+                    false
                 }
-            )
-        }
+            }
+        )
     }
 
-    composable<AppRoutes.GroupChat> { backStackEntry ->
+    composable<AppRoutes.GroupChat>(
+        enterTransition = { AToxMotion.slideXEnter(forward = true) },
+        exitTransition = { AToxMotion.slideXExit(forward = true) },
+        popEnterTransition = { AToxMotion.slideXEnter(forward = false) },
+        popExitTransition = { AToxMotion.slideXExit(forward = false) }
+    ) { backStackEntry ->
         val context = LocalContext.current
         val groupChatRoute = backStackEntry.toRoute<AppRoutes.GroupChat>()
         val chatIdStr = groupChatRoute.chatId
@@ -204,6 +146,7 @@ fun NavGraphBuilder.groupGraph(
             onSaveAsClick = { ftId, dest -> viewModel.saveFt(ftId, android.net.Uri.parse(dest)) },
             onOpenFile = onOpenFile,
             onLeaveGroup = { viewModel.leaveGroup() },
+            voiceRecorder = viewModel.voiceRecorder,
             onCopyInvite = {
                 val id = viewModel.getChatId() ?: ""
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager

@@ -15,8 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 
 @Composable
 fun DateFormatSettingsDialog(

@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.common.formatChatTime
-import ltd.evilcorp.domain.model.Message
+import ltd.evilcorp.domain.features.chat.model.Message
 
 @Composable
 fun rememberParsedSystemEvent(message: String): String {

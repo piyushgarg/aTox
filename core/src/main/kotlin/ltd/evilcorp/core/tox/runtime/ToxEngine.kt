@@ -2,10 +2,11 @@ package ltd.evilcorp.core.tox.runtime
 
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import ltd.evilcorp.domain.tox.bootstrap.BootstrapNodeRegistry
+import ltd.evilcorp.domain.core.network.bootstrap.IBootstrapNodeRegistry
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.collections.forEach as kForEach
@@ -18,7 +19,7 @@ private const val RECOVERY_DELAY_MS = 1000L
 @Singleton
 class ToxEngine @Inject constructor(
     private val scope: CoroutineScope,
-    private val nodeRegistry: BootstrapNodeRegistry,
+    private val nodeRegistry: IBootstrapNodeRegistry,
 ) {
     private var running = false
     private var toxAvRunning = false
@@ -31,7 +32,7 @@ class ToxEngine @Inject constructor(
         running = true
         isBootstrapNeeded = true
 
-        iterateJob = scope.launch {
+        iterateJob = scope.launch(Dispatchers.IO) {
             while (running || toxAvRunning) {
                 try {
                     if (isBootstrapNeeded) {
@@ -59,7 +60,7 @@ class ToxEngine @Inject constructor(
             onStopped()
         }
 
-        iterateAvJob = scope.launch {
+        iterateAvJob = scope.launch(Dispatchers.IO) {
             toxAvRunning = true
             while (running) {
                 try {
@@ -80,7 +81,7 @@ class ToxEngine @Inject constructor(
 
     fun isRunning(): Boolean = running || toxAvRunning
 
-    private fun bootstrap(toxWrapper: ToxWrapper) {
+    private suspend fun bootstrap(toxWrapper: ToxWrapper) {
         nodeRegistry.get(BOOTSTRAP_NODES_COUNT).kForEach { node ->
             Log.i(TAG, "Bootstrapping from $node")
             toxWrapper.bootstrap(node.address, node.port, node.publicKey.bytes())

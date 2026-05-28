@@ -12,7 +12,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
-import ltd.evilcorp.domain.feature.ISettingsFileProcessor
+import ltd.evilcorp.domain.features.settings.ISettingsFileProcessor
 
 class AndroidSettingsFileProcessor @Inject constructor(
     private val context: Context,

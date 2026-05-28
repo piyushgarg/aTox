@@ -11,7 +11,7 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.chat.components.CallHistoryCard
 import ltd.evilcorp.atox.ui.common.formatChatTime
-import ltd.evilcorp.domain.model.Message
+import ltd.evilcorp.domain.features.chat.model.Message
 
 @Composable
 fun CallHistoryBubble(

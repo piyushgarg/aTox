@@ -7,8 +7,8 @@ package ltd.evilcorp.atox.ui.common.chat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.Message
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.Message
 
 @Composable
 fun VoiceMessageBubble(

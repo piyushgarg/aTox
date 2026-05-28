@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
+import ltd.evilcorp.domain.core.network.ITox
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +25,8 @@ sealed interface UnlockUiState {
     object Success : UnlockUiState
 }
 
+private const val LOAD_TIMEOUT_MS = 10_000L
+
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val tox: ITox,
@@ -42,9 +44,13 @@ class AuthViewModel @Inject constructor(
     }
 
     suspend fun loadToxAsync(password: String?) {
+        if (tox.started) {
+            launchState.value = LaunchUiState.Success(ToxSaveStatus.Ok)
+            return
+        }
         launchState.value = LaunchUiState.Loading
         try {
-            withTimeout(10_000L) {
+            withTimeout(LOAD_TIMEOUT_MS) {
                 val result = withContext(Dispatchers.IO) {
                     toxStarter.tryLoadTox(password)
                 }

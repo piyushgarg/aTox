@@ -1,45 +1,36 @@
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
 package ltd.evilcorp.atox.di
 
 import android.content.Context
 import dagger.Module
 import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import ltd.evilcorp.atox.infrastructure.tox.AndroidBootstrapNodeJsonSource
+import kotlinx.coroutines.SupervisorJob
 import ltd.evilcorp.atox.infrastructure.backup.CallLogBackupDataProvider
 import ltd.evilcorp.atox.infrastructure.backup.ChatHistoryBackupDataProvider
 import ltd.evilcorp.atox.infrastructure.backup.ContactsBackupDataProvider
 import ltd.evilcorp.atox.infrastructure.backup.FileTransferHistoryBackupDataProvider
 import ltd.evilcorp.atox.infrastructure.backup.ToxCoreBackupDataProvider
 import ltd.evilcorp.atox.infrastructure.backup.TransferredFilesBackupDataProvider
-import ltd.evilcorp.domain.tox.bootstrap.BootstrapNodeRegistry
-import ltd.evilcorp.domain.tox.bootstrap.BootstrapNodeJsonSource
-import ltd.evilcorp.domain.tox.bootstrap.DefaultBootstrapNodeRegistry
-import ltd.evilcorp.core.tox.save.AndroidSaveManager
-import ltd.evilcorp.core.tox.save.SaveManager
-import ltd.evilcorp.domain.backup.BackupDataProvider
-import ltd.evilcorp.domain.av.IAudioRecorder
-import ltd.evilcorp.core.av.CallAudioRecorder
-import ltd.evilcorp.domain.media.ICallSignalPlayer
-import ltd.evilcorp.core.media.CallSignalPlayer
-
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
+import ltd.evilcorp.core.tox.save.AndroidSaveManagerImpl
+import ltd.evilcorp.domain.core.network.save.ISaveManager
+import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 
 @Module
 @InstallIn(SingletonComponent::class)
 class AppModule {
-    @Provides
-    fun provideBootstrapNodeRegistry(nodeRegistry: DefaultBootstrapNodeRegistry): BootstrapNodeRegistry = nodeRegistry
 
     @Provides
-    fun provideBootstrapNodeJsonSource(source: AndroidBootstrapNodeJsonSource): BootstrapNodeJsonSource = source
+    fun provideCoroutineScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Provides
-    fun provideCoroutineScope(): CoroutineScope = CoroutineScope(Dispatchers.Default)
-
-    @Provides
-    fun provideSaveManager(ctx: Context): SaveManager = AndroidSaveManager(ctx)
+    fun provideSaveManager(ctx: Context): ISaveManager = AndroidSaveManagerImpl(ctx)
 
     @Provides
     fun provideBackupDataProviders(
@@ -49,7 +40,7 @@ class AppModule {
         callLog: CallLogBackupDataProvider,
         fileTransferHistory: FileTransferHistoryBackupDataProvider,
         transferredFiles: TransferredFilesBackupDataProvider,
-    ): List<BackupDataProvider> = listOf(
+    ): List<IBackupDataProvider> = listOf(
         toxCore,
         contacts,
         chatHistory,
@@ -57,65 +48,4 @@ class AppModule {
         fileTransferHistory,
         transferredFiles,
     )
-
-    @Provides
-    fun provideFileExporter(exporter: ltd.evilcorp.atox.ui.chat.AndroidFileExporter): ltd.evilcorp.atox.ui.chat.FileExporter = exporter
-
-    @Provides
-    fun provideSettingsFileProcessor(processor: ltd.evilcorp.atox.ui.settings.AndroidSettingsFileProcessor): ltd.evilcorp.domain.feature.ISettingsFileProcessor = processor
-
-    @Provides
-    fun provideProximityManager(manager: ltd.evilcorp.atox.infrastructure.service.AndroidProximityManager): ltd.evilcorp.domain.feature.ProximityManager = manager
-
-    @Provides
-    fun provideNotificationManager(manager: ltd.evilcorp.atox.ui.AndroidNotificationManager): ltd.evilcorp.domain.feature.NotificationManager = manager
-
-    @Provides
-    fun provideProfileBackupProcessor(processor: ltd.evilcorp.atox.ui.createprofile.AndroidProfileBackupProcessor): ltd.evilcorp.atox.ui.createprofile.ProfileBackupProcessor = processor
-
-    @Provides
-    fun provideNotificationHelper(helper: ltd.evilcorp.atox.ui.NotificationHelper): ltd.evilcorp.domain.feature.INotificationHelper = helper
-
-    @Provides
-    fun provideToxStarter(starter: ltd.evilcorp.atox.infrastructure.tox.ToxStarter): ltd.evilcorp.domain.tox.IToxStarter = starter
-
-    @Provides
-    fun provideTox(impl: ltd.evilcorp.core.tox.Tox): ltd.evilcorp.domain.tox.ITox = impl
-
-    @Provides
-    fun provideAudioRoutingManager(manager: ltd.evilcorp.atox.infrastructure.media.AudioRoutingManager): ltd.evilcorp.domain.feature.IAudioRoutingManager = manager
-
-    @Provides
-    fun provideFileTransferPlatformHelper(impl: ltd.evilcorp.core.repository.FileTransferPlatformHelperImpl): ltd.evilcorp.domain.feature.IFileTransferPlatformHelper = impl
-
-    @Provides
-    fun provideToxSaveTester(tester: ltd.evilcorp.core.tox.save.ToxSaveTesterImpl): ltd.evilcorp.domain.tox.save.IToxSaveTester = tester
-
-    @Provides
-    fun provideProfileDeleter(deleter: ltd.evilcorp.core.repository.ProfileDeleterImpl): ltd.evilcorp.domain.usecase.IProfileDeleter = deleter
-
-    @Provides
-    fun provideChatHistoryBackupHelper(impl: ltd.evilcorp.core.backup.ChatHistoryBackupHelperImpl): ltd.evilcorp.domain.backup.IChatHistoryBackupHelper = impl
-
-    @Provides
-    fun provideContactsBackupHelper(impl: ltd.evilcorp.core.backup.ContactsBackupHelperImpl): ltd.evilcorp.domain.backup.IContactsBackupHelper = impl
-
-    @Provides
-    fun provideFileTransferBackupHelper(impl: ltd.evilcorp.core.backup.FileTransferBackupHelperImpl): ltd.evilcorp.domain.backup.IFileTransferBackupHelper = impl
-
-    @Provides
-    fun provideTimeProvider(impl: ltd.evilcorp.core.time.SystemTimeProvider): ltd.evilcorp.domain.feature.TimeProvider = impl
-
-    @Provides
-    fun provideAudioRecorder(recorder: CallAudioRecorder): IAudioRecorder = recorder
-
-    @Provides
-    fun provideCallSignalPlayer(player: CallSignalPlayer): ICallSignalPlayer = player
-
-    @Provides
-    fun provideGroupConnectionScheduler(scheduler: ltd.evilcorp.core.tox.GroupConnectionScheduler): ltd.evilcorp.domain.feature.IGroupConnectionScheduler = scheduler
-
-    @Provides
-    fun provideFileStorageHelper(impl: ltd.evilcorp.core.util.JVMFileStorageHelper): ltd.evilcorp.domain.feature.IFileStorageHelper = impl
 }
-

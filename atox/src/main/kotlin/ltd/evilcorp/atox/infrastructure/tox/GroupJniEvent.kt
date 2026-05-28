@@ -1,14 +1,14 @@
 package ltd.evilcorp.atox.infrastructure.tox
 
-import ltd.evilcorp.domain.tox.enums.ToxGroupExitType
-import ltd.evilcorp.domain.tox.enums.ToxGroupJoinFail
-import ltd.evilcorp.domain.tox.enums.ToxGroupModEvent
-import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.domain.tox.enums.ToxGroupRole
-import ltd.evilcorp.domain.tox.enums.ToxMessageType
-import ltd.evilcorp.domain.tox.enums.ToxUserStatus
-import ltd.evilcorp.domain.tox.enums.ToxGroupVoiceState
-import ltd.evilcorp.domain.tox.enums.ToxGroupTopicLock
+import ltd.evilcorp.domain.core.network.enums.ToxGroupExitType
+import ltd.evilcorp.domain.core.network.enums.ToxGroupJoinFail
+import ltd.evilcorp.domain.core.network.enums.ToxGroupModEvent
+import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
+import ltd.evilcorp.domain.core.network.enums.ToxMessageType
+import ltd.evilcorp.domain.core.network.enums.ToxUserStatus
+import ltd.evilcorp.domain.core.network.enums.ToxGroupVoiceState
+import ltd.evilcorp.domain.core.network.enums.ToxGroupTopicLock
 
 sealed interface GroupJniEvent {
     data class GroupInvite(val friendNo: Int, val inviteData: ByteArray, val groupName: String) : GroupJniEvent {

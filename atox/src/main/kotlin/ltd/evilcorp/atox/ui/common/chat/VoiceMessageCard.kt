@@ -4,7 +4,17 @@
 
 package ltd.evilcorp.atox.ui.common.chat
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -13,8 +23,21 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Done
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,11 +51,15 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.common.formatChatTime
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.isComplete
-import ltd.evilcorp.domain.model.isStarted
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.Sender
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.transfer.model.isComplete
+import ltd.evilcorp.domain.features.transfer.model.isStarted
+import ltd.evilcorp.domain.features.chat.model.Message
+
+private const val TAG = "VoiceMessageCard"
+private const val PLAYBACK_DELAY_MS = 100L
+private const val MILLIS_IN_SECOND = 1000
+private const val SECONDS_IN_MINUTE = 60
 
 @Suppress("CyclomaticComplexMethod")
 @Composable
@@ -99,7 +126,7 @@ fun VoiceMessageCard(
                         duration = durMs
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e(TAG, "Failed to extract media duration", e)
                 }
             }
         }
@@ -113,7 +140,7 @@ fun VoiceMessageCard(
                     val dur = mediaPlayer?.duration ?: 1
                     playbackProgress = pos.toFloat() / dur.toFloat()
                     currentPosition = pos
-                    delay(100)
+                    delay(PLAYBACK_DELAY_MS)
                 } catch (e: Exception) {
                     break
                 }
@@ -166,7 +193,7 @@ fun VoiceMessageCard(
                         }
                         mediaPlayer = mp
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        android.util.Log.e(TAG, "Failed to play voice message", e)
                         Toast.makeText(context, "Не удалось воспроизвести аудиофайл", Toast.LENGTH_SHORT).show()
                         mediaPlayer?.release()
                         mediaPlayer = null
@@ -333,8 +360,8 @@ fun VoiceMessageCard(
 }
 
 private fun formatDuration(ms: Int): String {
-    val totalSecs = ms / 1000
-    val mins = totalSecs / 60
-    val secs = totalSecs % 60
+    val totalSecs = ms / MILLIS_IN_SECOND
+    val mins = totalSecs / SECONDS_IN_MINUTE
+    val secs = totalSecs % SECONDS_IN_MINUTE
     return String.format(java.util.Locale.US, "%d:%02d", mins, secs)
 }

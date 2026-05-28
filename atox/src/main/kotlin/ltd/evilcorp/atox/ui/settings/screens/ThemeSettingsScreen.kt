@@ -23,6 +23,11 @@ import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.SettingsRadioGroupCard
 
+private val ContentPaddingTop = 16.dp
+private val ContentPaddingBottomDefault = 32.dp
+private val HorizontalMargin = 16.dp
+private val SpacingSpacedBy = 16.dp
+
 @Suppress("FunctionNaming")
 @Composable
 fun ThemeSettingsScreen(
@@ -37,14 +42,19 @@ fun ThemeSettingsScreen(
         androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES to stringResource(R.string.pref_theme_dark)
     )
 
+    val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),
+            .padding(horizontal = HorizontalMargin),
+        verticalArrangement = Arrangement.spacedBy(SpacingSpacedBy),
+        contentPadding = PaddingValues(
+            top = ContentPaddingTop,
+            bottom = ContentPaddingBottomDefault + bottomPadding
+        ),
     ) {
         item {
             SettingsRadioGroupCard(

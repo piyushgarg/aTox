@@ -6,6 +6,5 @@
     <ID>ComplexInterface:GroupDao.kt$GroupDao</ID>
     <ID>ComplexInterface:GroupPeerDao.kt$GroupPeerDao</ID>
     <ID>ComplexInterface:MessageDao.kt$MessageDao</ID>
-    <ID>MagicNumber:UserSettingsRepository.kt$UserSettingsRepository$100</ID>
   </CurrentIssues>
 </SmellBaseline>

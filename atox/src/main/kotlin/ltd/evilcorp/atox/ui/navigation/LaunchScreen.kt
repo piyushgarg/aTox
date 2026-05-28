@@ -54,7 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import android.content.Context
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.navigation.AuthViewModel
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 import ltd.evilcorp.atox.ui.navigation.components.UnlockScreenContent
 
 @Composable

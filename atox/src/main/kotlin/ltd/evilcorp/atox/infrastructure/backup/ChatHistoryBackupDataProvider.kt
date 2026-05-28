@@ -2,39 +2,39 @@ package ltd.evilcorp.atox.infrastructure.backup
 
 import javax.inject.Inject
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.backup.BackupDataProvider
-import ltd.evilcorp.domain.backup.IChatHistoryBackupHelper
-import ltd.evilcorp.domain.model.Message
+import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
+import ltd.evilcorp.domain.features.backup.repository.IChatHistoryBackupHelper
+import ltd.evilcorp.domain.features.chat.model.Message
 import org.json.JSONArray
 import org.json.JSONObject
 
 class ChatHistoryBackupDataProvider @Inject constructor(
     private val helper: IChatHistoryBackupHelper,
-) : BackupDataProvider {
+) : IBackupDataProvider {
     override val id: String = "chat_history"
     override val displayNameRes: Int = R.string.backup_module_chat_history
     override val descriptionRes: Int = R.string.backup_module_chat_history_description
 
-    override fun serialize(): ByteArray = serializeMessages(helper.serializeChatHistory())
+    override suspend fun serialize(): ByteArray = serializeMessages(helper.serializeChatHistory())
 
-    override fun deserialize(data: ByteArray) {
+    override suspend fun deserialize(data: ByteArray) {
         helper.deserializeChatHistory(parseMessages(data))
     }
 }
 
 class CallLogBackupDataProvider @Inject constructor(
     private val helper: IChatHistoryBackupHelper,
-) : BackupDataProvider {
+) : IBackupDataProvider {
     override val id: String = "call_log"
     override val displayNameRes: Int = R.string.backup_module_call_log
     override val descriptionRes: Int = R.string.backup_module_call_log_description
 
-    override fun serialize(): ByteArray {
+    override suspend fun serialize(): ByteArray {
         val callMessages = helper.serializeCallLog()
         return serializeMessages(callMessages)
     }
 
-    override fun deserialize(data: ByteArray) {
+    override suspend fun deserialize(data: ByteArray) {
         helper.deserializeCallLog(parseMessages(data))
     }
 }

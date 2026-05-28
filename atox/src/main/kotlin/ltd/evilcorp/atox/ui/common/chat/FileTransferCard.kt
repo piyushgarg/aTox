@@ -4,6 +4,7 @@
 
 package ltd.evilcorp.atox.ui.common.chat
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.content.ContentResolver
@@ -18,7 +19,18 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
@@ -27,7 +39,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,11 +56,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.isComplete
-import ltd.evilcorp.domain.model.isRejected
-import ltd.evilcorp.domain.model.isStarted
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.transfer.model.isComplete
+import ltd.evilcorp.domain.features.transfer.model.isRejected
+import ltd.evilcorp.domain.features.transfer.model.isStarted
+
+private const val REQ_IMAGE_SIZE = 512
+private const val MAX_WIDTH_DP = 260
+private const val THUMBNAIL_ROUNDED_CORNER = 8
 
 @Composable
 fun FileTransferCard(
@@ -107,9 +127,9 @@ fun FileTransferCard(
                             inJustDecodeBounds = true
                         }
                         BitmapFactory.decodeByteArray(tempBytes, 0, tempBytes.size, options)
- 
-                        val reqWidth = 512
-                        val reqHeight = 512
+
+                        val reqWidth = REQ_IMAGE_SIZE
+                        val reqHeight = REQ_IMAGE_SIZE
                         var inSampleSize = 1
                         if (options.outHeight > reqHeight || options.outWidth > reqWidth) {
                             val halfHeight = options.outHeight / 2
@@ -118,14 +138,14 @@ fun FileTransferCard(
                                 inSampleSize *= 2
                             }
                         }
- 
+
                         val decodeOptions = BitmapFactory.Options().apply {
                             this.inSampleSize = inSampleSize
                         }
                         BitmapFactory.decodeByteArray(tempBytes, 0, tempBytes.size, decodeOptions)?.asImageBitmap()
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e("FileTransferCard", "Failed to decode image preview", e)
                     null
                 }
             }
@@ -134,36 +154,25 @@ fun FileTransferCard(
 
     Column(
         modifier = Modifier
-            .widthIn(max = 260.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .widthIn(max = MAX_WIDTH_DP.dp)
+            .clip(RoundedCornerShape(THUMBNAIL_ROUNDED_CORNER.dp))
             .clickable(enabled = isLocalReady && !isRejected) { onOpenFile(ft) }
             .padding(vertical = 4.dp)
     ) {
-        if (isComplete && isImage && imageBitmap != null) {
-            Image(
-                bitmap = imageBitmap!!,
-                contentDescription = ft.fileName,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 160.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .padding(bottom = 6.dp)
-            )
-        }
+        FileImageThumbnail(
+            isComplete = isComplete,
+            isImage = isImage,
+            imageBitmap = imageBitmap,
+            fileName = ft.fileName
+        )
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                imageVector = when {
-                    isRejected -> Icons.Default.ErrorOutline
-                    isLocalReady -> Icons.AutoMirrored.Filled.InsertDriveFile
-                    else -> Icons.AutoMirrored.Filled.InsertDriveFile
-                },
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(36.dp)
+            FileTransferStatusIcon(
+                isRejected = isRejected,
+                isLocalReady = isLocalReady,
+                contentColor = contentColor
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -175,176 +184,45 @@ fun FileTransferCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = when {
-                        isRejected -> stringResource(R.string.ft_status_canceled)
-                        isLocalReady -> {
-                            val status = if (isOutgoing) stringResource(R.string.ft_status_sent) else stringResource(R.string.ft_status_received)
-                            "${formatSize(context, ft.fileSize)} • $status"
-                        }
-                        !isStarted -> {
-                            if (isOutgoing) stringResource(R.string.ft_status_waiting) 
-                            else stringResource(R.string.ft_status_incoming, formatSize(context, ft.fileSize))
-                        }
-                        else -> stringResource(R.string.ft_status_progress, formatSize(context, ft.progress), formatSize(context, ft.fileSize))
-                    },
-                    fontSize = 11.sp,
-                    color = contentColor.copy(alpha = 0.7f)
+                FileTransferStatusText(
+                    isRejected = isRejected,
+                    isLocalReady = isLocalReady,
+                    isStarted = isStarted,
+                    isOutgoing = isOutgoing,
+                    fileSize = ft.fileSize,
+                    progress = ft.progress,
+                    context = context,
+                    contentColor = contentColor
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
 
-            when {
-                isRejected -> {
-                    IconButton(
-                        onClick = {
-                            onHaptic()
-                            onCancelFt(msg)
-                        },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Delete",
-                            tint = contentColor.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                !isStarted -> {
-                    if (isOutgoing) {
-                        IconButton(
-                            onClick = {
-                                onHaptic()
-                                onCancelFt(msg)
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cancel",
-                                tint = contentColor.copy(alpha = 0.7f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    } else {
-                        Row {
-                            IconButton(
-                                onClick = {
-                                    onHaptic()
-                                    onRejectFt(ft.id)
-                                },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Decline",
-                                    tint = contentColor.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            IconButton(
-                                onClick = {
-                                    onHaptic()
-                                    onAcceptFt(ft.id)
-                                },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.FileDownload,
-                                    contentDescription = "Accept",
-                                    tint = contentColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                !isComplete -> {
-                    IconButton(
-                        onClick = {
-                            onHaptic()
-                            onRejectFt(ft.id)
-                        },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cancel",
-                            tint = contentColor.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                isComplete -> {
-                    val isAlreadySaved = ft.destination.startsWith("content://") || isOutgoing
-                    if (isAlreadySaved) {
-                        Box(
-                            modifier = Modifier.size(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = stringResource(R.string.saved),
-                                tint = contentColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    } else {
-                        IconButton(
-                            onClick = {
-                                onHaptic()
-                                onSaveAsClick(ft.id, ft.fileName)
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FileDownload,
-                                contentDescription = "Save As",
-                                tint = contentColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!isComplete && isStarted && !isRejected) {
-            Spacer(modifier = Modifier.height(8.dp))
-            val progressFraction = if (ft.fileSize > 0) ft.progress.toFloat() / ft.fileSize.toFloat() else 0f
-            LinearProgressIndicator(
-                progress = { progressFraction },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                color = if (isOutgoing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
-                trackColor = contentColor.copy(alpha = 0.2f)
+            FileTransferActionButtons(
+                isRejected = isRejected,
+                isStarted = isStarted,
+                isComplete = isComplete,
+                isOutgoing = isOutgoing,
+                id = ft.id,
+                fileName = ft.fileName,
+                destination = ft.destination,
+                msg = msg,
+                onHaptic = onHaptic,
+                onAcceptFt = onAcceptFt,
+                onRejectFt = onRejectFt,
+                onCancelFt = onCancelFt,
+                onSaveAsClick = onSaveAsClick,
+                contentColor = contentColor
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "${(progressFraction * 100).toInt()}%",
-                    fontSize = 10.sp,
-                    color = contentColor.copy(alpha = 0.7f)
-                )
-            }
         }
-    }
-}
 
-private fun formatSize(context: android.content.Context, size: Long): String {
-    if (size <= 0) return "0 ${context.getString(R.string.size_bytes)}"
-    val units = arrayOf(
-        context.getString(R.string.size_bytes),
-        context.getString(R.string.size_kb),
-        context.getString(R.string.size_mb),
-        context.getString(R.string.size_gb)
-    )
-    val digitGroups = (Math.log10(size.toDouble()) / Math.log10(1024.0)).toInt()
-    return java.text.DecimalFormat("#,##0.#").format(size / Math.pow(1024.0, digitGroups.toDouble())) + " " + units[digitGroups]
+        FileTransferProgress(
+            isComplete = isComplete,
+            isStarted = isStarted,
+            isRejected = isRejected,
+            isOutgoing = isOutgoing,
+            progress = ft.progress,
+            fileSize = ft.fileSize,
+            contentColor = contentColor
+        )
+    }
 }

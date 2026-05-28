@@ -1,8 +1,24 @@
 package ltd.evilcorp.atox.ui.chat
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -16,12 +32,36 @@ import androidx.compose.material.icons.filled.CallMade
 import androidx.compose.material.icons.filled.CallReceived
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhoneMissed
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -50,11 +90,11 @@ import ltd.evilcorp.atox.ui.common.formatPresenceText
 import ltd.evilcorp.atox.ui.theme.StatusAvailable
 import ltd.evilcorp.atox.ui.theme.StatusAway
 import ltd.evilcorp.atox.ui.theme.StatusBusy
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.Sender
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.Sender
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
@@ -78,24 +118,24 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Error
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.FT_NOT_STARTED
-import ltd.evilcorp.domain.model.FT_REJECTED
-import ltd.evilcorp.domain.model.isComplete
-import ltd.evilcorp.domain.model.isStarted
-import ltd.evilcorp.domain.model.isRejected
-import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.transfer.model.FT_NOT_STARTED
+import ltd.evilcorp.domain.features.transfer.model.FT_REJECTED
+import ltd.evilcorp.domain.features.transfer.model.isComplete
+import ltd.evilcorp.domain.features.transfer.model.isStarted
+import ltd.evilcorp.domain.features.transfer.model.isRejected
+import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.atox.ui.common.chat.ChatScreenContent
 import ltd.evilcorp.atox.ui.common.chat.MessageBubbleConfig
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
-import ltd.evilcorp.atox.ui.navigation.AppBarConfig
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
-import ltd.evilcorp.atox.ui.common.AtoxAppBar
 import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
+import ltd.evilcorp.atox.ui.chat.components.CallConfirmDialog
+import ltd.evilcorp.atox.ui.chat.components.ChatAppBar
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.lazy.LazyListState
 
-private const val CHAT_ENTER_CONTENT_DELAY_MS = 320L
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -127,6 +167,7 @@ fun ChatScreen(
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
     isTypingFlow: StateFlow<Boolean> = remember(uiState.contact?.publicKey) { MutableStateFlow(uiState.contact?.typing == true) },
+    voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 ) {
     val contact = uiState.contact
     val messages = uiState.messages
@@ -146,9 +187,49 @@ fun ChatScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    val listState = rememberSaveable(saver = LazyListState.Saver) {
+        LazyListState()
+    }
+    val isScrolled by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 }
+    }
+    val transitionAlpha by animateFloatAsState(
+        targetValue = if (isScrolled) 0.85f else 0.0f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "topBarAlpha"
+    )
+    val transitionElevation by animateDpAsState(
+        targetValue = if (isScrolled) 4.dp else 0.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "topBarElevation"
+    )
+
     val performHaptic = {
         if (uiConfig.hapticEnabled) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
+
+    val activity = remember(context) {
+        var ctx = context
+        while (ctx is android.content.ContextWrapper) {
+            if (ctx is android.app.Activity) {
+                return@remember ctx
+            }
+            ctx = ctx.baseContext
+        }
+        null
+    }
+    val navBarColor = MaterialTheme.colorScheme.surfaceContainer
+    val originalNavBarColor = remember(activity) { activity?.window?.navigationBarColor ?: 0 }
+    androidx.compose.runtime.DisposableEffect(navBarColor) {
+        activity?.window?.let { window ->
+            window.navigationBarColor = navBarColor.toArgb()
+        }
+        onDispose {
+            activity?.window?.let { window ->
+                window.navigationBarColor = originalNavBarColor
+            }
         }
     }
 
@@ -173,7 +254,7 @@ fun ChatScreen(
     var showCallConfirmDialog by remember { mutableStateOf(false) }
 
     if (showCallConfirmDialog) {
-        AtoxConfirmDialog(
+        CallConfirmDialog(
             onDismiss = {
                 performHaptic()
                 showCallConfirmDialog = false
@@ -182,11 +263,7 @@ fun ChatScreen(
                 performHaptic()
                 showCallConfirmDialog = false
                 onCallClick()
-            },
-            title = stringResource(R.string.incoming_call),
-            text = stringResource(R.string.call_confirm),
-            confirmText = stringResource(R.string.confirm),
-            dismissText = stringResource(R.string.reject)
+            }
         )
     }
 
@@ -201,118 +278,13 @@ fun ChatScreen(
     }
     val connectionStatus = contact?.connectionStatus
     val userStatus = contact?.status
-    val surfaceContainerColor = MaterialTheme.colorScheme.surfaceContainer
-
-    val sharedTransitionScope = LocalSharedTransitionScope.current
-    val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
-
-    val topAppBarTitle = @Composable {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = {},
-                    onLongClick = {
-                        performHaptic()
-                        val pk = contact?.publicKey ?: ""
-                        if (pk.isNotEmpty()) {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText("friend ID", pk)
-                            clipboard.setPrimaryClip(clip)
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.profile_copied),
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                )
-        ) {
-            val avatarModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null && contact != null) {
-                with(sharedTransitionScope) {
-                    Modifier.sharedElement(
-                        sharedContentState = rememberSharedContentState(key = "avatar_${contact.publicKey}"),
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
-                }
-            } else {
-                Modifier
-            }
-
-            ContactAvatar(
-                name = contactName,
-                publicKey = contact?.publicKey ?: "",
-                avatarUri = contact?.avatarUri ?: "",
-                size = 36.dp,
-                fontSize = 14.sp,
-                modifier = avatarModifier
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = contactName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(
-                                color = when (connectionStatus) {
-                                    ltd.evilcorp.domain.model.ConnectionStatus.None -> ltd.evilcorp.atox.ui.theme.StatusOffline
-                                    else -> when (userStatus) {
-                                        ltd.evilcorp.domain.model.UserStatus.Away -> ltd.evilcorp.atox.ui.theme.StatusAway
-                                        ltd.evilcorp.domain.model.UserStatus.Busy -> ltd.evilcorp.atox.ui.theme.StatusBusy
-                                        else -> ltd.evilcorp.atox.ui.theme.StatusAvailable
-                                    }
-                                },
-                                shape = CircleShape
-                            )
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = presenceInfo?.text ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-
-    val topAppBarNavigationIcon = @Composable {
-        Box(modifier = Modifier.padding(start = 4.dp)) {
-            MorphingNavigationIcon(
-                isBack = true,
-                onClick = {
-                    performHaptic()
-                    onBack()
-                }
-            )
-        }
-    }
-
-    val topAppBarActions = @Composable {
-        IconButton(onClick = {
-            performHaptic()
-            onCallClick()
-        }) {
-            Icon(
-                imageVector = Icons.Default.Call,
-                contentDescription = "Call",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
 
     val content = @Composable { paddingValues: PaddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = paddingValues.calculateTopPadding())
+        ) {
             ChatScreenContent(
                 messages = messages,
                 toMessage = { it },
@@ -338,44 +310,36 @@ fun ChatScreen(
                 replyingToMessage = replyingToMessage,
                 onCancelReply = onCancelReply,
                 isTypingFlow = isTypingFlow,
+                voiceRecorder = voiceRecorder,
                 showConversationContent = showConversationContent,
                 onCallHistoryClick = onCallHistoryClick,
                 onCopyClick = onCopyClick,
                 onReplyClick = onReplyClick,
                 onForwardClick = onForwardClick,
                 onJoinGroupClick = onJoinGroupClick,
-                isJoinedGroup = isJoinedGroup
+                isJoinedGroup = isJoinedGroup,
+                listState = listState
             )
         }
     }
 
-    if (isExpanded) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = topAppBarTitle,
-                    navigationIcon = topAppBarNavigationIcon,
-                    actions = { topAppBarActions() },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = surfaceContainerColor,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    )
-                )
-            }
-        ) { paddingValues ->
-            content(paddingValues)
-        }
-    } else {
-        AtoxAppBar(
-            route = AppRoutes.Chat::class.qualifiedName!!,
-            config = AppBarConfig(
-                title = topAppBarTitle,
-                navigationIcon = topAppBarNavigationIcon,
-                actions = { topAppBarActions() },
-                containerColor = surfaceContainerColor
+    Scaffold(
+        topBar = {
+            ChatAppBar(
+                contact = contact,
+                contactName = contactName,
+                presenceInfoText = presenceInfo?.text ?: "",
+                connectionStatus = connectionStatus,
+                userStatus = userStatus,
+                isExpanded = isExpanded,
+                transitionElevation = transitionElevation,
+                transitionAlpha = transitionAlpha,
+                onBack = onBack,
+                onCallClick = onCallClick,
+                performHaptic = performHaptic
             )
-        )
-
-        content(PaddingValues(0.dp))
+        }
+    ) { paddingValues ->
+        content(paddingValues)
     }
 }

@@ -31,10 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.stripReplyPrefix
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.ReplyInfo
-import ltd.evilcorp.domain.model.Sender
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.features.chat.model.ReplyInfo
+import ltd.evilcorp.domain.features.chat.model.Sender
 
 @Composable
 fun TextMessageBubble(

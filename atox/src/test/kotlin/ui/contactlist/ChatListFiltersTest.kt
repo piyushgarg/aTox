@@ -4,9 +4,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import ltd.evilcorp.atox.ui.contactlist.components.chatListAttentionCount
 import ltd.evilcorp.atox.ui.contactlist.components.visibleChatContacts
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FriendRequest
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
 
 class ChatListFiltersTest {
     @Test

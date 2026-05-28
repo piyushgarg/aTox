@@ -10,18 +10,34 @@ import dagger.Module
 import dagger.Provides
 import javax.inject.Singleton
 import ltd.evilcorp.core.db.ALL_MIGRATIONS
-import ltd.evilcorp.core.db.ContactDao
 import ltd.evilcorp.core.db.Database
-import ltd.evilcorp.core.db.FileTransferDao
-import ltd.evilcorp.core.db.FriendRequestDao
-import ltd.evilcorp.core.db.GroupDao
-import ltd.evilcorp.core.db.GroupMessageDao
-import ltd.evilcorp.core.db.GroupPeerDao
-import ltd.evilcorp.core.db.MessageDao
-import ltd.evilcorp.core.db.UserDao
-
+import ltd.evilcorp.core.db.dao.ContactDao
+import ltd.evilcorp.core.db.dao.FileTransferDao
+import ltd.evilcorp.core.db.dao.FriendRequestDao
+import ltd.evilcorp.core.db.dao.GroupDao
+import ltd.evilcorp.core.db.dao.GroupMessageDao
+import ltd.evilcorp.core.db.dao.GroupPeerDao
+import ltd.evilcorp.core.db.dao.MessageDao
+import ltd.evilcorp.core.db.dao.UserDao
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+
+import ltd.evilcorp.core.repository.ContactRepositoryImpl
+import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
+import ltd.evilcorp.core.repository.UserRepositoryImpl
+import ltd.evilcorp.domain.features.auth.repository.IUserRepository
+import ltd.evilcorp.core.repository.MessageRepositoryImpl
+import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
+import ltd.evilcorp.core.repository.FileTransferRepositoryImpl
+import ltd.evilcorp.domain.features.transfer.repository.IFileTransferRepository
+import ltd.evilcorp.core.repository.UserSettingsRepositoryImpl
+import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
+import ltd.evilcorp.core.repository.FriendRequestRepositoryImpl
+import ltd.evilcorp.domain.features.contacts.repository.IFriendRequestRepository
+import ltd.evilcorp.core.repository.GroupRepositoryImpl
+import ltd.evilcorp.domain.features.group.repository.IGroupRepository
+import ltd.evilcorp.core.repository.AvatarRepositoryImpl
+import ltd.evilcorp.domain.features.auth.repository.IAvatarRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -74,27 +90,26 @@ class DaoModule {
 @InstallIn(SingletonComponent::class)
 interface RepositoryModule {
     @dagger.Binds
-    fun bindContactRepository(impl: ltd.evilcorp.core.repository.ContactRepository): ltd.evilcorp.domain.repository.IContactRepository
+    fun bindContactRepository(impl: ContactRepositoryImpl): IContactRepository
 
     @dagger.Binds
-    fun bindUserRepository(impl: ltd.evilcorp.core.repository.UserRepository): ltd.evilcorp.domain.repository.IUserRepository
+    fun bindUserRepository(impl: UserRepositoryImpl): IUserRepository
 
     @dagger.Binds
-    fun bindMessageRepository(impl: ltd.evilcorp.core.repository.MessageRepository): ltd.evilcorp.domain.repository.IMessageRepository
+    fun bindMessageRepository(impl: MessageRepositoryImpl): IMessageRepository
 
     @dagger.Binds
-    fun bindFileTransferRepository(impl: ltd.evilcorp.core.repository.FileTransferRepository): ltd.evilcorp.domain.repository.IFileTransferRepository
+    fun bindFileTransferRepository(impl: FileTransferRepositoryImpl): IFileTransferRepository
 
     @dagger.Binds
-    fun bindUserSettingsRepository(impl: ltd.evilcorp.core.repository.UserSettingsRepository): ltd.evilcorp.domain.repository.IUserSettingsRepository
+    fun bindUserSettingsRepository(impl: UserSettingsRepositoryImpl): IUserSettingsRepository
 
     @dagger.Binds
-    fun bindFriendRequestRepository(impl: ltd.evilcorp.core.repository.FriendRequestRepository): ltd.evilcorp.domain.repository.IFriendRequestRepository
+    fun bindFriendRequestRepository(impl: FriendRequestRepositoryImpl): IFriendRequestRepository
 
     @dagger.Binds
-    fun bindGroupRepository(impl: ltd.evilcorp.core.repository.GroupRepository): ltd.evilcorp.domain.repository.IGroupRepository
+    fun bindGroupRepository(impl: GroupRepositoryImpl): IGroupRepository
 
     @dagger.Binds
-    fun bindAvatarStorage(impl: ltd.evilcorp.core.repository.AvatarStorageImpl): ltd.evilcorp.domain.repository.IAvatarStorage
+    fun bindAvatarRepository(impl: AvatarRepositoryImpl): IAvatarRepository
 }
-

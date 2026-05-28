@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.ContactAvatar
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.GroupPeer
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.group.model.GroupPeer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

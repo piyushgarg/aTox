@@ -33,8 +33,13 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
 import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
 import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
-import ltd.evilcorp.domain.model.BootstrapNodeSource
-import ltd.evilcorp.domain.model.ProxyType
+import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
+import ltd.evilcorp.domain.features.settings.model.ProxyType
+
+private val ContentPaddingTop = 16.dp
+private val ContentPaddingBottomDefault = 32.dp
+private val HorizontalMargin = 16.dp
+private val SpacingSpacedBy = 16.dp
 
 @Suppress("FunctionNaming", "MagicNumber")
 @Composable
@@ -62,14 +67,18 @@ fun NetworkSettingsScreen(
     onProxyPortInputChanged: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+            .padding(horizontal = HorizontalMargin),
+        verticalArrangement = Arrangement.spacedBy(SpacingSpacedBy),
+        contentPadding = PaddingValues(
+            top = ContentPaddingTop,
+            bottom = ContentPaddingBottomDefault + bottomPadding
+        )
     ) {
         item {
             SettingsGroup(title = stringResource(R.string.settings_network_group)) {

@@ -1,34 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>ComplexInterface:IContactRepository.kt$IContactRepository</ID>
-    <ID>ComplexInterface:IGroupRepository.kt$IGroupRepository</ID>
-    <ID>ComplexInterface:ITox.kt$ITox</ID>
-    <ID>ComplexInterface:IUserSettingsRepository.kt$IUserSettingsRepository</ID>
-    <ID>MagicNumber:CallManager.kt$CallManager$500</ID>
-    <ID>MagicNumber:CallManager.kt$CallManager$900</ID>
-    <ID>MagicNumber:CallSignalPlayer.kt$CallSignalPlayer$100</ID>
-    <ID>MagicNumber:CallSignalPlayer.kt$CallSignalPlayer$100f</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$0xFF</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$10</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$100</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$15000L</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$16</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$2</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$3</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$30</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$3000</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$30000L</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$4</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$45000</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$5</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$5000L</ID>
-    <ID>MagicNumber:GroupManager.kt$GroupManager$64</ID>
-    <ID>MaxLineLength:GroupManager.kt$GroupManager$Log.d("GroupManager", "Group ${group.chatId} database status connected: ${group.connected}, current status state: $currentStatus, groupNumber: ${group.groupNumber}")</ID>
-    <ID>UnusedPrivateProperty:ArchitectureTest.kt$ArchitectureTest$val atox = Layer("Presentation", "ltd.evilcorp.atox..")</ID>
-    <ID>UnusedPrivateProperty:ArchitectureTest.kt$ArchitectureTest$val core = Layer("Core", "ltd.evilcorp.core..")</ID>
-    <ID>UnusedPrivateProperty:CallAudioRecorder.kt$private const val TAG = "CallAudioRecorder"</ID>
-    <ID>UnusedPrivateProperty:GroupManager.kt$GroupManager$private val chatManager: ChatManager</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

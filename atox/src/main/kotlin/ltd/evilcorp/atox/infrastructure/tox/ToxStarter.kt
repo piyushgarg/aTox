@@ -12,28 +12,32 @@ import android.util.Log
 import javax.inject.Inject
 import ltd.evilcorp.atox.infrastructure.service.ToxService
 import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.core.tox.save.SaveManager
-import ltd.evilcorp.domain.tox.save.SaveOptions
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.transfer.FileTransferManager
+import ltd.evilcorp.domain.features.transfer.reset
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.core.network.save.ISaveManager
+import ltd.evilcorp.domain.core.network.save.SaveOptions
 import ltd.evilcorp.core.tox.save.testToxSave
-import ltd.evilcorp.core.tox.Tox
+import ltd.evilcorp.core.tox.ToxImpl
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 
-import ltd.evilcorp.domain.tox.IToxStarter
+import ltd.evilcorp.domain.core.network.IToxStarter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 private const val TAG = "ToxStarter"
 
 open class ToxStarter @Inject constructor(
+    private val scope: CoroutineScope,
     private val fileTransferManager: FileTransferManager,
-    private val saveManager: SaveManager,
+    private val saveManager: ISaveManager,
     private val userManager: UserManager,
     private val startupSynchronizer: ToxStartupSynchronizer,
     private val listenerCallbacks: EventListenerCallbacks,
-    private val tox: Tox,
+    private val tox: ToxImpl,
     private val eventListener: ToxEventListener,
     private val avEventListener: ToxAvEventListener,
     private val context: Context,
@@ -73,7 +77,9 @@ open class ToxStarter @Inject constructor(
         val save = tryLoadSave() ?: return ToxSaveStatus.SaveNotFound
         val status = startTox(save, password)
         if (status == ToxSaveStatus.Ok) {
-            userManager.verifyExists(tox.publicKey)
+            scope.launch {
+                userManager.verifyExists(tox.publicKey)
+            }
         }
         return status
     }

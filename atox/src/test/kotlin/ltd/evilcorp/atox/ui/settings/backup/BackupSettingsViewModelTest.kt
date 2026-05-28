@@ -12,25 +12,25 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.backup.BackupDataProvider
-import ltd.evilcorp.domain.feature.ISettingsFileProcessor
-import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.FileKind
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.model.User
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.repository.IUserRepository
-import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.domain.tox.IToxStarter
-import ltd.evilcorp.domain.tox.ToxID
-import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.domain.tox.enums.ToxGroupRole
-import ltd.evilcorp.domain.tox.enums.ToxMessageType
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
-import ltd.evilcorp.domain.usecase.BackupUseCase
-import ltd.evilcorp.domain.usecase.IProfileDeleter
+import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
+import ltd.evilcorp.domain.features.settings.ISettingsFileProcessor
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.transfer.model.FileKind
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.auth.model.User
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.features.auth.repository.IUserRepository
+import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.core.network.IToxStarter
+import ltd.evilcorp.domain.core.network.ToxID
+import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
+import ltd.evilcorp.domain.core.network.enums.ToxMessageType
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
+import ltd.evilcorp.domain.features.backup.usecase.BackupUseCase
+import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -232,7 +232,7 @@ class BackupSettingsViewModelTest {
 
     private class FakeProfileDeleter(
         private val createCheckpointResult: Boolean = true
-    ) : IProfileDeleter {
+    ) : IProfileRepository {
         var createCheckpointCalled = false
         var restoreFromCheckpointCalled = false
         var clearCheckpointCalled = false
@@ -336,11 +336,11 @@ class BackupSettingsViewModelTest {
     private class FakeBackupLogic(
         private val providerDataResult: ByteArray? = null
     ) : BackupUseCase(emptyList()) {
-        override fun providerData(data: ByteArray, password: String?, id: String): ByteArray? {
+        override suspend fun providerData(data: ByteArray, password: String?, id: String): ByteArray? {
             return providerDataResult
         }
 
-        override fun import(data: ByteArray, password: String?, skipIds: Set<String>) {}
+        override suspend fun import(data: ByteArray, password: String?, skipIds: Set<String>) {}
     }
 
     private class FakeUserRepository : IUserRepository {
@@ -355,12 +355,11 @@ class BackupSettingsViewModelTest {
     }
 
     private class FakeUserManager(tox: ITox) : UserManager(
-        scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Job()),
         userRepository = FakeUserRepository(),
         tox = tox
     ) {
-        override fun verifyExists(publicKey: PublicKey): kotlinx.coroutines.Job {
-            return kotlinx.coroutines.CompletableDeferred<Unit>().apply { complete(Unit) }
+        override suspend fun verifyExists(publicKey: PublicKey): Result<Unit> {
+            return Result.success(Unit)
         }
     }
 }

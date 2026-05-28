@@ -16,9 +16,9 @@ import kotlin.test.fail
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.User
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.core.db.entity.UserEntity
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -31,7 +31,7 @@ class UserDaoTest {
             .build()
     private val dao = db.userDao()
 
-    private val first = User(
+    private val first = UserEntity(
         publicKey = "1234",
         name = "name",
         statusMessage = "status",

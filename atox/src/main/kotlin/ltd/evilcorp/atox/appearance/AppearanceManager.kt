@@ -20,8 +20,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import ltd.evilcorp.domain.model.UserSettings
-import ltd.evilcorp.domain.repository.IUserSettingsRepository
+import ltd.evilcorp.domain.features.settings.model.UserSettings
+import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
 
 @Singleton
 class AppearanceManager @Inject constructor(
@@ -66,7 +66,7 @@ class AppearanceManager @Inject constructor(
         }
 
         fun readPersistedAppearance(context: Context): AppAppearance {
-            return ltd.evilcorp.core.repository.UserSettingsRepository.readBlocking(context).toAppAppearance()
+            return ltd.evilcorp.core.repository.UserSettingsRepositoryImpl.readBlocking(context).toAppAppearance()
         }
 
         private fun applyLocaleTag(context: Context, localeTag: String) {

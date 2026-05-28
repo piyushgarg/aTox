@@ -10,18 +10,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import ltd.evilcorp.domain.model.FileKind
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.domain.features.transfer.model.FileKind
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.core.tox.NativeTox
-import ltd.evilcorp.domain.tox.ToxID
+import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
-import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.domain.tox.enums.ToxGroupRole
-import ltd.evilcorp.domain.tox.enums.ToxMessageType
-import ltd.evilcorp.domain.tox.save.SaveOptions
+import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
+import ltd.evilcorp.domain.core.network.enums.ToxMessageType
+import ltd.evilcorp.domain.core.network.save.SaveOptions
 
 private const val TAG = "ToxRuntime"
 private const val TOX_SALT_LENGTH = 32

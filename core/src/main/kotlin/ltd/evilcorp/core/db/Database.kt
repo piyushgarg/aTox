@@ -11,6 +11,14 @@ import ltd.evilcorp.core.db.entity.GroupMessageEntity
 import ltd.evilcorp.core.db.entity.GroupPeerEntity
 import ltd.evilcorp.core.db.entity.MessageEntity
 import ltd.evilcorp.core.db.entity.UserEntity
+import ltd.evilcorp.core.db.dao.ContactDao
+import ltd.evilcorp.core.db.dao.FileTransferDao
+import ltd.evilcorp.core.db.dao.FriendRequestDao
+import ltd.evilcorp.core.db.dao.GroupDao
+import ltd.evilcorp.core.db.dao.GroupMessageDao
+import ltd.evilcorp.core.db.dao.GroupPeerDao
+import ltd.evilcorp.core.db.dao.MessageDao
+import ltd.evilcorp.core.db.dao.UserDao
 
 @Database(
     entities = [

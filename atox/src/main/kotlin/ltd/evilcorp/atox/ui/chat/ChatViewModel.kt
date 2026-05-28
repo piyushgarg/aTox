@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -29,26 +30,20 @@ import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.model.Sender
-import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.domain.feature.CallState
-import ltd.evilcorp.domain.feature.ChatManager
-import ltd.evilcorp.domain.feature.ContactManager
-import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.domain.feature.INotificationHelper
-import ltd.evilcorp.domain.usecase.SendChatMessageUseCase
-import ltd.evilcorp.domain.usecase.ManageFileTransferUseCase
-import ltd.evilcorp.domain.usecase.ExportChatHistoryUseCase
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.chat.ChatManager
+import ltd.evilcorp.domain.features.contacts.ContactManager
+import ltd.evilcorp.domain.core.network.INotificationHelper
+import ltd.evilcorp.domain.features.chat.usecase.SendChatMessageUseCase
+import ltd.evilcorp.atox.ui.common.debounceOffline
 
 private const val TAG = "ChatViewModel"
 
@@ -63,18 +58,18 @@ enum class CallAvailability {
  * Designed with a fully declarative reactive flow pipeline using [flatMapLatest]
  * to prevent coroutine subscription leaks when active sessions or chats change.
  */
+private const val CLEAR_ACTIVE_CHAT_DELAY_MS = 450L
+
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val callManager: CallManager,
+    private val chatCallDelegate: ChatCallDelegate,
+    private val chatFileTransferDelegate: ChatFileTransferDelegate,
     private val chatManager: ChatManager,
     private val contactManager: ContactManager,
-    private val fileTransferManager: FileTransferManager,
     private val notificationHelper: INotificationHelper,
-    private val fileExporter: FileExporter,
     private val settings: Settings,
     private val sendChatMessageUseCase: SendChatMessageUseCase,
-    private val manageFileTransferUseCase: ManageFileTransferUseCase,
-    private val exportChatHistoryUseCase: ExportChatHistoryUseCase,
+    val voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 ) : ViewModel(), IChatController {
     private var publicKey = PublicKey("")
     private var sentTyping = false
@@ -94,19 +89,6 @@ class ChatViewModel @Inject constructor(
     private val _uiEvents = MutableSharedFlow<ChatUiEvent>()
     val uiEvents = _uiEvents.asSharedFlow()
 
-
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private fun kotlinx.coroutines.flow.Flow<Contact?>.debounceOffline(
-        delayMillis: Long = 2000L
-    ): kotlinx.coroutines.flow.Flow<Contact?> = transformLatest { contact ->
-        if (contact == null || contact.connectionStatus != ConnectionStatus.None) {
-            emit(contact)
-        } else {
-            delay(delayMillis)
-            emit(contact)
-        }
-    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val contact: StateFlow<Contact?> = activePublicKey
@@ -134,28 +116,17 @@ class ChatViewModel @Inject constructor(
             if (pk == null || pk.string().isEmpty()) {
                 flowOf(emptyList())
             } else {
-                chatManager.messagesFor(pk).onEach { list ->
-                    ChatHistoryCache.put(pk.string(), list.takeLast(15))
-                }
+                chatManager.messagesFor(pk)
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val fileTransfers: StateFlow<List<FileTransfer>> = activePublicKey
-        .flatMapLatest { pk ->
-            if (pk == null || pk.string().isEmpty()) {
-                flowOf(emptyList())
-            } else {
-                fileTransferManager.transfersFor(pk).onEach { list ->
-                    ChatHistoryCache.putTransfers(pk.string(), list)
-                }
-            }
-        }
+    val fileTransfers: StateFlow<List<FileTransfer>> = chatFileTransferDelegate.transfersFor(activePublicKey)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun callingNeedsConfirmation(): Boolean = settings.confirmCalling
-    val ongoingCall = callManager.inCall
+    val ongoingCall = chatCallDelegate.ongoingCall
 
     val uiConfig: StateFlow<ChatUiConfig> = settings.state
         .map { userSettings ->
@@ -182,32 +153,8 @@ class ChatViewModel @Inject constructor(
         )
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val callState: StateFlow<CallAvailability> = activePublicKey
-        .filterNotNull()
-        .flatMapLatest { pk ->
-            contactManager.get(pk)
-                .debounceOffline()
-                .filterNotNull()
-                .transform { emit(it.connectionStatus != ConnectionStatus.None) }
-                .combine(callManager.inCall) { contactOnline, callState ->
-                    if (!contactOnline) return@combine CallAvailability.Unavailable
-                    when (callState) {
-                        CallState.Idle -> CallAvailability.Available
-                        is CallState.IncomingRinging ->
-                            if (callState.contact.publicKey == pk.string()) CallAvailability.Active else CallAvailability.Unavailable
-                        is CallState.OutgoingRequesting ->
-                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
-                        is CallState.OutgoingWaiting ->
-                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
-                        is CallState.Connecting ->
-                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
-                        is CallState.OutgoingRinging ->
-                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
-                        is CallState.Active ->
-                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
-                    }
-                }
-        }.stateIn(
+    val callState: StateFlow<CallAvailability> = chatCallDelegate.getCallState(activePublicKey)
+        .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = CallAvailability.Unavailable
@@ -254,15 +201,12 @@ class ChatViewModel @Inject constructor(
     }
 
     fun startCall() = viewModelScope.launch {
-        if (callManager.startOutgoingCall(publicKey)) {
-            callManager.startSendingAudio()
-            notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).take(1).first() ?: Contact(publicKey.string()))
-        }
+        chatCallDelegate.startCall(publicKey)
     }
 
     fun clearHistory() = viewModelScope.launch {
         chatManager.clearHistory(publicKey)
-        fileTransferManager.deleteAll(publicKey)
+        chatFileTransferDelegate.clearTransfers(publicKey)
     }
 
     fun setActiveChat(pk: PublicKey) {
@@ -272,7 +216,7 @@ class ChatViewModel @Inject constructor(
             activePublicKey.value = null
         } else {
             Log.i(TAG, "Setting active chat ${pk.fingerprint()}")
-            // Атомарно сбрасываем текущий стейт при смене чата во избежание фликкера
+            // Atomically reset the current state when changing the chat to avoid flicker
             activePublicKey.value = null
             replyingToMessage.value = null
             activePublicKey.value = pk
@@ -290,7 +234,7 @@ class ChatViewModel @Inject constructor(
     fun clearActiveChat(expectedPublicKey: PublicKey) {
         if (publicKey == expectedPublicKey) {
             viewModelScope.launch {
-                delay(450L)
+                delay(CLEAR_ACTIVE_CHAT_DELAY_MS)
                 if (publicKey == expectedPublicKey) {
                     setActiveChat(PublicKey(""))
                 }
@@ -301,46 +245,43 @@ class ChatViewModel @Inject constructor(
     fun setTyping(typing: Boolean) {
         if (publicKey.string().isEmpty()) return
         if (sentTyping != typing) {
-            chatManager.setTyping(publicKey, typing)
+            viewModelScope.launch {
+                chatManager.setTyping(publicKey, typing)
+            }
             sentTyping = typing
         }
     }
 
     fun acceptFt(id: Int) = viewModelScope.launch {
-        manageFileTransferUseCase.accept(id)
+        chatFileTransferDelegate.acceptFt(id)
     }
 
     fun rejectFt(id: Int) = viewModelScope.launch {
-        manageFileTransferUseCase.reject(id)
+        chatFileTransferDelegate.rejectFt(id)
     }
 
     fun createFt(file: Uri) = viewModelScope.launch {
-        // Make sure there's no stale cached image in Picasso via NotificationHelper
-        notificationHelper.invalidateAvatar(file.toString())
-        manageFileTransferUseCase.create(publicKey, file.toString())
+        chatFileTransferDelegate.createFt(publicKey, file)
     }
 
     fun delete(msg: Message) = viewModelScope.launch {
         if (msg.type == MessageType.FileTransfer) {
-            manageFileTransferUseCase.delete(msg.correlationId)
+            chatFileTransferDelegate.deleteFt(msg.correlationId)
         }
         chatManager.deleteMessage(msg.id)
     }
 
     fun exportFt(id: Int, dest: Uri) = viewModelScope.launch {
-        fileTransferManager.get(id).take(1).collect { ft ->
-            val result = fileExporter.exportFile(ft.destination, dest.toString())
-            if (result.isSuccess) {
-                _uiEvents.emit(ChatUiEvent.ShowToast(R.string.export_file_success))
-            } else {
-                _uiEvents.emit(ChatUiEvent.ShowToast(R.string.export_file_failure))
-            }
+        val result = chatFileTransferDelegate.exportFt(id, dest)
+        if (result.isSuccess) {
+            _uiEvents.emit(ChatUiEvent.ShowToast(R.string.export_file_success))
+        } else {
+            _uiEvents.emit(ChatUiEvent.ShowToast(R.string.export_file_failure))
         }
     }
 
     fun exportHistory(dest: Uri) = viewModelScope.launch {
-        val historyContent = exportChatHistoryUseCase.execute(publicKey.string())
-        val result = fileExporter.exportHistory(historyContent, dest.toString())
+        val result = chatFileTransferDelegate.exportHistory(publicKey, dest)
         if (result.isSuccess) {
             _uiEvents.emit(ChatUiEvent.ShowToast(R.string.export_history_success))
         } else {
@@ -358,8 +299,7 @@ class ChatViewModel @Inject constructor(
     fun clearDraft() = setDraft("")
 
     fun onEndCall() {
-        callManager.endCall(publicKey)
-        notificationHelper.dismissCallNotification(publicKey)
+        chatCallDelegate.endCall(publicKey)
     }
 
     override fun sendMessage(message: String, type: MessageType) {

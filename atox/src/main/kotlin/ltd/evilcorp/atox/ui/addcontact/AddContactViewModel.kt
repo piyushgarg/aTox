@@ -20,18 +20,22 @@ import kotlinx.coroutines.launch
 
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.Sender
-import ltd.evilcorp.domain.feature.ContactManager
-import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.domain.tox.ToxID
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.features.chat.model.Sender
+import ltd.evilcorp.domain.features.contacts.ContactManager
+import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.core.network.ToxID
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 
-import ltd.evilcorp.domain.usecase.AddContactUseCase
+import ltd.evilcorp.domain.features.contacts.usecase.AddContactUseCase
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.features.auth.model.User
 
 import dagger.hilt.android.lifecycle.HiltViewModel
+
+private const val MIN_TOX_ID_LENGTH = 64
 
 @HiltViewModel
 class AddContactViewModel @Inject constructor(
@@ -39,7 +43,16 @@ class AddContactViewModel @Inject constructor(
     private val contactManager: ContactManager,
     private val tox: ITox,
     private val toxStarter: ToxStarter,
+    private val userManager: UserManager,
 ) : ViewModel() {
+    val publicKey by lazy { tox.publicKey }
+    val user: StateFlow<User?> = userManager.get(publicKey)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
     val toxId by lazy { tox.toxId }
     val contacts: StateFlow<List<Contact>> = contactManager.getAll()
         .map { list -> list }
@@ -68,7 +81,7 @@ class AddContactViewModel @Inject constructor(
 
     fun addContact(toxIdStr: String, message: String) {
         val trimmedToxId = toxIdStr.trim()
-        if (trimmedToxId.length < 64) {
+        if (trimmedToxId.length < MIN_TOX_ID_LENGTH) {
             _errorResId.value = R.string.add_contact_error_invalid
             return
         }

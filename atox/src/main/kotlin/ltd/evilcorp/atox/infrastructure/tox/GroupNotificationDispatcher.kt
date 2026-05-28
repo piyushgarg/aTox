@@ -7,12 +7,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.domain.repository.IGroupRepository
-import ltd.evilcorp.domain.feature.GroupEventBus
-import ltd.evilcorp.domain.feature.GroupDomainEvent
-import ltd.evilcorp.domain.feature.GroupManager
-import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.domain.tox.bytesToHex
+import ltd.evilcorp.domain.features.group.repository.IGroupRepository
+import ltd.evilcorp.domain.features.group.GroupEventBus
+import ltd.evilcorp.domain.features.group.GroupDomainEvent
+import ltd.evilcorp.domain.features.group.GroupManager
+import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.core.network.bytesToHex
 
 private const val TAG = "GroupNotificationDispatcher"
 

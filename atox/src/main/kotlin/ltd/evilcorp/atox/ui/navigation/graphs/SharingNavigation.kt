@@ -27,10 +27,10 @@ fun NavGraphBuilder.sharingGraph(
 ) {
     // Forward selection
     composable<AppRoutes.ForwardSelection>(
-        enterTransition = { AToxMotion.sharedAxisZEnter(forward = true) },
-        exitTransition = { AToxMotion.sharedAxisZExit(forward = true) },
-        popEnterTransition = { AToxMotion.sharedAxisZEnter(forward = false) },
-        popExitTransition = { AToxMotion.sharedAxisZExit(forward = false) },
+        enterTransition = { AToxMotion.slideXEnter(forward = true) },
+        exitTransition = { AToxMotion.slideXExit(forward = true) },
+        popEnterTransition = { AToxMotion.slideXEnter(forward = false) },
+        popExitTransition = { AToxMotion.slideXExit(forward = false) },
     ) { backStackEntry ->
         val forwardRoute = backStackEntry.toRoute<AppRoutes.ForwardSelection>()
         val messageText = forwardRoute.message
@@ -53,10 +53,10 @@ fun NavGraphBuilder.sharingGraph(
 
     // Shared content forwarding
     composable<AppRoutes.ForwardShared>(
-        enterTransition = { AToxMotion.sharedAxisZEnter(forward = true) },
-        exitTransition = { AToxMotion.sharedAxisZExit(forward = true) },
-        popEnterTransition = { AToxMotion.sharedAxisZEnter(forward = false) },
-        popExitTransition = { AToxMotion.sharedAxisZExit(forward = false) },
+        enterTransition = { AToxMotion.slideXEnter(forward = true) },
+        exitTransition = { AToxMotion.slideXExit(forward = true) },
+        popEnterTransition = { AToxMotion.slideXEnter(forward = false) },
+        popExitTransition = { AToxMotion.slideXExit(forward = false) },
     ) {
         val contactsState by contactListViewModel.contacts.collectAsStateWithLifecycle()
         val sharedContent by contactListViewModel.sharedContent.collectAsStateWithLifecycle()

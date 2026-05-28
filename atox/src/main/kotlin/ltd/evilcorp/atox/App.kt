@@ -12,7 +12,6 @@ import java.io.File
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
-        AppearanceManager.applyPersistedAppearance(this)
 
         // Background cleanup of shared cache files on startup to prevent leaks
         CoroutineScope(Dispatchers.IO).launch {

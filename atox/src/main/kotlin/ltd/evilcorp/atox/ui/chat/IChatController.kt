@@ -5,7 +5,7 @@
 package ltd.evilcorp.atox.ui.chat
 
 import android.net.Uri
-import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.features.chat.model.MessageType
 
 interface IChatController {
     fun sendMessage(message: String, type: MessageType = MessageType.Normal)

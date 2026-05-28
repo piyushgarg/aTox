@@ -4,8 +4,8 @@
 
 package ltd.evilcorp.atox.ui.chat
 
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 
 data class ChatUiConfig(
     val hapticEnabled: Boolean,

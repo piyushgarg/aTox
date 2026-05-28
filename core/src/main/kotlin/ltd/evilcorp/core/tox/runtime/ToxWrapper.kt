@@ -1,25 +1,21 @@
 package ltd.evilcorp.core.tox.runtime
 
 import android.util.Log
-import kotlin.random.Random
-import ltd.evilcorp.domain.model.FileKind
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.domain.features.transfer.model.FileKind
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.core.tox.NativeTox
 import ltd.evilcorp.core.tox.NativeToxAv
-import ltd.evilcorp.domain.tox.ToxID
+import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
-import ltd.evilcorp.domain.tox.enums.ToxavCallControl
-import ltd.evilcorp.domain.tox.enums.ToxFileControl
-import ltd.evilcorp.domain.tox.enums.ToxMessageType
-import ltd.evilcorp.domain.tox.enums.ToxGroupPrivacyState
-import ltd.evilcorp.domain.tox.enums.ToxGroupRole
-import ltd.evilcorp.domain.tox.save.SaveOptions
-import ltd.evilcorp.domain.model.ProxyType
-import ltd.evilcorp.domain.tox.toToxtype
-import ltd.evilcorp.domain.tox.toToxType
+import ltd.evilcorp.domain.core.network.enums.ToxFileControl
+import ltd.evilcorp.domain.core.network.enums.ToxMessageType
+import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
+import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
+import ltd.evilcorp.domain.core.network.save.SaveOptions
+import ltd.evilcorp.domain.core.network.toToxType
 import ltd.evilcorp.core.tox.runtime.delegates.ToxFileTransmitter
 import ltd.evilcorp.core.tox.runtime.delegates.ToxAudioVideoBridge
 import ltd.evilcorp.core.tox.runtime.delegates.ToxGroupBridge
@@ -27,55 +23,27 @@ import ltd.evilcorp.core.tox.runtime.delegates.ToxGroupBridge
 private const val TAG = "ToxWrapper"
 
 /**
- * Перечисление возможных ошибок при отправке пользовательских P2P-пакетов.
- */
-enum class CustomPacketError {
-    /** Успешная отправка пакета. */
-    Success,
-    /** Пакет пуст. */
-    Empty,
-    /** Друг в данный момент не в сети. */
-    FriendNotConnected,
-    /** Указанный друг не найден в контакт-листе. */
-    FriendNotFound,
-    /** Неверные параметры пакета. */
-    Invalid,
-    /** Ссылка на буфер пакета равна null. */
-    Null,
-    /** Очередь отправки пакетов переполнена. */
-    Sendq,
-    /** Превышена максимальная длина пакета. */
-    TooLong,
-}
-
-/**
- * Высокоуровневая потокобезопасная обертка над нативными библиотеками NativeTox и NativeToxAv.
- * Управляет жизненным циклом сессии Tox, вызовами сетевых функций, файловыми трансферами и AV-звонками.
+ * Thread-safe wrapper over native libraries NativeTox and NativeToxAv.
+ * Manages the lifecycle of Tox session, file transfers, and AV calls.
  */
 class ToxWrapper(
     private val eventListener: ToxEventListener,
     private val avEventListener: ToxAvEventListener,
     options: SaveOptions,
-) {
+) : AutoCloseable {
+    private val jniLock = Any()
+
     private val nativeTox = NativeTox()
     private val nativeToxAv = NativeToxAv()
 
-    @Volatile
-    private var toxPtr: Long = 0
+    @Volatile private var toxPtr: Long = 0
+    @Volatile private var toxavPtr: Long = 0
 
-    @Volatile
-    private var toxavPtr: Long = 0
+    val fileTransmitter = ToxFileTransmitter(nativeTox, jniLock) { toxPtr }
+    val audioVideoBridge = ToxAudioVideoBridge(nativeTox, nativeToxAv, jniLock, { toxPtr }, { toxavPtr })
+    val groupBridge = ToxGroupBridge(nativeTox, nativeToxAv, jniLock) { toxPtr }
 
-    val fileTransmitter = ToxFileTransmitter(nativeTox) { toxPtr }
-    val audioVideoBridge = ToxAudioVideoBridge(nativeTox, nativeToxAv, { toxPtr }, { toxavPtr })
-    val groupBridge = ToxGroupBridge(nativeTox, nativeToxAv) { toxPtr }
-
-    /**
-     * Динамически настраиваемый битрейт аудио Opus (в kbps).
-     * Рекомендуемое значение: 32 kbps (достаточно для качественного полнополосного стерео-звука).
-     */
-    @Volatile
-    var audioBitrate: Int = 32
+    @Volatile var audioBitrate: Int = 32
 
     init {
         val sd = options.saveData
@@ -94,34 +62,20 @@ class ToxWrapper(
         updateContactMapping()
     }
 
-    /**
-     * Обновляет внутреннюю карту соответствия номеров друзей и их публичных ключей
-     * для слушателей событий ядра и AV-звонков.
-     */
     private fun updateContactMapping() {
         val contacts = getContacts()
         eventListener.contactMapping = contacts
         avEventListener.contactMapping = contacts
     }
 
-    /**
-     * Выполняет первичное подключение (bootstrap) к глобальной сети DHT Tox
-     * через публичный или приватный узел, а также регистрирует TCP-релей.
-     *
-     * @param address IP-адрес или доменное имя узла.
-     * @param port Сетевой порт узла.
-     * @param publicKey Публичный ключ узла (32 байта).
-     */
-    fun bootstrap(address: String, port: Int, publicKey: ByteArray) = synchronized(this) {
+    // Connects to a public DHT node and registers a TCP relay.
+    fun bootstrap(address: String, port: Int, publicKey: ByteArray) = synchronized(jniLock) {
         nativeTox.toxBootstrap(toxPtr, address, port, publicKey)
         nativeTox.toxAddTcpRelay(toxPtr, address, port, publicKey)
     }
 
-    /**
-     * Корректно завершает работу нативного ядра и мультимедийного AV-моста,
-     * высвобождая всю занятую нативную память.
-     */
-    fun stop() = synchronized(this) {
+    // Stops native core sessions and frees native memory.
+    fun stop() = synchronized(jniLock) {
         nativeToxAv.toxavKill(toxavPtr)
         nativeTox.toxKill(toxPtr)
         toxavPtr = 0
@@ -129,106 +83,64 @@ class ToxWrapper(
         Log.i(TAG, "Killed Tox")
     }
 
-    /**
-     * Запускает одну итерацию обработки сетевых событий главного ядра Tox.
-     */
-    fun iterate(): Unit = synchronized(this) { nativeTox.toxIterate(toxPtr, eventListener) }
-
-    /**
-     * Запускает одну итерацию обработки аудио/видео кадров мультимедийного движка ToxAV.
-     */
-    fun iterateAv(): Unit = synchronized(this) { nativeToxAv.toxavIterate(toxavPtr, avEventListener) }
-
-    /**
-     * Возвращает рекомендуемый интервал времени в миллисекундах до следующего вызова [iterate].
-     */
-    fun iterationInterval(): Long = synchronized(this) { nativeTox.toxIterationInterval(toxPtr).toLong() }
-
-    /**
-     * Возвращает рекомендуемый интервал времени в миллисекундах до следующего вызова [iterateAv].
-     */
-    fun iterationIntervalAv(): Long = synchronized(this) { nativeToxAv.toxavIterationInterval(toxavPtr).toLong() }
-
-    /**
-     * Возвращает установленное имя пользователя текущего профиля.
-     */
-    fun getName(): String = synchronized(this) { String(nativeTox.toxGetName(toxPtr)) }
-
-    /**
-     * Устанавливает новое имя пользователя для текущего профиля.
-     */
-    fun setName(name: String) = synchronized(this) {
-        nativeTox.toxSetName(toxPtr, name.toByteArray())
+    override fun close() {
+        stop()
     }
 
-    /**
-     * Возвращает текущее статус-сообщение профиля.
-     */
-    fun getStatusMessage(): String = synchronized(this) { String(nativeTox.toxGetStatusMessage(toxPtr)) }
+    @Suppress("DEPRECATION")
+    protected fun finalize() {
+        try {
+            if (toxPtr != 0L || toxavPtr != 0L) {
+                Log.w(TAG, "ToxWrapper was garbage collected without calling stop() / close()! Freeing native memory to avoid leak.")
+                stop()
+            }
+        } finally {
+            // JVM finalize fallback
+        }
+    }
 
-    /**
-     * Устанавливает новое статус-сообщение для профиля.
-     */
-    fun setStatusMessage(statusMessage: String) = synchronized(this) {
+    fun iterate(): Unit = synchronized(jniLock) { nativeTox.toxIterate(toxPtr, eventListener) }
+    fun iterateAv(): Unit = synchronized(jniLock) { nativeToxAv.toxavIterate(toxavPtr, avEventListener) }
+
+    fun iterationInterval(): Long = synchronized(jniLock) { nativeTox.toxIterationInterval(toxPtr).toLong() }
+    fun iterationIntervalAv(): Long = synchronized(jniLock) { nativeToxAv.toxavIterationInterval(toxavPtr).toLong() }
+
+    fun getName(): String = synchronized(jniLock) { String(nativeTox.toxGetName(toxPtr)) }
+    fun setName(name: String) = synchronized(jniLock) { nativeTox.toxSetName(toxPtr, name.toByteArray()) }
+
+    fun getStatusMessage(): String = synchronized(jniLock) { String(nativeTox.toxGetStatusMessage(toxPtr)) }
+    fun setStatusMessage(statusMessage: String) = synchronized(jniLock) {
         nativeTox.toxSetStatusMessage(toxPtr, statusMessage.toByteArray())
     }
 
-    /**
-     * Возвращает полный уникальный 38-байтовый Tox ID локального пользователя.
-     */
-    fun getToxId() = synchronized(this) { ToxID.fromBytes(nativeTox.toxGetAddress(toxPtr)) }
+    fun getToxId() = synchronized(jniLock) { ToxID.fromBytes(nativeTox.toxGetAddress(toxPtr)) }
+    fun getPublicKey() = synchronized(jniLock) { PublicKey.fromBytes(nativeTox.toxGetPublicKey(toxPtr)) }
 
-    /**
-     * Возвращает 32-байтовый публичный криптографический ключ локального пользователя.
-     */
-    fun getPublicKey() = synchronized(this) { PublicKey.fromBytes(nativeTox.toxGetPublicKey(toxPtr)) }
+    fun getNospam(): Int = synchronized(jniLock) { nativeTox.toxGetNospam(toxPtr) }
+    fun setNospam(value: Int) = synchronized(jniLock) { nativeTox.toxSetNospam(toxPtr, value) }
 
-    /**
-     * Считывает текущее значение 32-битного nospam-кода профиля.
-     */
-    fun getNospam(): Int = synchronized(this) { nativeTox.toxGetNospam(toxPtr) }
+    fun getSaveData() = synchronized(jniLock) { nativeTox.toxGetSavedata(toxPtr) }
 
-    /**
-     * Записывает новое значение nospam-кода для изменения хвоста Tox ID.
-     */
-    fun setNospam(value: Int) = synchronized(this) {
-        nativeTox.toxSetNospam(toxPtr, value)
-    }
-
-    /**
-     * Возвращает сериализованные бинарные данные всего профиля для записи файла сохранения.
-     */
-    fun getSaveData() = synchronized(this) { nativeTox.toxGetSavedata(toxPtr) }
-
-    /**
-     * Отправляет запрос на добавление в друзья новому контакту по его полному Tox ID.
-     *
-     * @param toxId Полный адрес контакта.
-     * @param message Приветственное сообщение.
-     */
-    fun addContact(toxId: ToxID, message: String) = synchronized(this) {
+    // Adds a new contact by their full Tox ID and sends a friend request.
+    fun addContact(toxId: ToxID, message: String) = synchronized(jniLock) {
         nativeTox.toxAddFriend(toxPtr, toxId.bytes(), message.toByteArray())
         updateContactMapping()
     }
 
-    /**
-     * Удаляет друга из нашего контакт-листа по его публичному ключу.
-     */
-    fun deleteContact(pk: PublicKey) = synchronized(this) {
+    // Deletes a contact from the contact list by their public key.
+    fun deleteContact(pk: PublicKey) = synchronized(jniLock) {
         Log.i(TAG, "Deleting ${pk.fingerprint()}")
         val friendNumber = nativeTox.toxFriendByPublicKey(toxPtr, pk.bytes())
         if (friendNumber != -1) {
             nativeTox.toxDeleteFriend(toxPtr, friendNumber)
         } else {
-            Log.e(TAG, "Tried to delete nonexistent contact, this can happen if the database is out of sync with the Tox save")
+            Log.e(TAG, "Tried to delete nonexistent contact")
         }
         updateContactMapping()
     }
 
-    /**
-     * Возвращает список всех друзей в формате пар (Публичный ключ, Внутренний нативный ID).
-     */
-    fun getContacts(): List<Pair<PublicKey, Int>> = synchronized(this) {
+    // Returns a list of all friends as pairs of (PublicKey, native ID).
+    fun getContacts(): List<Pair<PublicKey, Int>> = synchronized(jniLock) {
         val friendNumbers = nativeTox.toxGetFriendList(toxPtr)
         Log.i(TAG, "Loading ${friendNumbers.size} friends")
         List(friendNumbers.size) {
@@ -236,7 +148,7 @@ class ToxWrapper(
         }
     }
 
-    fun getFriendPublicKey(friendNumber: Int): ByteArray? = synchronized(this) {
+    fun getFriendPublicKey(friendNumber: Int): ByteArray? = synchronized(jniLock) {
         try {
             nativeTox.toxGetFriendPublicKey(toxPtr, friendNumber)
         } catch (e: Exception) {
@@ -244,15 +156,8 @@ class ToxWrapper(
         }
     }
 
-    /**
-     * Отправляет приватное текстовое сообщение другу.
-     *
-     * @param publicKey Публичный ключ получателя.
-     * @param message Текст сообщения.
-     * @param type Тип сообщения (обычное или статус действия).
-     * @return Внутренний идентификатор сообщения в очереди отправки.
-     */
-    fun sendMessage(publicKey: PublicKey, message: String, type: MessageType): Int = synchronized(this) {
+    // Sends a private text or action message to a friend.
+    fun sendMessage(publicKey: PublicKey, message: String, type: MessageType): Int = synchronized(jniLock) {
         nativeTox.toxFriendSendMessage(
             toxPtr,
             contactByKey(publicKey),
@@ -261,10 +166,8 @@ class ToxWrapper(
         )
     }
 
-    /**
-     * Принимает входящий запрос в друзья от контакта, добавляя его без отсылки запроса.
-     */
-    fun acceptFriendRequest(pk: PublicKey) = synchronized(this) {
+    // Accepts an incoming friend request and adds the contact to the list.
+    fun acceptFriendRequest(pk: PublicKey) = synchronized(jniLock) {
         try {
             nativeTox.toxAddFriendNorequest(toxPtr, pk.bytes())
             updateContactMapping()
@@ -273,57 +176,26 @@ class ToxWrapper(
         }
     }
 
-    /**
-     * Возобновляет или одобряет входящий файловый трансфер.
-     */
+    // File transfer delegation methods
     fun startFileTransfer(pk: PublicKey, fileNumber: Int) = fileTransmitter.startFileTransfer(pk, fileNumber)
-
-    /**
-     * Ставит на паузу или отменяет файловый трансфер.
-     */
     fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = fileTransmitter.stopFileTransfer(pk, fileNumber)
-
-    /**
-     * Инициирует отправку нового файла другу.
-     *
-     * @param pk Публичный ключ получателя.
-     * @param fileKind Назначение отправляемого файла (обычный файл или картинка аватарки).
-     * @param fileSize Общий размер файла в байтах.
-     * @param fileName Имя отправляемого файла.
-     * @return Внутренний номер созданной файловой сессии.
-     */
     fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String): Int =
         fileTransmitter.sendFile(pk, fileKind, fileSize, fileName)
-
-    /**
-     * Передает конкретный порционный блок байтов (чанк) отправляемого файла.
-     */
     fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> =
         fileTransmitter.sendFileChunk(pk, fileNo, pos, data)
 
-    /**
-     * Уведомляет контакта о статусе набора текста (печатает / закончил ввод).
-     */
-    fun setTyping(publicKey: PublicKey, typing: Boolean) = synchronized(this) {
+    // Sets friend typing notification status.
+    fun setTyping(publicKey: PublicKey, typing: Boolean) = synchronized(jniLock) {
         nativeTox.toxSetTyping(toxPtr, contactByKey(publicKey), typing)
     }
 
-    /**
-     * Возвращает наш текущий сетевой статус доступности.
-     */
-    fun getStatus() = synchronized(this) { UserStatus.entries[nativeTox.toxGetSelfUserStatus(toxPtr)] }
-
-    /**
-     * Устанавливает новый статус доступности локального профиля.
-     */
-    fun setStatus(status: UserStatus) = synchronized(this) {
+    fun getStatus() = synchronized(jniLock) { UserStatus.entries[nativeTox.toxGetSelfUserStatus(toxPtr)] }
+    fun setStatus(status: UserStatus) = synchronized(jniLock) {
         nativeTox.toxSetSelfUserStatus(toxPtr, status.toToxType().ordinal)
     }
 
-    /**
-     * Отправляет гарантированный P2P-пакет пользовательских данных другу.
-     */
-    fun sendLosslessPacket(pk: PublicKey, packet: ByteArray): CustomPacketError = synchronized(this) {
+    // Sends a reliable lossless custom data packet to a friend.
+    fun sendLosslessPacket(pk: PublicKey, packet: ByteArray): CustomPacketError = synchronized(jniLock) {
         try {
             nativeTox.toxFriendSendLosslessPacket(toxPtr, contactByKey(pk), packet)
             CustomPacketError.Success
@@ -333,10 +205,8 @@ class ToxWrapper(
         }
     }
 
-    /**
-     * Отправляет кастомный ненадежный lossy-пакет другу.
-     */
-    fun sendLossyPacket(pk: PublicKey, data: ByteArray): CustomPacketError = synchronized(this) {
+    // Sends an unreliable lossy custom data packet to a friend.
+    fun sendLossyPacket(pk: PublicKey, data: ByteArray): CustomPacketError = synchronized(jniLock) {
         try {
             nativeTox.toxFriendSendLossyPacket(toxPtr, contactByKey(pk), data)
             CustomPacketError.Success
@@ -346,230 +216,70 @@ class ToxWrapper(
         }
     }
 
-    /**
-     * Возвращает секретный (приватный) ключ нашего профиля (32 байта).
-     */
-    fun selfGetSecretKey(): ByteArray = synchronized(this) {
-        nativeTox.toxSelfGetSecretKey(toxPtr)
-    }
+    fun selfGetSecretKey(): ByteArray = synchronized(jniLock) { nativeTox.toxSelfGetSecretKey(toxPtr) }
+    fun selfGetUdpPort(): Int = synchronized(jniLock) { nativeTox.toxSelfGetUdpPort(toxPtr) }
+    fun selfGetTcpPort(): Int = synchronized(jniLock) { nativeTox.toxSelfGetTcpPort(toxPtr) }
+    fun selfGetDhtId(): ByteArray = synchronized(jniLock) { nativeTox.toxSelfGetDhtId(toxPtr) }
 
-    /**
-     * Возвращает активный UDP-порт нашего локального узла.
-     */
-    fun selfGetUdpPort(): Int = synchronized(this) {
-        nativeTox.toxSelfGetUdpPort(toxPtr)
-    }
-
-    /**
-     * Возвращает активный TCP-порт нашего локального узла.
-     */
-    fun selfGetTcpPort(): Int = synchronized(this) {
-        nativeTox.toxSelfGetTcpPort(toxPtr)
-    }
-
-    /**
-     * Возвращает временный DHT-ключ (DHT ID) нашего инстанса (32 байта).
-     */
-    fun selfGetDhtId(): ByteArray = synchronized(this) {
-        nativeTox.toxSelfGetDhtId(toxPtr)
-    }
-
-    /**
-     * Возвращает UNIX-время последнего зафиксированного присутствия друга на связи.
-     */
-    fun friendGetLastOnline(pk: PublicKey): Long = synchronized(this) {
+    fun friendGetLastOnline(pk: PublicKey): Long = synchronized(jniLock) {
         nativeTox.toxFriendGetLastOnline(toxPtr, contactByKey(pk))
     }
 
-    /**
-     * Проверяет, вводит ли в данный момент друг сообщение в чате (активный ввод).
-     */
-    fun friendGetTyping(pk: PublicKey): Boolean = synchronized(this) {
+    fun friendGetTyping(pk: PublicKey): Boolean = synchronized(jniLock) {
         nativeTox.toxFriendGetTyping(toxPtr, contactByKey(pk))
     }
 
-    /**
-     * Вычисляет внутренний нативный ID друга по его публичному криптографическому ключу.
-     */
-    private fun contactByKey(pk: PublicKey): Int = synchronized(this) {
+    private fun contactByKey(pk: PublicKey): Int = synchronized(jniLock) {
         nativeTox.toxFriendByPublicKey(toxPtr, pk.bytes())
     }
 
-    /**
-     * Возвращает нативный номер друга по его публичному ключу.
-     */
-    fun getFriendNumberByPublicKey(pk: PublicKey): Int = synchronized(this) {
+    fun getFriendNumberByPublicKey(pk: PublicKey): Int = synchronized(jniLock) {
         nativeTox.toxFriendByPublicKey(toxPtr, pk.bytes())
     }
 
-    /**
-     * Инициирует исходящий 1-на-1 голосовой вызов другу.
-     */
+    // Audio-Video call delegation methods
     fun startCall(pk: PublicKey) = audioVideoBridge.startCall(pk, audioBitrate)
-
-    /**
-     * Одобряет и подключается к входящему голосовому вызову от друга.
-     */
     fun answerCall(pk: PublicKey) = audioVideoBridge.answerCall(pk, audioBitrate)
-
-    /**
-     * Прерывает, сбрасывает или отклоняет текущий вызов.
-     */
     fun endCall(pk: PublicKey) = audioVideoBridge.endCall(pk)
-
-    /**
-     * Передает порционный PCM-кадр записанного голоса собеседнику.
-     */
     fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) =
         audioVideoBridge.sendAudio(pk, pcm, channels, samplingRate)
-
-    /**
-     * Отправляет видеокадр YUV420P собеседнику в рамках видеовызова.
-     */
     fun sendVideoFrame(pk: PublicKey, width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray): Boolean =
         audioVideoBridge.sendVideoFrame(pk, width, height, y, u, v)
-
-    /**
-     * Изменяет битрейт аудио потока на лету во время звонка.
-     */
     fun audioSetBitRate(pk: PublicKey, bitrate: Int): Boolean = audioVideoBridge.audioSetBitRate(pk, bitrate)
-
-    /**
-     * Изменяет битрейт видео потока на лету во время звонка.
-     */
     fun videoSetBitRate(pk: PublicKey, bitrate: Int): Boolean = audioVideoBridge.videoSetBitRate(pk, bitrate)
 
-    /**
-     * Создает новую групповую NGC-конференцию.
-     *
-     * @param privacyState Вид приватности (публичная или приватная).
-     * @param groupName Название создаваемой группы.
-     * @param selfName Наш псевдоним внутри создаваемой группы.
-     */
-    /**
-     * Создает новую групповую NGC-конференцию.
-     *
-     * @param privacyState Вид приватности (публичная или приватная).
-     * @param groupName Название создаваемой группы.
-     * @param selfName Наш псевдоним внутри создаваемой группы.
-     */
+    // NGC group conference delegation methods
     fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int =
         groupBridge.groupNew(privacyState, groupName, selfName)
-
-    /**
-     * Присоединяется к групповой NGC-конференции по полученным пригласительным данным.
-     */
     fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
         groupBridge.groupJoin(friendNo, inviteData, selfName, password)
-
-    /**
-     * Выходит из состава участников указанной NGC-группы.
-     */
     fun groupLeave(groupNumber: Int): Boolean = groupBridge.groupLeave(groupNumber)
-
-    /**
-     * Отправляет групповое сообщение всем участникам NGC-конференции.
-     */
     fun groupSendMessage(groupNumber: Int, type: ToxMessageType, message: ByteArray): Int =
         groupBridge.groupSendMessage(groupNumber, type, message)
-
-    /**
-     * Устанавливает тему для указанной NGC-группы.
-     */
     fun groupSetTopic(groupNumber: Int, topic: ByteArray): Boolean = groupBridge.groupSetTopic(groupNumber, topic)
-
-    /**
-     * Получает текущую тему указанной NGC-группы.
-     */
     fun groupGetTopic(groupNumber: Int): ByteArray? = groupBridge.groupGetTopic(groupNumber)
-
-    /**
-     * Получает название указанной NGC-группы.
-     */
     fun groupGetName(groupNumber: Int): ByteArray? = groupBridge.groupGetName(groupNumber)
-
-    /**
-     * Возвращает уникальный постоянный 32-байтовый ID группового чата NGC.
-     */
     fun groupGetChatId(groupNumber: Int): ByteArray? = groupBridge.groupGetChatId(groupNumber)
-
-    /**
-     * Устанавливает или сбрасывает пароль доступа к NGC-группе.
-     */
     fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean =
         groupBridge.groupSetPassword(groupNumber, password)
-
-    /**
-     * Получает текущий пароль для входа в данную NGC-группу.
-     */
     fun groupGetPassword(groupNumber: Int): ByteArray? = groupBridge.groupGetPassword(groupNumber)
-
-    /**
-     * Получает имя конкретного участника NGC-группы по его ID.
-     */
     fun groupPeerGetName(groupNumber: Int, peerId: Int): ByteArray? = groupBridge.groupPeerGetName(groupNumber, peerId)
-
-    /**
-     * Получает публичный ключ конкретного участника NGC-группы по его ID.
-     */
     fun groupPeerGetPublicKey(groupNumber: Int, peerId: Int): ByteArray? =
         groupBridge.groupPeerGetPublicKey(groupNumber, peerId)
-
-    /**
-     * Возвращает наш собственный ID участника в NGC-группе.
-     */
     fun groupSelfGetPeerId(groupNumber: Int): Int = groupBridge.groupSelfGetPeerId(groupNumber)
-
-    /**
-     * Возвращает нашу текущую роль внутри NGC-группы.
-     */
     fun groupSelfGetRole(groupNumber: Int): ToxGroupRole = groupBridge.groupSelfGetRole(groupNumber)
-
-    /**
-     * Отправляет приглашение в NGC-группу конкретному другу.
-     */
     fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean =
         groupBridge.groupInviteSend(groupNumber, friendNumber)
-
-    /**
-     * Присоединяется к NGC-группе напрямую по Chat ID.
-     */
     fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
         groupBridge.groupJoinDirect(chatId, selfName, password)
-
-    /**
-     * Переподключается к ранее сохранённой NGC-группе после загрузки профиля.
-     */
     fun groupReconnect(groupNumber: Int): Boolean = groupBridge.groupReconnect(groupNumber)
 
-    /**
-     * Создает групповую аудио-конференцию на базе группы.
-     */
+    // Legacy conference/groupav delegation methods
     fun groupavAdd(): Int = groupBridge.groupavAdd()
-
-    /**
-     * Подключается к групповой аудио-конференции.
-     */
     fun groupavJoin(groupNumber: Int): Int = groupBridge.groupavJoin(groupNumber)
-
-    /**
-     * Транслирует PCM-кадр нашего голоса всем участникам групповой конференции.
-     */
     fun groupavSendAudio(groupNumber: Int, pcm: ShortArray, channels: Int, samplingRate: Int): Int =
         groupBridge.groupavSendAudio(groupNumber, pcm, channels, samplingRate)
-
-    /**
-     * Активирует функции аудио/видео вызова в групповом чате.
-     */
     fun groupavEnableAudio(groupNumber: Int): Int = groupBridge.groupavEnableAudio(groupNumber)
-
-    /**
-     * Выключает функции аудио/видео вызова в групповом чате.
-     */
     fun groupavDisableAudio(groupNumber: Int): Int = groupBridge.groupavDisableAudio(groupNumber)
-
-    /**
-     * Проверяет, активна ли трансляция звука в данном групповом чате.
-     */
     fun groupavIsEnabled(groupNumber: Int): Boolean = groupBridge.groupavIsEnabled(groupNumber)
 }

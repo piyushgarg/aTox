@@ -5,8 +5,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import ltd.evilcorp.domain.feature.GroupEventBus
-import ltd.evilcorp.domain.feature.GroupDomainEvent
+import ltd.evilcorp.domain.features.group.GroupEventBus
+import ltd.evilcorp.domain.features.group.GroupDomainEvent
 
 private const val TAG = "GroupEventProcessor"
 

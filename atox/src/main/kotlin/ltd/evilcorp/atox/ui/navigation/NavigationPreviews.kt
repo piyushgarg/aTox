@@ -12,7 +12,7 @@ import ltd.evilcorp.atox.ui.navigation.components.UnlockScreenContent
 
 @Preview(name = "Launch Screen Loading", showBackground = true)
 @Composable
-private fun LaunchScreenPreview() {
+fun LaunchScreenPreview() {
     AToxTheme {
         LaunchScreenContent()
     }
@@ -20,7 +20,7 @@ private fun LaunchScreenPreview() {
 
 @Preview(name = "Unlock Screen Normal", showBackground = true)
 @Composable
-private fun UnlockScreenPreview() {
+fun UnlockScreenPreview() {
     AToxTheme {
         UnlockScreenContent(
             isError = false,
@@ -34,7 +34,7 @@ private fun UnlockScreenPreview() {
 
 @Preview(name = "Unlock Screen Error", showBackground = true)
 @Composable
-private fun UnlockScreenErrorPreview() {
+fun UnlockScreenErrorPreview() {
     AToxTheme {
         UnlockScreenContent(
             isError = true,
@@ -48,7 +48,7 @@ private fun UnlockScreenErrorPreview() {
 
 @Preview(name = "Unlock Screen Loading State", showBackground = true)
 @Composable
-private fun UnlockScreenLoadingPreview() {
+fun UnlockScreenLoadingPreview() {
     AToxTheme {
         UnlockScreenContent(
             isError = false,
@@ -62,7 +62,7 @@ private fun UnlockScreenLoadingPreview() {
 
 @Preview(name = "Main Tabs Screen - Chats Tab", showBackground = true)
 @Composable
-private fun MainTabsChatsPreview() {
+fun MainTabsChatsPreview() {
     AToxTheme {
         MainTabsScreen(
             currentRoute = AppRoutes.Chats::class.qualifiedName!!,
@@ -79,7 +79,7 @@ private fun MainTabsChatsPreview() {
 
 @Preview(name = "Main Tabs Screen - Settings Tab", showBackground = true)
 @Composable
-private fun MainTabsSettingsPreview() {
+fun MainTabsSettingsPreview() {
     AToxTheme {
         MainTabsScreen(
             currentRoute = AppRoutes.Settings::class.qualifiedName!!,

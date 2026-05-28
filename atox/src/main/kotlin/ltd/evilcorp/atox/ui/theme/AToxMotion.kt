@@ -1,6 +1,15 @@
 package ltd.evilcorp.atox.ui.theme
 
-import androidx.compose.animation.*
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -35,6 +44,9 @@ object AToxMotion {
     private const val DurationReplyPreviewFadeIn = 150
     private const val DurationReplyPreviewExit = 150
     private const val DurationReplyPreviewFadeOut = 100
+
+    private const val DurationFadeEnter = 150
+    private const val DurationFadeExit = 75
 
     fun sharedAxisZEnter(forward: Boolean): EnterTransition =
         fadeIn(
@@ -100,20 +112,20 @@ object AToxMotion {
 
     fun fadeEnter(): EnterTransition =
         fadeIn(
-            animationSpec = tween(150, easing = LinearEasing),
+            animationSpec = tween(DurationFadeEnter, easing = LinearEasing),
         ) + scaleIn(
             initialScale = 0.92f,
             transformOrigin = TransformOrigin.Center,
-            animationSpec = tween(150, easing = Emphasized),
+            animationSpec = tween(DurationFadeEnter, easing = Emphasized),
         )
 
     fun fadeExit(): ExitTransition =
         fadeOut(
-            animationSpec = tween(75, easing = LinearEasing),
+            animationSpec = tween(DurationFadeExit, easing = LinearEasing),
         ) + scaleOut(
             targetScale = 0.92f,
             transformOrigin = TransformOrigin.Center,
-            animationSpec = tween(75, easing = Emphasized),
+            animationSpec = tween(DurationFadeExit, easing = Emphasized),
         )
 
     fun sharedAxisXEnter(forward: Boolean): EnterTransition =
@@ -137,6 +149,29 @@ object AToxMotion {
         ) + slideOutHorizontally(
             targetOffsetX = { if (forward) -90 else 90 },
             animationSpec = tween(DurationScreenTransition, easing = Emphasized),
+        )
+
+    fun slideXEnter(forward: Boolean): EnterTransition =
+        slideInHorizontally(
+            initialOffsetX = { if (forward) it else -it },
+            animationSpec = tween(DurationScreenTransition, easing = Emphasized)
+        ) + fadeIn(
+            animationSpec = tween(
+                durationMillis = DurationFadeIn,
+                delayMillis = DurationFadeOut,
+                easing = EmphasizedDecelerate,
+            ),
+        )
+
+    fun slideXExit(forward: Boolean): ExitTransition =
+        slideOutHorizontally(
+            targetOffsetX = { if (forward) -it else it },
+            animationSpec = tween(DurationScreenTransition, easing = Emphasized)
+        ) + fadeOut(
+            animationSpec = tween(
+                durationMillis = DurationFadeOut,
+                easing = EmphasizedAccelerate,
+            ),
         )
 
     fun slideUpEnter(): EnterTransition =

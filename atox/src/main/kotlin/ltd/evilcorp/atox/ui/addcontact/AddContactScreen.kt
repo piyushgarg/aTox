@@ -2,23 +2,48 @@ package ltd.evilcorp.atox.ui.addcontact
 
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import ltd.evilcorp.atox.ui.common.FormErrorText
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,12 +51,16 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
 import kotlinx.coroutines.flow.collectLatest
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.tox.ToxID
-
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import ltd.evilcorp.atox.ui.navigation.AppBarStateHolder
-import ltd.evilcorp.atox.ui.navigation.AppBarConfig
+import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
+
+private const val PADDING_STANDARD = 16
+private const val HEX_RADIX = 16
+private const val TOX_ID_HEX_LENGTH = 76
+private const val TOX_ID_BYTES_LENGTH = 38
+private const val TOX_ID_PUBLIC_KEY_LENGTH = 36
+private const val TOX_ID_CHECKSUM_OFFSET_0 = 36
+private const val TOX_ID_CHECKSUM_OFFSET_1 = 37
 
 @Composable
 fun AddContactScreen(
@@ -107,15 +136,15 @@ fun AddContactContent(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(PADDING_STANDARD.dp),
+            verticalArrangement = Arrangement.spacedBy(PADDING_STANDARD.dp)
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.padding(PADDING_STANDARD.dp), verticalArrangement = Arrangement.spacedBy(PADDING_STANDARD.dp)) {
                     Text(
                         text = stringResource(R.string.add_contact_send_request),
                         style = MaterialTheme.typography.titleMedium,
@@ -202,26 +231,27 @@ fun AddContactContent(
     if (showBackButton) {
         val titleString = stringResource(R.string.add_contact)
         val containerColor = MaterialTheme.colorScheme.surfaceContainer
-        LaunchedEffect(isLoading) {
-            AppBarStateHolder.config.value = AppBarConfig(
-                title = { Text(titleString, fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isLoading) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                containerColor = containerColor
-            )
-        }
-
-        DisposableEffect(Unit) {
-            onDispose {
-                AppBarStateHolder.config.value = null
+        Scaffold(
+            topBar = {
+                @OptIn(ExperimentalMaterial3Api::class)
+                TopAppBar(
+                    title = { Text(titleString, fontWeight = FontWeight.SemiBold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack, enabled = !isLoading) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = containerColor
+                    )
+                )
             }
+        ) { paddingValues ->
+            addContactContent(paddingValues)
         }
+    } else {
+        addContactContent(PaddingValues(0.dp))
     }
-
-    addContactContent(PaddingValues(0.dp))
 }
 
 @Preview(showBackground = true)
@@ -250,14 +280,14 @@ fun AddContactLoadingPreview() {
 
 private fun isValidToxId(toxId: String): Boolean {
     val clean = toxId.trim()
-    if (clean.length != 76) return false
+    if (clean.length != TOX_ID_HEX_LENGTH) return false
     if (!clean.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) return false
     return try {
-        val bytes = clean.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-        if (bytes.size != 38) return false
-        val message = bytes.copyOfRange(0, 36)
+        val bytes = clean.chunked(2).map { it.toInt(HEX_RADIX).toByte() }.toByteArray()
+        if (bytes.size != TOX_ID_BYTES_LENGTH) return false
+        val message = bytes.copyOfRange(0, TOX_ID_PUBLIC_KEY_LENGTH)
         val digest = java.security.MessageDigest.getInstance("SHA-256").digest(message)
-        bytes[36] == digest[0] && bytes[37] == digest[1]
+        bytes[TOX_ID_CHECKSUM_OFFSET_0] == digest[0] && bytes[TOX_ID_CHECKSUM_OFFSET_1] == digest[1]
     } catch (e: Exception) {
         false
     }

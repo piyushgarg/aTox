@@ -29,8 +29,8 @@ import kotlinx.coroutines.withContext
 import android.widget.Toast
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.ContactAvatar
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.GroupPeer
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.group.model.GroupPeer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -262,7 +262,7 @@ fun GroupInviteSheet(
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )
-                                    } else if (contact.connectionStatus != ltd.evilcorp.domain.model.ConnectionStatus.None) {
+                                    } else if (contact.connectionStatus != ltd.evilcorp.domain.features.contacts.model.ConnectionStatus.None) {
                                         Text(
                                             text = stringResource(R.string.chat_status_online),
                                             style = MaterialTheme.typography.bodyMedium,

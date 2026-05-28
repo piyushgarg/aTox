@@ -16,15 +16,15 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.tox.IToxStarter
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
-import ltd.evilcorp.domain.backup.BackupDataProvider
-import ltd.evilcorp.domain.usecase.BackupUseCase
-import ltd.evilcorp.domain.usecase.IProfileDeleter
-import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.core.network.IToxStarter
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
+import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
+import ltd.evilcorp.domain.features.backup.usecase.BackupUseCase
+import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.core.network.ITox
 
-import ltd.evilcorp.domain.feature.ISettingsFileProcessor
+import ltd.evilcorp.domain.features.settings.ISettingsFileProcessor
 
 sealed interface BackupUiEvent {
     data class ShowToast(val messageResId: Int) : BackupUiEvent
@@ -36,7 +36,7 @@ class BackupSettingsViewModel @Inject constructor(
     private val toxStarter: IToxStarter,
     private val tox: ITox,
     private val backupUseCase: BackupUseCase,
-    private val profileDeleter: IProfileDeleter,
+    private val profileDeleter: IProfileRepository,
     private val userManager: UserManager,
 ) : ViewModel() {
     private val _backupExporting = MutableStateFlow(false)
@@ -48,7 +48,7 @@ class BackupSettingsViewModel @Inject constructor(
     private val _uiEvents = MutableSharedFlow<BackupUiEvent>()
     val uiEvents = _uiEvents.asSharedFlow()
 
-    val backupProviders: List<BackupDataProvider> = backupUseCase.providers
+    val backupProviders: List<IBackupDataProvider> = backupUseCase.providers
 
     fun isToxStarted(): Boolean = tox.started
 

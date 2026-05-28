@@ -13,14 +13,14 @@ import ltd.evilcorp.atox.ui.chat.components.CallHistoryCard
 import ltd.evilcorp.atox.ui.common.chat.FileTransferCard
 import ltd.evilcorp.atox.ui.chat.components.TypingBubble
 import ltd.evilcorp.atox.ui.theme.AToxTheme
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.Sender
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.features.chat.model.Sender
 
 @Preview(name = "Typing Bubble", showBackground = true)
 @Composable
-private fun TypingBubblePreview() {
+fun TypingBubblePreview() {
     AToxTheme {
         Column(modifier = Modifier.padding(16.dp)) {
             TypingBubble()
@@ -30,7 +30,7 @@ private fun TypingBubblePreview() {
 
 @Preview(name = "Call History Cards", showBackground = true)
 @Composable
-private fun CallHistoryCardsPreview() {
+fun CallHistoryCardsPreview() {
     AToxTheme {
         Column(
             modifier = Modifier
@@ -56,7 +56,7 @@ private fun CallHistoryCardsPreview() {
 
 @Preview(name = "File Transfer Cards", showBackground = true)
 @Composable
-private fun FileTransferCardsPreview() {
+fun FileTransferCardsPreview() {
     AToxTheme {
         Column(
             modifier = Modifier

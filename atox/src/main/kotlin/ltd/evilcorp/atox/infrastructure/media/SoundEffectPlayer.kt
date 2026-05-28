@@ -4,7 +4,9 @@ import android.media.AudioManager
 import android.media.ToneGenerator
 import javax.inject.Inject
 import javax.inject.Singleton
-import ltd.evilcorp.domain.model.AppSound
+import ltd.evilcorp.domain.features.settings.model.AppSound
+
+private const val MAX_VOLUME = 100
 
 @Singleton
 class SoundEffectPlayer @Inject constructor() {
@@ -14,7 +16,7 @@ class SoundEffectPlayer @Inject constructor() {
         stream: Int = AudioManager.STREAM_NOTIFICATION,
         durationMs: Int = 80,
     ) {
-        val safeVolume = volume.coerceIn(0, 100)
+        val safeVolume = volume.coerceIn(0, MAX_VOLUME)
         if (safeVolume <= 0) return
 
         runCatching {

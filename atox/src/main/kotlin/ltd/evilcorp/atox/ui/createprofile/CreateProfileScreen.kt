@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 

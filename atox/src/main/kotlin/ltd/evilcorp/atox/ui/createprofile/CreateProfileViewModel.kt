@@ -10,12 +10,12 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
-import ltd.evilcorp.domain.model.User
-import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
-import ltd.evilcorp.domain.usecase.BackupUseCase
-import ltd.evilcorp.domain.usecase.IProfileDeleter
+import ltd.evilcorp.domain.features.auth.model.User
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
+import ltd.evilcorp.domain.features.backup.usecase.BackupUseCase
+import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +43,7 @@ sealed interface CreateProfileUiState {
 @HiltViewModel
 class CreateProfileViewModel @Inject constructor(
     private val backupProcessor: ProfileBackupProcessor,
-    private val profileDeleter: IProfileDeleter,
+    private val profileDeleter: IProfileRepository,
     private val backupUseCase: BackupUseCase,
     private val userManager: UserManager,
     private val tox: ITox,
@@ -53,7 +53,7 @@ class CreateProfileViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     fun startTox(save: ByteArray? = null, password: String? = null): ToxSaveStatus = toxStarter.startTox(save, password)
-    fun create(user: User) = userManager.create(user)
+    suspend fun create(user: User) = userManager.create(user)
 
     fun restoreBackup(uriString: String, password: String?) {
         viewModelScope.launch {

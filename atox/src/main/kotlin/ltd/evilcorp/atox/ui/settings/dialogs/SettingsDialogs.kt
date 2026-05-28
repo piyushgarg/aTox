@@ -8,11 +8,11 @@ import android.content.Intent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.focus.FocusManager
-import ltd.evilcorp.domain.model.BootstrapNodeSource
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.FtAutoAccept
-import ltd.evilcorp.domain.model.ProxyType
-import ltd.evilcorp.domain.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.FtAutoAccept
+import ltd.evilcorp.domain.features.settings.model.ProxyType
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 import ltd.evilcorp.atox.ui.settings.appearance.AccentColorDialog
 import ltd.evilcorp.atox.ui.settings.appearance.DateFormatSettingsDialog
 import ltd.evilcorp.atox.ui.settings.appearance.TimeFormatSettingsDialog

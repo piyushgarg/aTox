@@ -10,25 +10,36 @@ import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.PublicKey
-
-import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.domain.feature.CallState
-import ltd.evilcorp.domain.feature.ContactManager
-import ltd.evilcorp.domain.feature.NotificationManager
-import ltd.evilcorp.domain.feature.ProximityManager
-
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.call.CallManager
+import ltd.evilcorp.domain.features.call.CallState
+import ltd.evilcorp.domain.features.contacts.ContactManager
+import ltd.evilcorp.domain.core.network.INotificationManager
+import ltd.evilcorp.domain.features.call.IProximityManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+
+private const val MILLIS_IN_SECOND = 1000L
+private const val SECONDS_IN_MINUTE = 60L
+private const val UPDATE_DELAY_MS = 1000L
 
 @HiltViewModel
 class CallViewModel @Inject constructor(
     private val callManager: CallManager,
-    private val notificationManager: NotificationManager,
+    private val notificationManager: INotificationManager,
     private val contactManager: ContactManager,
-    private val proximityManager: ProximityManager,
+    private val proximityManager: IProximityManager,
 ) : ViewModel() {
     private var publicKey = PublicKey("")
     private val activePublicKey = MutableStateFlow<PublicKey?>(null)
@@ -42,7 +53,6 @@ class CallViewModel @Inject constructor(
     val contact: StateFlow<Contact?> = activePublicKey
         .filterNotNull()
         .flatMapLatest { pk -> contactManager.get(pk) }
-        
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -58,11 +68,11 @@ class CallViewModel @Inject constructor(
                     durationJob = viewModelScope.launch {
                         while (true) {
                             val elapsedMs = System.currentTimeMillis() - startTime
-                            val elapsedSec = elapsedMs / 1000
-                            val minutes = elapsedSec / 60
-                            val seconds = elapsedSec % 60
-                            _callDuration.value = String.format("%02d:%02d", minutes, seconds)
-                            delay(1000)
+                            val elapsedSec = elapsedMs / MILLIS_IN_SECOND
+                            val minutes = elapsedSec / SECONDS_IN_MINUTE
+                            val seconds = elapsedSec % SECONDS_IN_MINUTE
+                            _callDuration.value = String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds)
+                            delay(UPDATE_DELAY_MS)
                         }
                     }
                 } else {

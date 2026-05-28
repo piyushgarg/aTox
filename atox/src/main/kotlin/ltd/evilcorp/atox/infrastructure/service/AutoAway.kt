@@ -12,9 +12,9 @@ import kotlin.concurrent.schedule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.core.network.ITox
 
 private const val TAG = "AutoAway"
 private const val MILLIS_PER_SECOND = 1000L
@@ -50,7 +50,9 @@ class AutoAway @Inject constructor(
         awayTimer = Timer()
         if (isAutoAway) {
             Log.i(TAG, "Restoring status")
-            userManager.setStatus(UserStatus.None)
+            scope.launch {
+                userManager.setStatus(UserStatus.None)
+            }
             isAutoAway = false
         }
     }

@@ -15,7 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.model.ProxyType
+import ltd.evilcorp.domain.features.settings.model.ProxyType
 
 @Composable
 fun ProxySettingsDialog(

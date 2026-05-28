@@ -16,9 +16,9 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.core.db.entity.ContactEntity
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import org.junit.runner.RunWith
 
 @ExperimentalCoroutinesApi
@@ -30,17 +30,18 @@ class ContactDaoTest {
             .build()
     private val dao = db.contactDao()
 
-    private val first = Contact(
+    private val first = ContactEntity(
         publicKey = "1234",
         name = "name",
         statusMessage = "status",
-        lastMessage = 5,
+        lastMessage = 5L,
         status = UserStatus.Away,
         connectionStatus = ConnectionStatus.UDP,
         typing = true,
         avatarUri = "uri",
         hasUnreadMessages = true,
         draftMessage = "i made this",
+        lastOnline = 0L,
     )
 
     private val second = first.copy(publicKey = "5678")
@@ -117,7 +118,7 @@ class ContactDaoTest {
         dao.setAvatarUri(second.publicKey, first.avatarUri)
         dao.setHasUnreadMessages(second.publicKey, first.hasUnreadMessages)
         dao.setDraftMessage(second.publicKey, first.draftMessage)
-        assertEquals(first, dao.load(second.publicKey).first().copy(publicKey = first.publicKey))
+        assertEquals(first, dao.load(second.publicKey).first()?.copy(publicKey = first.publicKey))
     }
 
     @Test

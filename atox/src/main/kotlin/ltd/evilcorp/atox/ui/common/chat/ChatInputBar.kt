@@ -4,11 +4,38 @@
 
 package ltd.evilcorp.atox.ui.common.chat
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.with
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -17,8 +44,22 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Attachment
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,10 +89,14 @@ import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.stripReplyPrefix
 import ltd.evilcorp.atox.ui.theme.AToxMotion
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.Sender
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.Sender
+
+private const val VOICE_CANCEL_THRESHOLD_DP = 60
+private const val VOICE_STOPWATCH_INTERVAL_MS = 1000L
+private const val BUTTON_TOGGLE_DURATION_MS = 300
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -66,6 +111,7 @@ fun ChatInputBar(
     replyingToMessage: Message?,
     onCancelReply: () -> Unit,
     onSendVoice: (android.net.Uri) -> Unit,
+    voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
     modifier: Modifier = Modifier
 ) {
     var textInput by remember { mutableStateOf("") }
@@ -75,23 +121,21 @@ fun ChatInputBar(
     // Voice message recording states
     var isRecording by remember { mutableStateOf(false) }
     var recordDuration by remember { mutableIntStateOf(0) }
-    val cancelThreshold = with(LocalDensity.current) { 60.dp.toPx() }
+    val cancelThreshold = with(LocalDensity.current) { VOICE_CANCEL_THRESHOLD_DP.dp.toPx() }
 
-    // Voice recording controller and lifecycle observer
-    val recordingController = remember(context) { VoiceRecordingController(context) }
-
-    DisposableEffect(recordingController) {
+    // Voice recording lifecycle observer
+    DisposableEffect(voiceRecorder) {
         onDispose {
-            recordingController.release()
+            voiceRecorder.release()
         }
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, recordingController) {
+    DisposableEffect(lifecycleOwner, voiceRecorder) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
                 if (isRecording) {
-                    recordingController.cancelRecording()
+                    voiceRecorder.cancelRecording()
                     isRecording = false
                 }
             }
@@ -142,7 +186,7 @@ fun ChatInputBar(
         } else {
             MaterialTheme.colorScheme.primary
         },
-        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = BUTTON_TOGGLE_DURATION_MS, easing = FastOutSlowInEasing),
         label = "micBgColor"
     )
 
@@ -152,7 +196,7 @@ fun ChatInputBar(
         } else {
             MaterialTheme.colorScheme.onPrimary
         },
-        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = BUTTON_TOGGLE_DURATION_MS, easing = FastOutSlowInEasing),
         label = "micContentColor"
     )
 
@@ -161,7 +205,7 @@ fun ChatInputBar(
         if (isRecording) {
             recordDuration = 0
             while (isRecording) {
-                delay(1000)
+                delay(VOICE_STOPWATCH_INTERVAL_MS)
                 recordDuration++
             }
         }
@@ -173,60 +217,11 @@ fun ChatInputBar(
             .windowInsetsPadding(WindowInsets.ime)
     ) {
         // 1. Reply Preview Block above text field
-        AnimatedVisibility(
-            visible = replyingToMessage != null,
-            enter = AToxMotion.replyPreviewEnter(),
-            exit = AToxMotion.replyPreviewExit()
-        ) {
-            replyingToMessage?.let { replyMsg ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(3.dp)
-                            .height(36.dp)
-                            .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(2.dp))
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (replyMsg.sender == Sender.Sent) {
-                                stringResource(R.string.reply_you)
-                            } else {
-                                contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) }
-                                    ?: stringResource(R.string.contact_default_name)
-                            },
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = stripReplyPrefix(replyMsg.message),
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = onCancelReply, modifier = Modifier.size(24.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cancel reply",
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-        }
+        ReplyPreviewHeader(
+            replyingToMessage = replyingToMessage,
+            contact = contact,
+            onCancelReply = onCancelReply
+        )
 
         // 2. Main Input Bar Row
         Row(
@@ -237,46 +232,10 @@ fun ChatInputBar(
         ) {
             if (isRecording) {
                 // Recording status stopwatch panel
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f))
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-                    val pulseAlpha by infiniteTransition.animateFloat(
-                        initialValue = 0.3f,
-                        targetValue = 1.0f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(800, easing = AToxMotion.CallPulseEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "pulseAlpha"
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .graphicsLayer(alpha = pulseAlpha)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = String.format(java.util.Locale.US, "%d:%02d", recordDuration / 60, recordDuration % 60),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = stringResource(R.string.slide_to_cancel) + " <-",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
-                    )
-                }
+                RecordingStopwatchPanel(
+                    recordDuration = recordDuration,
+                    modifier = Modifier.weight(1f)
+                )
             } else {
                 // Text input field
                 TextField(
@@ -339,103 +298,40 @@ fun ChatInputBar(
 
             // Dynamic morphing mic / send action button
             val hasText = textInput.trim().isNotEmpty()
-            AnimatedContent(
-                targetState = hasText,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(150, easing = AToxMotion.EmphasizedDecelerate)) with
-                    fadeOut(animationSpec = tween(100, easing = AToxMotion.EmphasizedAccelerate))
-                },
-                label = "morphButton"
-            ) { isSendMode ->
-                if (isSendMode) {
-                    FilledIconButton(
-                        onClick = {
-                            if (textInput.trim().isNotEmpty()) {
-                                onHaptic()
-                                onSendMessage(textInput)
-                                systemSoundPlayer.playSentSound(uiConfig.sentMessageSoundUri, uiConfig.sentMessageSoundVolume)
-                                onTypingChanged(false)
-                                textInput = ""
-                            }
-                        },
-                        modifier = Modifier.size(48.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
-                    }
-                } else {
-                    // Hold to record voice message mic button
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .graphicsLayer {
-                                scaleX = micScale
-                                scaleY = micScale
-                            }
-                            .clip(CircleShape)
-                            .background(micBgColor)
-                            .pointerInput(Unit) {
-                                awaitPointerEventScope {
-                                    while (true) {
-                                        val down = awaitFirstDown()
-                                        if (!checkMicPermission()) {
-                                            permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-                                            continue
-                                        }
-
-                                        // Start recording process
-                                        val success = recordingController.startRecording()
-                                        if (success) {
-                                            isRecording = true
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        } else {
-                                            continue
-                                        }
-
-                                        var cancelled = false
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val currentX = event.changes.firstOrNull()?.position?.x ?: 0f
-                                            val startX = down.position.x
-                                            val slideDistance = startX - currentX
-
-                                            if (slideDistance > cancelThreshold) {
-                                                cancelled = true
-                                                isRecording = false
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                recordingController.cancelRecording()
-                                                Toast.makeText(context, context.getString(R.string.slide_to_cancel), Toast.LENGTH_SHORT).show()
-                                                break
-                                            }
-
-                                            if (event.changes.all { !it.pressed }) {
-                                                break
-                                            }
-                                        }
-
-                                        if (isRecording) {
-                                            isRecording = false
-                                            val file = recordingController.stopRecording()
-                                            if (file != null && file.exists() && file.length() > 0) {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                onSendVoice(android.net.Uri.fromFile(file))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "Voice Message",
-                            tint = micContentColor
-                        )
-                    }
+            if (hasText) {
+                FilledIconButton(
+                    onClick = {
+                        if (textInput.trim().isNotEmpty()) {
+                            onHaptic()
+                            onSendMessage(textInput)
+                            systemSoundPlayer.playSentSound(uiConfig.sentMessageSoundUri, uiConfig.sentMessageSoundVolume)
+                            onTypingChanged(false)
+                            textInput = ""
+                        }
+                    },
+                    modifier = Modifier.size(48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
                 }
+            } else {
+                VoiceMessageRecordButton(
+                    isRecording = isRecording,
+                    onRecordingStateChanged = { isRecording = it },
+                    micScale = micScale,
+                    micBgColor = micBgColor,
+                    micContentColor = micContentColor,
+                    checkMicPermission = checkMicPermission,
+                    permissionLauncher = permissionLauncher,
+                    voiceRecorder = voiceRecorder,
+                    cancelThreshold = cancelThreshold,
+                    onSendVoice = onSendVoice,
+                    haptic = haptic,
+                    context = context
+                )
             }
         }
     }

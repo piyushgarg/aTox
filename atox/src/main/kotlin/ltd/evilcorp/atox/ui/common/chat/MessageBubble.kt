@@ -29,11 +29,11 @@ import ltd.evilcorp.atox.ui.common.ContactAvatar
 import android.content.Context
 import android.content.ClipboardManager
 import android.widget.Toast
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.Sender
-import ltd.evilcorp.domain.model.ReplyParser
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.features.chat.model.Sender
+import ltd.evilcorp.domain.features.chat.model.ReplyParser
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -269,7 +269,7 @@ fun MessageBubble(
                                         Box(modifier = Modifier.size(width = 18.dp, height = 12.dp)) {
                                             Icon(
                                                 imageVector = Icons.Default.Done,
-                                                contentDescription = "Delivered",
+                                                contentDescription = null,
                                                 tint = contentColor.copy(alpha = 0.7f),
                                                 modifier = Modifier.size(12.dp).align(Alignment.CenterStart)
                                             )

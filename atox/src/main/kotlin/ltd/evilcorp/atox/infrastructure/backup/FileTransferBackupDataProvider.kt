@@ -11,22 +11,22 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.backup.BackupDataProvider
-import ltd.evilcorp.domain.backup.IFileTransferBackupHelper
-import ltd.evilcorp.domain.model.FileTransfer
+import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
+import ltd.evilcorp.domain.features.backup.repository.IFileTransferBackupHelper
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import org.json.JSONArray
 import org.json.JSONObject
 
 class FileTransferHistoryBackupDataProvider @Inject constructor(
     private val helper: IFileTransferBackupHelper,
-) : BackupDataProvider {
+) : IBackupDataProvider {
     override val id: String = "file_transfer_history"
     override val displayNameRes: Int = R.string.backup_module_file_transfer_history
     override val descriptionRes: Int = R.string.backup_module_file_transfer_history_description
 
-    override fun serialize(): ByteArray = serializeFileTransfers(helper.serializeFileTransfers())
+    override suspend fun serialize(): ByteArray = serializeFileTransfers(helper.serializeFileTransfers())
 
-    override fun deserialize(data: ByteArray) {
+    override suspend fun deserialize(data: ByteArray) {
         helper.deserializeFileTransfers(parseFileTransfers(data))
     }
 }
@@ -35,12 +35,12 @@ class TransferredFilesBackupDataProvider @Inject constructor(
     private val context: Context,
     private val resolver: ContentResolver,
     private val helper: IFileTransferBackupHelper,
-) : BackupDataProvider {
+) : IBackupDataProvider {
     override val id: String = "transferred_files"
     override val displayNameRes: Int = R.string.backup_module_transferred_files
     override val descriptionRes: Int = R.string.backup_module_transferred_files_description
 
-    override fun serialize(): ByteArray {
+    override suspend fun serialize(): ByteArray {
         val manifest = JSONArray()
         val transfers = helper.serializeFileTransfers()
             .filter { it.destination.isNotBlank() }
@@ -75,7 +75,7 @@ class TransferredFilesBackupDataProvider @Inject constructor(
         }
     }
 
-    override fun deserialize(data: ByteArray) {
+    override suspend fun deserialize(data: ByteArray) {
         val files = mutableMapOf<String, ByteArray>()
         var manifest = JSONArray()
 
@@ -148,5 +148,7 @@ private fun parseFileTransfers(data: ByteArray): List<FileTransfer> {
 
 private fun String.sanitizeZipName(): String = sanitizeFileName().ifBlank { "file" }
 
+private const val MAX_FILENAME_LENGTH = 120
+
 private fun String.sanitizeFileName(): String =
-    replace(Regex("""[\\/:*?"<>|]"""), "_").take(120)
+    replace(Regex("""[\\/:*?"<>|]"""), "_").take(MAX_FILENAME_LENGTH)

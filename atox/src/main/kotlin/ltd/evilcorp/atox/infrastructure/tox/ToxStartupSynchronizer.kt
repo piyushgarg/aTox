@@ -3,11 +3,11 @@ package ltd.evilcorp.atox.infrastructure.tox
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.repository.IContactRepository
-import ltd.evilcorp.domain.repository.IUserRepository
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
+import ltd.evilcorp.domain.features.auth.repository.IUserRepository
+import ltd.evilcorp.domain.core.network.ITox
 
 class ToxStartupSynchronizer @Inject constructor(
     private val scope: CoroutineScope,

@@ -90,4 +90,34 @@ object AvatarCropUtils {
         }
         return success
     }
+
+    fun compressToJpeg(croppedBitmap: Bitmap, maxBytes: Int): ByteArray? {
+        var quality = INITIAL_QUALITY
+        var bytes: ByteArray? = null
+        try {
+            while (quality > MIN_QUALITY) {
+                ByteArrayOutputStream().use { bos ->
+                    croppedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, bos)
+                    val currentBytes = bos.toByteArray()
+                    if (currentBytes.size <= maxBytes) {
+                        bytes = currentBytes
+                        break
+                    }
+                }
+                quality -= QUALITY_STEP
+            }
+            if (bytes == null) {
+                ByteArrayOutputStream().use { bos ->
+                    croppedBitmap.compress(Bitmap.CompressFormat.JPEG, MIN_QUALITY, bos)
+                    val currentBytes = bos.toByteArray()
+                    if (currentBytes.size <= maxBytes) {
+                        bytes = currentBytes
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+        return bytes
+    }
 }

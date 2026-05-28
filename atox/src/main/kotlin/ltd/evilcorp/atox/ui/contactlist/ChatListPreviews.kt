@@ -8,17 +8,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.ui.theme.AToxTheme
-import ltd.evilcorp.atox.ui.contactlist.components.*
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.domain.model.TimeFormatPreference
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.atox.ui.contactlist.components.ChatListTab
+import ltd.evilcorp.atox.ui.contactlist.components.ContactItemCard
+import ltd.evilcorp.atox.ui.contactlist.components.EmptyChatList
+import ltd.evilcorp.atox.ui.contactlist.components.FriendRequestItemCard
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 
 @Preview(name = "Chat list empty", showBackground = true)
 @Composable
-private fun EmptyChatListPreview() {
+fun EmptyChatListPreview() {
     AToxTheme {
         EmptyChatList(onAddContactClick = {})
     }
@@ -26,7 +29,7 @@ private fun EmptyChatListPreview() {
 
 @Preview(name = "Chat list mixed", showBackground = true)
 @Composable
-private fun ChatListTabPreview() {
+fun ChatListTabPreview() {
     AToxTheme {
         ChatListTab(
             contacts = previewContacts,
@@ -51,7 +54,7 @@ private fun ChatListTabPreview() {
 
 @Preview(name = "Chat rows", showBackground = true)
 @Composable
-private fun ContactRowsPreview() {
+fun ContactRowsPreview() {
     AToxTheme {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
             previewContacts.forEach { contact ->
@@ -69,7 +72,7 @@ private fun ContactRowsPreview() {
 
 @Preview(name = "Friend request", showBackground = true)
 @Composable
-private fun FriendRequestPreview() {
+fun FriendRequestPreview() {
     AToxTheme {
         FriendRequestItemCard(
             request = previewFriendRequests.first(),

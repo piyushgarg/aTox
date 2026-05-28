@@ -5,8 +5,8 @@
 package ltd.evilcorp.atox.infrastructure.tox
 
 import android.util.Log
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.core.network.ITox
 import java.util.Timer
 import javax.inject.Inject
 import javax.inject.Singleton

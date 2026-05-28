@@ -63,9 +63,9 @@ import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.chat.components.TypingBubble
 import ltd.evilcorp.atox.ui.common.formatMessageDateHeader
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.Message
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.Message
 
 data class MessageBubbleConfig(
     val contactName: String,
@@ -95,6 +95,7 @@ fun <T> ChatScreenContent(
     onOpenFile: (FileTransfer) -> Unit,
     systemSoundPlayer: SystemSoundPlayer,
     performHaptic: () -> Unit,
+    voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 
     // Bottom input bar configurations
     contact: Contact?, // Passing null works for group chat
@@ -110,12 +111,10 @@ fun <T> ChatScreenContent(
     onForwardClick: (Message) -> Unit = {},
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() },
 ) {
     val context = LocalContext.current
-    val listState = rememberSaveable(saver = LazyListState.Saver) {
-        LazyListState()
-    }
     val coroutineScope = rememberCoroutineScope()
 
     val showScrollToBottomFab by remember {
@@ -322,21 +321,27 @@ fun <T> ChatScreenContent(
             color = MaterialTheme.colorScheme.surfaceContainer,
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
         ) {
-            ChatInputBar(
-                contact = contact,
-                uiConfig = uiConfig,
-                systemSoundPlayer = systemSoundPlayer,
-                onSendMessage = onSendMessage,
-                onTypingChanged = onTypingChanged,
-                onAttachClick = { filePickerLauncher.launch("*/*") },
-                onHaptic = performHaptic,
-                replyingToMessage = replyingToMessage,
-                onCancelReply = onCancelReply,
-                onSendVoice = onSendVoice,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+            ) {
+                ChatInputBar(
+                    contact = contact,
+                    uiConfig = uiConfig,
+                    systemSoundPlayer = systemSoundPlayer,
+                    onSendMessage = onSendMessage,
+                    onTypingChanged = onTypingChanged,
+                    onAttachClick = { filePickerLauncher.launch("*/*") },
+                    onHaptic = performHaptic,
+                    replyingToMessage = replyingToMessage,
+                    onCancelReply = onCancelReply,
+                    onSendVoice = onSendVoice,
+                    voiceRecorder = voiceRecorder,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

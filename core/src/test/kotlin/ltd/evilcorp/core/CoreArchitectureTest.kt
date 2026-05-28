@@ -13,7 +13,7 @@ class CoreArchitectureTest {
     @Test
     fun `core layer should not depend on presentation layer`() {
         Konsist
-            .scopeFromPackage("ltd.evilcorp.core..")
+            .scopeFromDirectory("core")
             .imports
             .assertTrue { import ->
                 !import.name.startsWith("ltd.evilcorp.atox")
@@ -25,10 +25,25 @@ class CoreArchitectureTest {
         // Core layer DAOs and repositories should not leak raw domain model modifications
         // and should reside inside core db or repository packages.
         Konsist
-            .scopeFromPackage("ltd.evilcorp.core.db..")
+            .scopeFromDirectory("core")
             .classes()
+            .filter { it.resideInPackage("ltd.evilcorp.core.db..") }
             .assertTrue { clazz ->
                 !clazz.name.endsWith("UseCase") && !clazz.name.endsWith("ViewModel")
+            }
+    }
+
+    @Test
+    fun `core layer files should reside only inside db, platform, repository, or tox packages`() {
+        Konsist
+            .scopeFromProduction("core")
+            .files
+            .assertTrue { file ->
+                val packageFqName = file.packagee?.name ?: ""
+                packageFqName.startsWith("ltd.evilcorp.core.db") ||
+                packageFqName.startsWith("ltd.evilcorp.core.platform") ||
+                packageFqName.startsWith("ltd.evilcorp.core.repository") ||
+                packageFqName.startsWith("ltd.evilcorp.core.tox")
             }
     }
 }

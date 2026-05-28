@@ -27,6 +27,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
 
+private val ContentPaddingTop = 16.dp
+private val ContentPaddingBottomDefault = 32.dp
+private val HorizontalMargin = 16.dp
+private val SpacingSpacedBy = 16.dp
+private val CardCornerRadius = 24.dp
+private val RowPaddingHorizontal = 16.dp
+private val RowPaddingVertical = 20.dp
+private val IconContainerSize = 40.dp
+private val IconSize = 22.dp
+private val ArrowSize = 20.dp
+
 @Composable
 fun SettingsRootContent(
     paddingValues: PaddingValues,
@@ -39,19 +50,23 @@ fun SettingsRootContent(
     onBackupClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+            .padding(horizontal = HorizontalMargin),
+        verticalArrangement = Arrangement.spacedBy(SpacingSpacedBy),
+        contentPadding = PaddingValues(
+            top = ContentPaddingTop,
+            bottom = ContentPaddingBottomDefault + bottomPadding
+        )
     ) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(CardCornerRadius),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -114,16 +129,20 @@ fun SettingsCategoryRow(
     iconTint: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.White,
     onClick: () -> Unit
 ) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 20.dp),
+            .clickable(onClick = {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                onClick()
+            })
+            .padding(horizontal = RowPaddingHorizontal, vertical = RowPaddingVertical),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(IconContainerSize)
                 .background(iconContainerColor, shape = CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -131,10 +150,10 @@ fun SettingsCategoryRow(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(IconSize)
             )
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(RowPaddingHorizontal))
         Column(
             modifier = Modifier.weight(1f)
         ) {
@@ -159,7 +178,7 @@ fun SettingsCategoryRow(
             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(ArrowSize)
         )
     }
 }

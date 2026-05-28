@@ -1,13 +1,13 @@
 package ltd.evilcorp.atox.infrastructure.service
 
-import ltd.evilcorp.domain.feature.ProximityManager
+import ltd.evilcorp.domain.features.call.IProximityManager
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AndroidProximityManager @Inject constructor(
     private val proximityScreenOff: ProximityScreenOff
-) : ProximityManager {
+) : IProximityManager {
     override fun acquire() = proximityScreenOff.acquire()
     override fun release() = proximityScreenOff.release()
 }

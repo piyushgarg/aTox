@@ -7,7 +7,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
 import androidx.core.content.ContextCompat
-import ltd.evilcorp.domain.feature.IAudioRoutingManager
+import ltd.evilcorp.domain.features.call.IAudioRoutingManager
 import javax.inject.Inject
 import javax.inject.Singleton
 

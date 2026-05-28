@@ -9,13 +9,13 @@ import ltd.evilcorp.atox.ui.navigation.LocalAnimatedVisibilityScope
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.toRoute
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
@@ -23,23 +23,29 @@ import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.chat.ChatScreen
 import ltd.evilcorp.atox.ui.chat.ChatViewModel
 import ltd.evilcorp.atox.ui.chat.ChatUiState
-import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.PublicKey
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.atox.ui.theme.AToxMotion
+
+private const val CHAT_ID_LENGTH = 64
 
 fun NavGraphBuilder.chatGraph(
     navController: NavHostController,
 
-    contactListViewModel: ContactListViewModel,
     selectedChatSnapshotState: State<Contact?>,
     systemSoundPlayer: SystemSoundPlayer,
     onOpenFile: (FileTransfer) -> Unit,
 ) {
-    composable<AppRoutes.Chat> { backStackEntry ->
+    composable<AppRoutes.Chat>(
+        enterTransition = { AToxMotion.slideXEnter(forward = true) },
+        exitTransition = { AToxMotion.slideXExit(forward = true) },
+        popEnterTransition = { AToxMotion.slideXEnter(forward = false) },
+        popExitTransition = { AToxMotion.slideXExit(forward = false) }
+    ) { backStackEntry ->
         val chatRoute = backStackEntry.toRoute<AppRoutes.Chat>()
         val publicKeyStr = chatRoute.publicKey
         val viewModel: ChatViewModel = hiltViewModel()
@@ -96,6 +102,7 @@ fun NavGraphBuilder.chatGraph(
                 onRejectFt = viewModel::rejectFt,
                 onCancelFt = viewModel::delete,
                 onSaveFt = viewModel::exportFt,
+                voiceRecorder = viewModel.voiceRecorder,
                 onOpenFile = onOpenFile,
                 systemSoundPlayer = systemSoundPlayer,
                 isTypingFlow = viewModel.isTyping,
@@ -124,10 +131,10 @@ fun NavGraphBuilder.chatGraph(
                             return@launch
                         }
 
-                        val groupNumber = if (chatIdOrBytes.length == 64) {
+                        val groupNumber = if (chatIdOrBytes.length == CHAT_ID_LENGTH) {
                             val pending = groupListViewModel.getPendingInvite()
                             if (pending != null && pending.groupName.equals(groupName, ignoreCase = true)) {
-                                groupListViewModel.joinWithPendingInvite(publicKeyStr, pending)
+                                 groupListViewModel.joinWithPendingInvite(pending)
                             } else {
                                 groupListViewModel.joinByChatId(chatIdOrBytes, null)
                             }
@@ -136,7 +143,7 @@ fun NavGraphBuilder.chatGraph(
                         }
                         
                         if (groupNumber >= 0) {
-                            val chatId = if (chatIdOrBytes.length == 64) {
+                            val chatId = if (chatIdOrBytes.length == CHAT_ID_LENGTH) {
                                 chatIdOrBytes
                             } else {
                                 groupListViewModel.getChatIdByGroupNumber(groupNumber) ?: ""

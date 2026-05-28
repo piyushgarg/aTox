@@ -25,6 +25,11 @@ import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
 import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
 import ltd.evilcorp.atox.ui.settings.common.SettingsSliderRow
 
+private val ContentPaddingTop = 16.dp
+private val ContentPaddingBottomDefault = 32.dp
+private val HorizontalMargin = 16.dp
+private val SpacingSpacedBy = 16.dp
+
 @Suppress("FunctionNaming")
 @Composable
 fun NotificationSettingsScreen(
@@ -44,14 +49,19 @@ fun NotificationSettingsScreen(
 ) {
     val context = LocalContext.current
 
+    val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+            .padding(horizontal = HorizontalMargin),
+        verticalArrangement = Arrangement.spacedBy(SpacingSpacedBy),
+        contentPadding = PaddingValues(
+            top = ContentPaddingTop,
+            bottom = ContentPaddingBottomDefault + bottomPadding
+        )
     ) {
         item {
             SettingsGroup(title = stringResource(R.string.settings_sound_group_sending)) {

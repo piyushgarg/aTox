@@ -50,10 +50,10 @@ import ltd.evilcorp.atox.ui.theme.StatusAvailable
 import ltd.evilcorp.atox.ui.theme.StatusAway
 import ltd.evilcorp.atox.ui.theme.StatusBusy
 import ltd.evilcorp.atox.ui.theme.StatusOffline
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -105,19 +105,7 @@ fun ContactItemCard(
 @Composable
 @Suppress("FunctionNaming")
 private fun ContactAvatarWithStatus(contact: Contact) {
-    val sharedTransitionScope = LocalSharedTransitionScope.current
-    val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
-
-    val avatarModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-        with(sharedTransitionScope) {
-            Modifier.sharedElement(
-                sharedContentState = rememberSharedContentState(key = "avatar_${contact.publicKey}"),
-                animatedVisibilityScope = animatedVisibilityScope
-            )
-        }
-    } else {
-        Modifier
-    }
+    val avatarModifier = Modifier
 
     Box(modifier = Modifier.size(48.dp)) {
         ContactAvatar(
@@ -132,9 +120,9 @@ private fun ContactAvatarWithStatus(contact: Contact) {
         val statusColor = when (contact.connectionStatus) {
             ConnectionStatus.None -> StatusOffline
             ConnectionStatus.TCP, ConnectionStatus.UDP -> when (contact.status) {
-                ltd.evilcorp.domain.model.UserStatus.None -> StatusAvailable
-                ltd.evilcorp.domain.model.UserStatus.Away -> StatusAway
-                ltd.evilcorp.domain.model.UserStatus.Busy -> StatusBusy
+                ltd.evilcorp.domain.features.contacts.model.UserStatus.None -> StatusAvailable
+                ltd.evilcorp.domain.features.contacts.model.UserStatus.Away -> StatusAway
+                ltd.evilcorp.domain.features.contacts.model.UserStatus.Busy -> StatusBusy
             }
         }
 

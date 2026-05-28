@@ -11,18 +11,35 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
-import ltd.evilcorp.domain.model.Group
-import ltd.evilcorp.domain.model.GroupPrivacyState
-import ltd.evilcorp.domain.feature.GroupManager
-import ltd.evilcorp.domain.feature.GroupConnectionStatus
+import ltd.evilcorp.domain.features.group.model.Group
+import ltd.evilcorp.domain.features.group.model.GroupPrivacyState
+import ltd.evilcorp.domain.features.group.GroupManager
+import ltd.evilcorp.domain.features.group.GroupConnectionStatus
+import ltd.evilcorp.domain.features.group.leaveGroup
+import ltd.evilcorp.domain.features.group.joinByChatId
+import ltd.evilcorp.domain.features.group.getChatId
+import ltd.evilcorp.domain.features.group.getChatIdByGroupNumber
+import ltd.evilcorp.domain.features.group.joinGroupWithBytes
+import ltd.evilcorp.domain.features.group.inviteFriend
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.features.auth.model.User
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 
+private const val HEX_KEY_LENGTH = 64
+
 @HiltViewModel
 class GroupListViewModel @Inject constructor(
-    private val scope: CoroutineScope,
     private val groupManager: GroupManager,
+    private val userManager: UserManager,
+    private val tox: ITox,
 ) : ViewModel() {
+
+    val publicKey by lazy { tox.publicKey }
+    val user: StateFlow<User?> = userManager.get(publicKey)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     val groups: StateFlow<List<Group>> = groupManager.getAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -39,6 +56,9 @@ class GroupListViewModel @Inject constructor(
                 val nickname = groupManager.getDefaultSelfName()
                 groupManager.createGroup(privacyState, name, nickname, password)
             }
+        } catch (e: Exception) {
+            android.util.Log.e("GroupListViewModel", "Failed to create group: $e")
+            -1
         } finally {
             _isCreating.value = false
         }
@@ -56,7 +76,7 @@ class GroupListViewModel @Inject constructor(
         if (cleanId.isEmpty()) {
             return "Chat ID is required"
         }
-        if (cleanId.length != 64) {
+        if (cleanId.length != HEX_KEY_LENGTH) {
             return "Chat ID must be 64 hex characters (32 bytes)"
         }
         val isHex = cleanId.all { it in "0123456789abcdefABCDEF" }
@@ -74,6 +94,9 @@ class GroupListViewModel @Inject constructor(
                 val selfName = groupManager.getDefaultSelfName()
                 groupManager.joinByChatId(cleanId, selfName, password)
             }
+        } catch (e: Exception) {
+            android.util.Log.e("GroupListViewModel", "Failed to join group by Chat ID: $e")
+            -1
         } finally {
             _isJoining.value = false
         }
@@ -92,12 +115,38 @@ class GroupListViewModel @Inject constructor(
     suspend fun inviteFriend(chatId: String, friendPublicKey: String): Boolean =
         groupManager.inviteFriend(chatId, friendPublicKey)
 
-    fun getPendingInvite(): ltd.evilcorp.domain.feature.GroupInvite? =
+    fun getPendingInvite(): ltd.evilcorp.domain.features.group.GroupInvite? =
         groupManager.getPendingInvite()
 
-    suspend fun joinWithPendingInvite(friendPublicKey: String, pending: ltd.evilcorp.domain.feature.GroupInvite): Int =
+    suspend fun joinWithPendingInvite(pending: ltd.evilcorp.domain.features.group.GroupInvite): Int =
         withContext(Dispatchers.IO) {
             val selfName = groupManager.getDefaultSelfName()
             groupManager.joinGroup(pending.friendNo, pending.inviteData, selfName)
         }
+
+    suspend fun joinGroupFromChat(
+        friendPublicKey: String,
+        chatIdOrBytes: String,
+        groupName: String,
+    ): String? {
+        val groupNumber = if (chatIdOrBytes.length == HEX_KEY_LENGTH) {
+            val pending = getPendingInvite()
+            if (pending != null && pending.groupName.equals(groupName, ignoreCase = true)) {
+                joinWithPendingInvite(pending)
+            } else {
+                joinByChatId(chatIdOrBytes, null)
+            }
+        } else {
+            joinGroupWithBytes(friendPublicKey, chatIdOrBytes, null)
+        }
+
+        if (groupNumber >= 0) {
+            return if (chatIdOrBytes.length == HEX_KEY_LENGTH) {
+                chatIdOrBytes
+            } else {
+                getChatIdByGroupNumber(groupNumber) ?: ""
+            }
+        }
+        return null
+    }
 }

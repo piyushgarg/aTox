@@ -17,26 +17,23 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.first
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.domain.model.Group
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.model.User
-import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.domain.feature.ChatManager
-import ltd.evilcorp.domain.feature.ContactManager
-import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.domain.feature.FriendRequestManager
-import ltd.evilcorp.domain.feature.GroupManager
-import ltd.evilcorp.domain.feature.GroupInvite
-import ltd.evilcorp.domain.feature.UserManager
-import ltd.evilcorp.domain.model.ProxyType
-import ltd.evilcorp.domain.tox.save.SaveOptions
-import ltd.evilcorp.core.tox.save.testToxSave
-import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
-import ltd.evilcorp.domain.usecase.DeleteProfileUseCase
-import ltd.evilcorp.domain.usecase.DeleteContactUseCase
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
+import ltd.evilcorp.domain.features.group.model.Group
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.auth.model.User
+import ltd.evilcorp.domain.features.chat.ChatManager
+import ltd.evilcorp.domain.features.contacts.ContactManager
+import ltd.evilcorp.domain.features.transfer.FileTransferManager
+import ltd.evilcorp.domain.features.contacts.FriendRequestManager
+import ltd.evilcorp.domain.features.group.GroupManager
+import ltd.evilcorp.domain.features.group.GroupInvite
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.features.settings.model.ProxyType
+import ltd.evilcorp.domain.core.network.save.SaveOptions
+import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
+import ltd.evilcorp.domain.features.contacts.usecase.DeleteContactUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -52,7 +49,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 
 @HiltViewModel
 class ContactListViewModel @Inject constructor(
-    private val callManager: CallManager,
     private val chatManager: ChatManager,
     private val contactManager: ContactManager,
     private val fileTransferManager: FileTransferManager,
@@ -60,7 +56,6 @@ class ContactListViewModel @Inject constructor(
     private val friendRequestManager: FriendRequestManager,
     private val tox: ITox,
     private val settings: Settings,
-    private val deleteProfileUseCase: DeleteProfileUseCase,
     private val deleteContactUseCase: DeleteContactUseCase,
     private val sharedContentManager: SharedContentManager,
     userManager: UserManager,
@@ -83,13 +78,6 @@ class ContactListViewModel @Inject constructor(
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
-
-    val groups: StateFlow<List<Group>> = groupManager.getAll()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
 
     val groupInvite: StateFlow<GroupInvite?> = groupManager.pendingInvite
         .stateIn(
@@ -141,20 +129,23 @@ class ContactListViewModel @Inject constructor(
 
     fun prepareOpenChat(contact: Contact) {
         _selectedChatSnapshot.value = contact
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val messagesList = chatManager.messagesFor(PublicKey(contact.publicKey)).first()
-                ltd.evilcorp.atox.ui.chat.ChatHistoryCache.put(contact.publicKey, messagesList.takeLast(15))
-                
-                val transfersList = fileTransferManager.transfersFor(PublicKey(contact.publicKey)).first()
-                ltd.evilcorp.atox.ui.chat.ChatHistoryCache.putTransfers(contact.publicKey, transfersList)
-            } catch (e: Exception) {
-                // ignore
-            }
-        }
     }
 
     val contacts: StateFlow<List<Contact>> = contactManager.getAll()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val filteredContacts: StateFlow<List<Contact>> = contacts
+        .combine(searchQuery) { list, query ->
+            if (query.isBlank()) emptyList()
+            else list.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                it.publicKey.contains(query, ignoreCase = true)
+            }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -190,12 +181,6 @@ class ContactListViewModel @Inject constructor(
 
     fun isToxRunning() = tox.started
 
-    fun deleteProfileAndData() {
-        viewModelScope.launch {
-            deleteProfileUseCase.execute()
-        }
-    }
-
     fun quittingNeedsConfirmation(): Boolean = settings.confirmQuitting
 
     fun deleteContact(publicKey: PublicKey) {
@@ -208,7 +193,11 @@ class ContactListViewModel @Inject constructor(
         return contactManager.get(toxId).firstOrNull() != null
     }
 
-    fun onShareText(what: String, to: Contact) = chatManager.sendMessage(PublicKey(to.publicKey), what)
+    fun onShareText(what: String, to: Contact) {
+        viewModelScope.launch {
+            chatManager.sendMessage(PublicKey(to.publicKey), what)
+        }
+    }
 
     fun onShareFile(uri: android.net.Uri, to: Contact) {
         viewModelScope.launch {

@@ -17,17 +17,15 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.infrastructure.tox.ToxBootstrapper
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.domain.repository.IUserRepository
-import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.domain.feature.CallState
-import ltd.evilcorp.domain.feature.FriendRequestManager
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
+import ltd.evilcorp.domain.features.auth.repository.IUserRepository
+import ltd.evilcorp.domain.features.call.CallManager
+import ltd.evilcorp.domain.features.call.CallState
+import ltd.evilcorp.domain.features.contacts.FriendRequestManager
+import ltd.evilcorp.domain.core.network.ITox
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private const val TAG = "ToxServiceLC"
 
 @Singleton
 class ToxServiceLifecycleController @Inject constructor(
@@ -37,7 +35,6 @@ class ToxServiceLifecycleController @Inject constructor(
     private val friendRequestManager: FriendRequestManager,
     private val callManager: CallManager,
     private val proximityScreenOff: ProximityScreenOff,
-    private val permissionManager: PermissionManager,
     private val toxBootstrapper: ToxBootstrapper
 ) {
     private val notifier = NotificationManagerCompat.from(context)

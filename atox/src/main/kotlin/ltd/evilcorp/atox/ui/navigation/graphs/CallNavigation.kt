@@ -16,7 +16,7 @@ import ltd.evilcorp.atox.ui.call.CallViewModel
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.atox.ui.theme.AToxMotion
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
-import ltd.evilcorp.domain.model.PublicKey
+import ltd.evilcorp.domain.core.model.PublicKey
 
 fun NavGraphBuilder.callGraph(
     navController: NavHostController,
@@ -76,7 +76,12 @@ fun NavGraphBuilder.callGraph(
         )
     }
 
-    composable<AppRoutes.AddContact> { backStackEntry ->
+    composable<AppRoutes.AddContact>(
+        enterTransition = { AToxMotion.slideXEnter(forward = true) },
+        exitTransition = { AToxMotion.slideXExit(forward = true) },
+        popEnterTransition = { AToxMotion.slideXEnter(forward = false) },
+        popExitTransition = { AToxMotion.slideXExit(forward = false) }
+    ) { backStackEntry ->
         val addContactRoute = backStackEntry.toRoute<AppRoutes.AddContact>()
         val toxIdArg = addContactRoute.toxId.orEmpty()
         val viewModel: AddContactViewModel = hiltViewModel()

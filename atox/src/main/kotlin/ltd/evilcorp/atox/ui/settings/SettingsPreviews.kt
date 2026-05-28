@@ -16,14 +16,14 @@ import ltd.evilcorp.atox.ui.settings.screens.ThemeSettingsScreen
 import ltd.evilcorp.atox.ui.settings.screens.NotificationSettingsScreen
 import ltd.evilcorp.atox.ui.settings.screens.SoundPickerTarget
 import ltd.evilcorp.atox.ui.theme.AToxTheme
-import ltd.evilcorp.domain.model.BackupDestination
-import ltd.evilcorp.domain.model.BackupFrequency
-import ltd.evilcorp.domain.model.BootstrapNodeSource
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.FtAutoAccept
-import ltd.evilcorp.domain.model.TimeFormatPreference
-import ltd.evilcorp.domain.model.ProxyType
-import ltd.evilcorp.domain.backup.BackupDataProvider
+import ltd.evilcorp.domain.features.settings.model.BackupDestination
+import ltd.evilcorp.domain.features.settings.model.BackupFrequency
+import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.FtAutoAccept
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.settings.model.ProxyType
+import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 
 @Preview(name = "Main Settings List Preview", showSystemUi = true)
 @Composable

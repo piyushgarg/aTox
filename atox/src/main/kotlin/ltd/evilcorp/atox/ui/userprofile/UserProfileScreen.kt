@@ -13,7 +13,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,8 +38,28 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,16 +89,22 @@ import ltd.evilcorp.atox.ui.userprofile.components.QrCodeDialog
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarProcessingDialog
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarSourceDialog
 import ltd.evilcorp.atox.ui.userprofile.components.ToxIdShareCard
-import ltd.evilcorp.domain.model.User
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.model.initials
+import ltd.evilcorp.atox.ui.userprofile.components.StatusRow
+import ltd.evilcorp.atox.ui.userprofile.components.ProfileLogoutCard
+import ltd.evilcorp.atox.ui.userprofile.components.ProfileAvatarBox
+import ltd.evilcorp.domain.features.auth.model.User
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.features.auth.model.initials
+import androidx.compose.ui.tooling.preview.Preview
+import ltd.evilcorp.atox.ui.theme.AToxTheme
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserProfileScreen(
     user: User?,
     toxId: String,
-    avatar: android.graphics.Bitmap?,
+    avatarFile: java.io.File?,
     cropState: AvatarCropUiState = AvatarCropUiState.Idle,
     selectedImageUri: android.net.Uri?,
     onSelectedImageUriChanged: (android.net.Uri?) -> Unit,
@@ -81,15 +119,23 @@ fun UserProfileScreen(
     onAvatarChanged: () -> Unit = {},
     onResetCropState: () -> Unit = {},
     onCropAndSaveAvatar: (android.graphics.Bitmap, Float, Float, Float, Float, Float) -> Unit,
-    performHaptic: () -> Unit = {}
+    performHaptic: () -> Unit = {},
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
-    val scope = rememberCoroutineScope()
 
-    val selfAvatarBitmap = remember(avatar) {
-        avatar?.asImageBitmap()
+    val selfAvatarBitmap = remember(avatarFile) {
+        if (avatarFile != null && avatarFile.exists() && avatarFile.length() > 0L) {
+            try {
+                android.graphics.BitmapFactory.decodeFile(avatarFile.absolutePath)?.asImageBitmap()
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
     }
 
     LaunchedEffect(cropState) {
@@ -138,73 +184,13 @@ fun UserProfileScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
-
             // Beautiful Material 3 Profile Picture with Edit Button
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .align(Alignment.CenterHorizontally),
-                contentAlignment = Alignment.BottomEnd
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .clickable { showSourceDialog = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    androidx.compose.animation.Crossfade(
-                        targetState = selfAvatarBitmap,
-                        label = "AvatarCrossfade"
-                    ) { bitmap ->
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap,
-                                contentDescription = stringResource(R.string.profile_photo_description),
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            val initials = remember(user?.name) {
-                                user?.initials ?: "U"
-                            }
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = initials.uppercase(),
-                                    style = MaterialTheme.typography.headlineLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    tonalElevation = 6.dp,
-                    shadowElevation = 4.dp,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .minimumInteractiveComponentSize()
-                        .clickable { showSourceDialog = true }
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.profile_avatar_change),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
+            ProfileAvatarBox(
+                selfAvatarBitmap = selfAvatarBitmap,
+                user = user,
+                onAvatarClick = { showSourceDialog = true },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
 
             // User Info Card
             Card(
@@ -334,49 +320,10 @@ fun UserProfileScreen(
             )
 
             // Logout Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = stringResource(R.string.profile_logout),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.profile_logout_confirm),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
+            ProfileLogoutCard(onLogoutClick = { showLogoutConfirmDialog = true })
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { showLogoutConfirmDialog = true },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(stringResource(R.string.profile_logout), fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
+            val extraBottomSpacer = 32.dp
+            Spacer(modifier = Modifier.height(extraBottomSpacer + bottomPadding))
         }
     }
 
@@ -451,43 +398,32 @@ fun UserProfileScreen(
     }
 }
 
+@Preview(name = "User Profile Screen Preview", showBackground = true)
 @Composable
-fun StatusRow(
-    title: String,
-    color: Color,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(color)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-            )
-        }
-        if (isSelected) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-            )
-        }
+fun UserProfileScreenPreview() {
+    val mockUser = User(
+        publicKey = "1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF",
+        name = "Sergey Ivanov",
+        statusMessage = "Coding aTox with pure architectures",
+        status = UserStatus.None,
+        connectionStatus = ConnectionStatus.TCP
+    )
+
+    AToxTheme {
+        UserProfileScreen(
+            user = mockUser,
+            toxId = "1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890AB",
+            avatarFile = null,
+            selectedImageUri = null,
+            onSelectedImageUriChanged = {},
+            onLaunchCamera = {},
+            onLaunchGallery = {},
+            onSetName = {},
+            onSetStatusMessage = {},
+            onSetStatus = {},
+            onLogout = {},
+            onAvatarChanged = {},
+            onCropAndSaveAvatar = { _, _, _, _, _, _ -> }
+        )
     }
 }

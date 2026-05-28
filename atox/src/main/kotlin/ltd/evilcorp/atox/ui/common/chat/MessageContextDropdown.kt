@@ -11,8 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
 
 @Composable
 fun MessageContextDropdown(

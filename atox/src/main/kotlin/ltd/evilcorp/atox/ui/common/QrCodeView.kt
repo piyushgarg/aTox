@@ -13,6 +13,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import io.nayuki.qrcodegen.QrCode
 
+private const val CELL_SIZE_OVERLAP = 0.5f
+
 @Composable
 fun QrCodeView(
     text: String,
@@ -37,7 +39,7 @@ fun QrCodeView(
                         drawRect(
                             color = contentColor,
                             topLeft = Offset(x * cellSize, y * cellSize),
-                            size = Size(cellSize + 0.5f, cellSize + 0.5f)
+                            size = Size(cellSize + CELL_SIZE_OVERLAP, cellSize + CELL_SIZE_OVERLAP)
                         )
                     }
                 }

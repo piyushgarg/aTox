@@ -24,9 +24,14 @@ import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
 import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
 import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
 import ltd.evilcorp.atox.ui.theme.AccentPresets
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 import androidx.compose.ui.graphics.toArgb
+
+private val ContentPaddingTop = 16.dp
+private val ContentPaddingBottomDefault = 32.dp
+private val HorizontalMargin = 16.dp
+private val SpacingSpacedBy = 16.dp
 
 @Composable
 fun SettingsAppearanceScreen(
@@ -49,14 +54,18 @@ fun SettingsAppearanceScreen(
     onHapticEnabledChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+            .padding(horizontal = HorizontalMargin),
+        verticalArrangement = Arrangement.spacedBy(SpacingSpacedBy),
+        contentPadding = PaddingValues(
+            top = ContentPaddingTop,
+            bottom = ContentPaddingBottomDefault + bottomPadding
+        )
     ) {
         item {
             SettingsGroup(title = stringResource(R.string.language_and_localization)) {

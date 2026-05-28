@@ -3,9 +3,9 @@ package ltd.evilcorp.core.db.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import ltd.evilcorp.domain.model.GroupMessage
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.Sender
+import ltd.evilcorp.domain.features.group.model.GroupMessage
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.features.chat.model.Sender
 
 @Entity(tableName = "group_messages")
 data class GroupMessageEntity(

@@ -99,7 +99,9 @@ fun accentPreviewColor(seedArgb: Int, darkTheme: Boolean): Color =
 fun accentPreviewContentColor(seedArgb: Int, darkTheme: Boolean): Color =
     seededColorScheme(seedArgb, darkTheme).onPrimary
 
+private const val LUMINANCE_THRESHOLD = 0.5f
+
 fun avatarContentColor(background: Color): Color =
-    if (background.luminance() > 0.5f) Color.Black else Color.White
+    if (background.luminance() > LUMINANCE_THRESHOLD) Color.Black else Color.White
 
 private fun DynamicColor.asComposeColor(scheme: DynamicScheme): Color = Color(getArgb(scheme))

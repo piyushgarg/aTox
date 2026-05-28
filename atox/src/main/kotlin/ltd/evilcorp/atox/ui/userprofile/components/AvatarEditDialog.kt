@@ -11,12 +11,35 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -40,6 +63,12 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
+
+private const val COLOR_PREMIUM_VIOLET = 0xFF1B1429L
+private const val COLOR_DEEP_INDIGO = 0xFF0F0A1AL
+private const val COLOR_MIDNIGHT_BLACK = 0xFF08040FL
+private const val COLOR_BLUE_ACCENT = 0xFF2196F3L
+private const val DEFAULT_VIEWPORT_WIDTH = 500f
 
 @Composable
 fun AvatarEditDialog(
@@ -91,9 +120,9 @@ fun AvatarEditDialog(
                 .background(
                     androidx.compose.ui.graphics.Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF1B1429), // Premium deep violet
-                            Color(0xFF0F0A1A), // Deep indigo
-                            Color(0xFF08040F)  // Pure midnight black
+                            Color(COLOR_PREMIUM_VIOLET), // Premium deep violet
+                            Color(COLOR_DEEP_INDIGO), // Deep indigo
+                            Color(COLOR_MIDNIGHT_BLACK)  // Pure midnight black
                         )
                     )
                 )
@@ -159,7 +188,7 @@ fun AvatarEditDialog(
                             val circleRadius = 125.dp.toPx() // viewport width is ~250.dp, radius is 125.dp
 
                             val androidCanvas = drawContext.canvas.nativeCanvas
-                            val layer = androidCanvas.saveLayer(0f, 0f, canvasWidth, canvasHeight, null)
+                            androidCanvas.saveLayer(0f, 0f, canvasWidth, canvasHeight, null)
                             with(drawContext.canvas) {
                                 // 1. Draw solid dark background overlay
                                 drawRect(Color.Black.copy(alpha = 0.6f))
@@ -195,7 +224,7 @@ fun AvatarEditDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = stringResource(R.string.avatar_editor_zoom) + ": ${String.format("%.1fx", scale)}",
+                            text = stringResource(R.string.avatar_editor_zoom) + ": ${String.format(java.util.Locale.US, "%.1fx", scale)}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White
                         )
@@ -204,8 +233,8 @@ fun AvatarEditDialog(
                             onValueChange = { scale = it },
                             valueRange = 1f..5f,
                             colors = SliderDefaults.colors(
-                                thumbColor = Color(0xFF2196F3),
-                                activeTrackColor = Color(0xFF2196F3),
+                                thumbColor = Color(COLOR_BLUE_ACCENT),
+                                activeTrackColor = Color(COLOR_BLUE_ACCENT),
                                 inactiveTrackColor = Color.White.copy(alpha = 0.24f)
                             ),
                             modifier = Modifier.fillMaxWidth()
@@ -263,11 +292,11 @@ fun AvatarEditDialog(
                                         offset.x,
                                         offset.y,
                                         rotation,
-                                        if (viewportWidth > 0f) viewportWidth else 500f
+                                        if (viewportWidth > 0f) viewportWidth else DEFAULT_VIEWPORT_WIDTH
                                     )
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3), contentColor = Color.White),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(COLOR_BLUE_ACCENT), contentColor = Color.White),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(stringResource(R.string.avatar_editor_save), fontSize = 16.sp, fontWeight = FontWeight.Bold)

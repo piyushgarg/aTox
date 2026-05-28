@@ -286,39 +286,13 @@ fun SettingsScreen(
         Scaffold(
             contentWindowInsets = WindowInsets(0),
             topBar = {
-                if (state.destination != SettingsDestination.Search) {
-                    TopAppBar(
-                        title = { Text(title, fontWeight = FontWeight.SemiBold) },
-                        navigationIcon = {
-                            if (state.destination != SettingsDestination.Root) {
-                                IconButton(onClick = {
-                                    performHaptic()
-                                    state.destination = when (state.destination) {
-                                        SettingsDestination.Language, SettingsDestination.Theme -> SettingsDestination.Appearance
-                                        SettingsDestination.Search -> SettingsDestination.Root
-                                        else -> SettingsDestination.Root
-                                    }
-                                }) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = stringResource(R.string.navigation_back)
-                                    )
-                                }
-                            } else {
-                                IconButton(onClick = {
-                                    performHaptic()
-                                    onBack()
-                                }) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = stringResource(R.string.navigation_back)
-                                    )
-                                }
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-                    )
-                }
+                SettingsScreenTopBar(
+                    title = title,
+                    destination = state.destination,
+                    onBack = onBack,
+                    performHaptic = performHaptic,
+                    onDestinationChanged = { state.destination = it }
+                )
             }
         ) { scaffoldPadding ->
             SettingsScreenContent(
@@ -390,84 +364,15 @@ fun SettingsScreen(
             )
         }
     }
-    SettingsDialogs(
-        showProxyDialog = showProxyDialog,
-        onDismissProxyDialog = { viewModel.setShowProxyDialog(false) },
-        proxyType = proxyType,
-        onSelectProxyType = {
-            settings.proxyType = it
-            viewModel.setShowProxyDialog(false)
-        },
-        showFtAcceptDialog = showFtAcceptDialog,
-        onDismissFtAcceptDialog = { viewModel.setShowFtAcceptDialog(false) },
-        ftAutoAccept = ftAutoAccept,
-        onSelectFtAutoAccept = {
-            settings.ftAutoAccept = it
-            viewModel.setShowFtAcceptDialog(false)
-        },
-        showBootstrapDialog = showBootstrapDialog,
-        onDismissBootstrapDialog = { viewModel.setShowBootstrapDialog(false) },
-        bootstrapNodeSource = bootstrapNodeSource,
-        onSelectBootstrapNodeSource = {
-            viewModel.setBootstrapNodeSource(it)
-            viewModel.setShowBootstrapDialog(false)
-        },
-        showAccentColorDialog = state.showAccentColorDialog,
-        onDismissAccentColorDialog = { state.showAccentColorDialog = false },
-        currentAccentSeed = appearance.accentColorSeed,
-        onAccentColorSeedChanged = {
-            onAccentColorSeedChanged(it)
-            state.showAccentColorDialog = false
-        },
-        showDateFormatDialog = state.showDateFormatDialog,
-        onDismissDateFormatDialog = { state.showDateFormatDialog = false },
-        dateFormatPreference = dateFormatPreference,
-        onSelectDateFormat = {
-            settings.dateFormatPreference = it
-            state.showDateFormatDialog = false
-        },
-        showTimeFormatDialog = state.showTimeFormatDialog,
-        onDismissTimeFormatDialog = { state.showTimeFormatDialog = false },
-        timeFormatPreference = timeFormatPreference,
-        onSelectTimeFormat = {
-            settings.timeFormatPreference = it
-            state.showTimeFormatDialog = false
-        },
-        showRestoreConfirmDialog = state.showRestoreConfirmDialog,
-        onDismissRestoreConfirmDialog = {
-            state.showRestoreConfirmDialog = false
-            state.pendingRestoreUri = null
-        },
-        pendingRestoreUri = state.pendingRestoreUri,
-        isToxStarted = backupViewModel.isToxStarted(),
-        onRestoreConfirm = { password ->
-            backupViewModel.restoreBackup(state.pendingRestoreUri!!, password)
-            state.showRestoreConfirmDialog = false
-            state.pendingRestoreUri = null
-        },
-        showGoogleAccountDialog = state.showGoogleAccountDialog,
-        onDismissGoogleAccountDialog = { state.showGoogleAccountDialog = false },
-        googleAccountInput = state.googleAccountInput,
-        onGoogleAccountInputChange = { state.googleAccountInput = it },
-        onChooseGoogleAccount = {
-            try {
-                val intent = android.accounts.AccountManager.newChooseAccountIntent(
-                    null,
-                    null,
-                    arrayOf("com.google"),
-                    null,
-                    null,
-                    null,
-                    null
-                )
-                accountPickerLauncher.launch(intent)
-            } catch (e: Exception) { e.printStackTrace() }
-        },
-        onConfirmGoogleAccount = {
-            settings.backupGoogleAccount = state.googleAccountInput
-            state.showGoogleAccountDialog = false
-        },
+    SettingsScreenDialogs(
+        state = state,
+        viewModel = viewModel,
+        backupViewModel = backupViewModel,
+        settings = settings,
+        appearance = appearance,
+        onAccentColorSeedChanged = onAccentColorSeedChanged,
         performHaptic = performHaptic,
-        focusManager = focusManager
+        focusManager = focusManager,
+        accountPickerLauncher = accountPickerLauncher
     )
 }

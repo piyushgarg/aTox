@@ -2,10 +2,10 @@ package ltd.evilcorp.core.tox.runtime.delegates
 
 import android.util.Log
 import ltd.evilcorp.core.tox.NativeTox
-import ltd.evilcorp.domain.model.FileKind
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.tox.enums.ToxFileControl
-import ltd.evilcorp.domain.tox.toToxtype
+import ltd.evilcorp.domain.features.transfer.model.FileKind
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.core.network.enums.ToxFileControl
+import ltd.evilcorp.domain.core.network.toToxtype
 import kotlin.random.Random
 
 private const val TAG = "ToxFileTransmitter"
@@ -13,13 +13,14 @@ private const val FILE_ID_LENGTH = 32
 
 class ToxFileTransmitter(
     private val nativeTox: NativeTox,
+    private val lock: Any,
     private val toxPtrProvider: () -> Long,
 ) {
     private fun contactByKey(pk: PublicKey): Int {
         return nativeTox.toxFriendByPublicKey(toxPtrProvider(), pk.bytes())
     }
 
-    fun startFileTransfer(pk: PublicKey, fileNumber: Int) = synchronized(this) {
+    fun startFileTransfer(pk: PublicKey, fileNumber: Int) = synchronized(lock) {
         try {
             nativeTox.toxFileControl(toxPtrProvider(), contactByKey(pk), fileNumber, ToxFileControl.RESUME.ordinal)
         } catch (e: Exception) {
@@ -27,7 +28,7 @@ class ToxFileTransmitter(
         }
     }
 
-    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = synchronized(this) {
+    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = synchronized(lock) {
         try {
             nativeTox.toxFileControl(toxPtrProvider(), contactByKey(pk), fileNumber, ToxFileControl.CANCEL.ordinal)
         } catch (e: Exception) {
@@ -35,7 +36,7 @@ class ToxFileTransmitter(
         }
     }
 
-    fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String): Int = synchronized(this) {
+    fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String): Int = synchronized(lock) {
         try {
             nativeTox.toxFileSend(
                 toxPtrProvider(),
@@ -51,7 +52,7 @@ class ToxFileTransmitter(
         }
     }
 
-    fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> = synchronized(this) {
+    fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> = synchronized(lock) {
         try {
             nativeTox.toxFileSendChunk(toxPtrProvider(), contactByKey(pk), fileNo, pos, data)
             Result.success(Unit)

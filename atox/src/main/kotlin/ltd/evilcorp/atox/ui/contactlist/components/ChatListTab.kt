@@ -14,11 +14,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.domain.model.TimeFormatPreference
-import ltd.evilcorp.domain.feature.GroupInvite
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.group.GroupInvite
+import ltd.evilcorp.atox.ui.navigation.LocalTabPadding
+
+private val ContentPaddingTop = 4.dp
+private val ContentPaddingBottomDefault = 16.dp
+private val InvitePaddingHorizontal = 16.dp
+private val InvitePaddingVertical = 8.dp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -53,10 +59,15 @@ fun ChatListTab(
         return
     }
 
+    val bottomPadding = LocalTabPadding.current.calculateBottomPadding()
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState,
-        contentPadding = PaddingValues(vertical = 4.dp)
+        contentPadding = PaddingValues(
+            top = ContentPaddingTop,
+            bottom = ContentPaddingBottomDefault + bottomPadding
+        )
     ) {
         if (groupInvite != null) {
             item(key = "group_invite", contentType = "group_invite") {
@@ -65,7 +76,10 @@ fun ChatListTab(
                     friendName = groupInviteFriendName,
                     onAccept = onAcceptGroupInvite,
                     onReject = onRejectGroupInvite,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(
+                        horizontal = InvitePaddingHorizontal,
+                        vertical = InvitePaddingVertical
+                    )
                 )
             }
         }

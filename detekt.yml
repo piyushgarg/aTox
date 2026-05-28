@@ -33,6 +33,11 @@ style:
     ignorePropertyDeclaration: true
   MaxLineLength:
     maxLineLength: 160
+  ForbiddenComment:
+    active: true
+    comments:
+      - reason: 'Comments in Russian are not allowed.'
+        value: '[а-яёА-ЯЁ]'
   ForbiddenImport:
     active: true
     includes: ['**/domain/src/**/*.kt']
@@ -53,7 +58,7 @@ performance:
 complexity:
   LargeClass:
     active: true
-    threshold: 400
+    threshold: 300
   LongMethod:
     active: true
     threshold: 60
@@ -66,9 +71,12 @@ complexity:
   LongParameterList:
     active: false
   CyclomaticComplexMethod:
-    threshold: 40
+    threshold: 20
+    excludes: ['**/ui/**/*.kt', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**']
   NestedBlockDepth:
-    active: false
+    active: true
+    threshold: 5
+    excludes: ['**/ui/**/*.kt', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**']
 
 exceptions:
   TooGenericExceptionCaught:

@@ -24,8 +24,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.feature.GroupConnectionStatus
-import ltd.evilcorp.domain.model.Group
+import ltd.evilcorp.domain.features.group.GroupConnectionStatus
+import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.atox.ui.theme.StatusAvailable
 import ltd.evilcorp.atox.ui.theme.StatusAway
 import ltd.evilcorp.atox.ui.theme.StatusOffline

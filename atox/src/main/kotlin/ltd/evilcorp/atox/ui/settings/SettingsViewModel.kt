@@ -18,17 +18,24 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
-import ltd.evilcorp.domain.model.BootstrapNodeSource
-import ltd.evilcorp.domain.model.BackupFrequency
-import ltd.evilcorp.domain.model.BackupDestination
-import ltd.evilcorp.domain.tox.bootstrap.BootstrapNodeRegistry
-import ltd.evilcorp.domain.model.ProxyType
-import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.domain.usecase.CheckProxyUseCase
-import ltd.evilcorp.domain.model.ProxyStatus
+import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
+import ltd.evilcorp.domain.features.settings.model.BackupFrequency
+import ltd.evilcorp.domain.features.settings.model.BackupDestination
+import ltd.evilcorp.domain.core.network.bootstrap.IBootstrapNodeRegistry
+import ltd.evilcorp.domain.features.settings.model.ProxyType
+import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.features.transfer.FileTransferManager
+import ltd.evilcorp.domain.features.transfer.getCacheSize
+import ltd.evilcorp.domain.features.transfer.clearCache
+import ltd.evilcorp.domain.features.settings.usecase.CheckProxyUseCase
+import ltd.evilcorp.domain.features.settings.model.ProxyStatus
+import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.features.auth.model.User
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 
 private const val TOX_SHUTDOWN_POLL_DELAY_MS = 200L
+private const val MAX_PORT_NUMBER = 65535
 
 sealed interface SettingsUiEvent {
     data class ShowToast(val messageResId: Int) : SettingsUiEvent
@@ -39,10 +46,19 @@ class SettingsViewModel @Inject constructor(
     private val settings: Settings,
     private val toxStarter: ToxStarter,
     private val tox: ITox,
-    private val nodeRegistry: BootstrapNodeRegistry,
+    private val nodeRegistry: IBootstrapNodeRegistry,
     private val fileTransferManager: FileTransferManager,
     private val checkProxyUseCase: CheckProxyUseCase,
+    private val userManager: UserManager,
 ) : ViewModel() {
+    val publicKey by lazy { tox.publicKey }
+    val user: StateFlow<User?> = userManager.get(publicKey)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
     private var restartNeeded = false
 
     private val _proxyStatus = MutableStateFlow<ProxyStatus?>(null)
@@ -96,7 +112,7 @@ class SettingsViewModel @Inject constructor(
         }
         if (portStr.all { it.isDigit() }) {
             val portInt = portStr.toIntOrNull()
-            if (portInt != null && portInt in 0..65535) {
+            if (portInt != null && portInt in 0..MAX_PORT_NUMBER) {
                 settings.proxyPort = portInt
                 if (settings.proxyType != ProxyType.None) {
                     restartNeeded = true
@@ -124,7 +140,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setBootstrapNodeSource(source: BootstrapNodeSource) {
         settings.bootstrapNodeSource = source
-        nodeRegistry.reset()
+        viewModelScope.launch {
+            nodeRegistry.reset()
+        }
         restartNeeded = true
     }
 

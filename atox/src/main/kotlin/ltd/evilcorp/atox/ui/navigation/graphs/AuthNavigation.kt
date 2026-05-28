@@ -10,7 +10,7 @@ import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.atox.ui.navigation.AuthViewModel
 import ltd.evilcorp.atox.ui.navigation.LaunchScreen
 import ltd.evilcorp.atox.ui.navigation.UnlockScreen
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 
 fun NavGraphBuilder.authGraph(
     navController: NavHostController,

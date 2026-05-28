@@ -24,8 +24,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.domain.feature.GroupInvite
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
+import ltd.evilcorp.domain.features.group.GroupInvite
 
 @Composable
 fun FriendRequestItemCard(

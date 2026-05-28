@@ -71,7 +71,8 @@ fun MainTabsScreen(
 ) {
     val isSubScreen = currentRoute.contains("Chat") || 
                       currentRoute.contains("CreateGroup") ||
-                      currentRoute.contains("JoinGroup")
+                      currentRoute.contains("JoinGroup") ||
+                      currentRoute.contains("Search")
 
     val density = androidx.compose.ui.platform.LocalDensity.current
     val navigationBarsInsets = WindowInsets.navigationBars
@@ -133,6 +134,8 @@ fun MainTabsScreen(
     }
 }
 
+private const val MAX_ATTENTION_DISPLAY_COUNT = 99
+
 @Suppress("FunctionNaming")
 @Composable
 fun AToxBottomBar(
@@ -147,7 +150,7 @@ fun AToxBottomBar(
     val attentionLabel = remember(attentionCount) {
         when {
             attentionCount <= 0 -> ""
-            attentionCount > 99 -> "99+"
+            attentionCount > MAX_ATTENTION_DISPLAY_COUNT -> "$MAX_ATTENTION_DISPLAY_COUNT+"
             else -> attentionCount.toString()
         }
     }
@@ -167,10 +170,10 @@ fun AToxBottomBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
         ) {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 8.dp,
                 windowInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
             ) {
@@ -237,6 +240,8 @@ fun AToxFAB(
         modifier = modifier
     ) {
         Box(contentAlignment = Alignment.BottomEnd) {
+            val elevationZero = 0.dp
+            val roundedCorner16 = 16.dp
             FloatingActionButton(
                 onClick = {
                     if (hapticEnabled) {
@@ -246,7 +251,13 @@ fun AToxFAB(
                 },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(roundedCorner16),
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = elevationZero,
+                    pressedElevation = elevationZero,
+                    hoveredElevation = elevationZero,
+                    focusedElevation = elevationZero
+                )
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,

@@ -41,6 +41,9 @@ import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 
+private const val PULSE_DURATION_MS = 1000
+private val ColorGreenActive = Color(0xFF4CAF50)
+
 @Composable
 fun ReturnToCallBanner(
     modifier: Modifier = Modifier,
@@ -51,7 +54,7 @@ fun ReturnToCallBanner(
         initialValue = 0.92f,
         targetValue = 1.08f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
+            animation = tween(PULSE_DURATION_MS, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Scale"
@@ -60,7 +63,7 @@ fun ReturnToCallBanner(
         initialValue = 0.5f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
+            animation = tween(PULSE_DURATION_MS, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Alpha"
@@ -94,7 +97,7 @@ fun ReturnToCallBanner(
                         alpha = pulseAlpha
                     )
                     .clip(CircleShape)
-                    .background(Color(0xFF4CAF50))
+                    .background(ColorGreenActive)
             )
 
             Text(

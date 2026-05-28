@@ -3,11 +3,11 @@ package ltd.evilcorp.atox.ui.common
 import android.content.Context
 import android.text.format.DateFormat
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.TimeFormatPreference
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date

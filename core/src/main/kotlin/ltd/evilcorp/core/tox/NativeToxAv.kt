@@ -20,92 +20,92 @@ class NativeToxAv {
     external fun toxavAudioSendFrame(toxav: Long, friendNumber: Int, pcm: ShortArray, sampleCount: Int, channels: Int, samplingRate: Int): Boolean
 
     // ===================================================================================
-    // Передача видео-кадров и регулировка битрейта звонков
+    // Video frames transmission and calls bitrate regulation
     // ===================================================================================
 
     /**
-     * Отправляет видео-кадр (YUV420P) вашему собеседнику в активном видеозвонке.
-     * @param toxav Указатель на нативный инстанс ToxAV.
-     * @param friendNumber Номер друга.
-     * @param width Ширина видео-кадра.
-     * @param height Высота видео-кадра.
-     * @param y Массив Y-плоскости (яркость).
-     * @param u Массив U-плоскости (хроматическая синяя разность).
-     * @param v Массив V-плоскости (хроматическая красная разность).
-     * @return true в случае успеха, false в случае ошибки.
+     * Sends a video frame (YUV420P) to your peer in an active video call.
+     * @param toxav Pointer to the native ToxAV instance.
+     * @param friendNumber Friend number.
+     * @param width Width of the video frame.
+     * @param height Height of the video frame.
+     * @param y Y plane array (luminance).
+     * @param u U plane array (chrominance blue difference).
+     * @param v V plane array (chrominance red difference).
+     * @return true on success, false on error.
      */
     external fun toxavVideoSendFrame(toxav: Long, friendNumber: Int, width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray): Boolean
 
     /**
-     * Изменяет битрейт аудио «на лету» для текущего соединения звонка.
-     * @param toxav Указатель на нативный инстанс ToxAV.
-     * @param friendNumber Номер друга.
-     * @param bitrate Новый аудио-битрейт в bps.
-     * @return true в случае успеха, false в случае ошибки.
+     * Changes the audio bitrate on the fly for the current call connection.
+     * @param toxav Pointer to the native ToxAV instance.
+     * @param friendNumber Friend number.
+     * @param bitrate New audio bitrate in bps.
+     * @return true on success, false on error.
      */
     external fun toxavAudioSetBitRate(toxav: Long, friendNumber: Int, bitrate: Int): Boolean
 
     /**
-     * Изменяет битрейт видео «на лету» для текущего соединения звонка.
-     * @param toxav Указатель на нативный инстанс ToxAV.
-     * @param friendNumber Номер друга.
-     * @param bitrate Новый видео-битрейт в bps.
-     * @return true в случае успеха, false в случае ошибки.
+     * Changes the video bitrate on the fly for the current call connection.
+     * @param toxav Pointer to the native ToxAV instance.
+     * @param friendNumber Friend number.
+     * @param bitrate New video bitrate in bps.
+     * @return true on success, false on error.
      */
     external fun toxavVideoSetBitRate(toxav: Long, friendNumber: Int, bitrate: Int): Boolean
 
     // ===================================================================================
-    // Аудио/Видео групповые чаты (ToxAV Group API)
+    // Audio/Video group chats (ToxAV Group API)
     // ===================================================================================
 
     /**
-     * Создает групповую аудио-конференцию на основе существующего инстанса Tox.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @return Номер созданного голосового чата, либо -1 в случае ошибки.
+     * Creates a group audio conference based on an existing Tox instance.
+     * @param tox Pointer to the native Tox instance.
+     * @return The number of the created voice chat, or -1 on error.
      */
     external fun toxavAddAvGroupchat(tox: Long): Int
 
     /**
-     * Присоединяется к существующей групповой аудио-конференции.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы Tox.
-     * @return Номер присоединенной аудио-группы, либо -1 в случае ошибки.
+     * Joins an existing group audio conference.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Tox group number.
+     * @return The number of the joined audio group, or -1 on error.
      */
     external fun toxavJoinAvGroupchat(tox: Long, groupNumber: Int): Int
 
     /**
-     * Отправляет аудио-кадр вашего голоса в групповой чат.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы Tox.
-     * @param pcm Массив аудиоданных (PCM 16-бит).
-     * @param sampleCount Количество аудио-сэмплов.
-     * @param channels Количество каналов (обычно 1 - моно, или 2 - стерео).
-     * @param samplingRate Частота дискретизации аудио (например, 48000).
-     * @return 0 в случае успеха, либо код ошибки.
+     * Sends an audio frame of your voice to the group chat.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Tox group number.
+     * @param pcm Audio data array (PCM 16-bit).
+     * @param sampleCount Count of audio samples.
+     * @param channels Count of channels (usually 1 - mono, or 2 - stereo).
+     * @param samplingRate Audio sampling rate (e.g., 48000).
+     * @return 0 on success, or an error code.
      */
     external fun toxavGroupSendAudio(tox: Long, groupNumber: Int, pcm: ShortArray, sampleCount: Int, channels: Int, samplingRate: Int): Int
 
     /**
-     * Включает аудио/видео функции для указанного группового чата.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return 0 в случае успеха, либо код ошибки.
+     * Enables audio/video functions for the specified group chat.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return 0 on success, or an error code.
      */
     external fun toxavGroupchatEnableAv(tox: Long, groupNumber: Int): Int
 
     /**
-     * Выключает аудио/видео функции для указанного группового чата.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return 0 в случае успеха, либо код ошибки.
+     * Disables audio/video functions for the specified group chat.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return 0 on success, or an error code.
      */
     external fun toxavGroupchatDisableAv(tox: Long, groupNumber: Int): Int
 
     /**
-     * Проверяет, активны ли аудио/видео функции в указанном групповом чате.
-     * @param tox Указатель на нативный инстанс Tox.
-     * @param groupNumber Номер группы.
-     * @return true если активны, false если отключены или произошла ошибка.
+     * Checks if audio/video functions are active in the specified group chat.
+     * @param tox Pointer to the native Tox instance.
+     * @param groupNumber Group number.
+     * @return true if active, false if disabled or an error occurred.
      */
     external fun toxavGroupchatAvEnabled(tox: Long, groupNumber: Int): Boolean
 }

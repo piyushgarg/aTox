@@ -25,9 +25,9 @@ import ltd.evilcorp.atox.infrastructure.receiver.KEY_CONTACT_PK
 import ltd.evilcorp.atox.infrastructure.receiver.KEY_TEXT_REPLY
 import ltd.evilcorp.atox.ui.avatar.NotificationAvatarLoader
 import ltd.evilcorp.atox.infrastructure.util.PendingIntentCompat
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.domain.model.PublicKey
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
+import ltd.evilcorp.domain.core.model.PublicKey
 import javax.inject.Inject
 import javax.inject.Singleton
 

@@ -3,30 +3,34 @@ package ltd.evilcorp.atox.infrastructure.tox
 import java.util.Date
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.domain.repository.IContactRepository
-import ltd.evilcorp.domain.repository.IFriendRequestRepository
-import ltd.evilcorp.domain.repository.IMessageRepository
-import ltd.evilcorp.domain.repository.IUserRepository
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.Sender
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.model.FINGERPRINT_LEN
-import ltd.evilcorp.domain.tox.enums.ToxMessageType
-import ltd.evilcorp.domain.feature.ChatManager
-import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.domain.feature.GroupManager
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
+import ltd.evilcorp.domain.features.contacts.repository.IFriendRequestRepository
+import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
+import ltd.evilcorp.domain.features.auth.repository.IUserRepository
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.Sender
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.core.model.FINGERPRINT_LEN
+import ltd.evilcorp.domain.core.network.enums.ToxMessageType
+import ltd.evilcorp.domain.features.chat.ChatManager
+import ltd.evilcorp.domain.features.transfer.FileTransferManager
+import ltd.evilcorp.domain.features.transfer.sendAvatar
+import ltd.evilcorp.domain.features.transfer.resetForContact
+import ltd.evilcorp.domain.features.group.GroupManager
+import ltd.evilcorp.domain.core.network.ITox
 
 private const val MAX_ACTIVE_FRIEND_REQUESTS = 32
 private const val TAG = "FriendEventHandler"
+private const val SECONDS_TO_MS = 1000L
 
 private fun String.fingerprint() = this.take(FINGERPRINT_LEN)
 
@@ -57,41 +61,43 @@ class FriendEventHandler @Inject constructor(
         notificationHelper.showMessageNotification(contact, message, silent = tox.getStatus() == UserStatus.Busy)
 
     fun onFriendStatusMessage(publicKey: String, message: String) {
-        contactRepository.setStatusMessage(publicKey, message)
+        scope.launch(Dispatchers.IO) {
+            contactRepository.setStatusMessage(publicKey, message)
+        }
     }
 
     fun onFriendReadReceipt(publicKey: String, messageId: Int) {
-        messageRepository.setReceipt(publicKey, messageId, Date().time)
+        scope.launch(Dispatchers.IO) {
+            messageRepository.setReceipt(publicKey, messageId, Date().time)
+        }
     }
 
     fun onFriendStatus(publicKey: String, status: UserStatus) {
-        contactRepository.setUserStatus(publicKey, status)
+        scope.launch(Dispatchers.IO) {
+            contactRepository.setUserStatus(publicKey, status)
+        }
     }
 
     fun onFriendConnectionStatus(publicKey: String, status: ConnectionStatus) {
-        contactRepository.setConnectionStatus(publicKey, status)
-        if (status != ConnectionStatus.None) {
-            scope.launch {
+        scope.launch(Dispatchers.IO) {
+            contactRepository.setConnectionStatus(publicKey, status)
+            if (status != ConnectionStatus.None) {
                 groupManager.reconnectAll()
-            }
-            scope.launch {
                 fileTransferManager.sendAvatar(publicKey)
-            }
-            scope.launch {
                 val pending = messageRepository.getPending(publicKey)
                 if (pending.isNotEmpty()) {
                     chatManager.resend(pending)
                 }
-            }
-        } else {
-            fileTransferManager.resetForContact(publicKey)
-            val lastOnline = try {
-                tox.friendGetLastOnline(ltd.evilcorp.domain.model.PublicKey(publicKey))
-            } catch (e: Exception) {
-                0L
-            }
-            if (lastOnline > 0L) {
-                contactRepository.setLastOnline(publicKey, lastOnline * 1000)
+            } else {
+                fileTransferManager.resetForContact(publicKey)
+                val lastOnline = try {
+                    tox.friendGetLastOnline(ltd.evilcorp.domain.core.model.PublicKey(publicKey))
+                } catch (e: Exception) {
+                    0L
+                }
+                if (lastOnline > 0L) {
+                    contactRepository.setLastOnline(publicKey, lastOnline * SECONDS_TO_MS)
+                }
             }
         }
     }
@@ -112,24 +118,26 @@ class FriendEventHandler @Inject constructor(
     }
 
     fun onFriendMessage(publicKey: String, type: ToxMessageType, message: String) {
-        messageRepository.add(
-            Message(publicKey, message, Sender.Received, type.toMessageType(), Int.MIN_VALUE, Date().time),
-        )
+        scope.launch(Dispatchers.IO) {
+            messageRepository.add(
+                Message(publicKey, message, Sender.Received, type.toMessageType(), Int.MIN_VALUE, Date().time),
+            )
 
-        if (chatManager.activeChat != publicKey) {
-            systemSoundPlayer.playNotificationSound(settings.notificationSoundUri, settings.notificationSoundVolume)
-            scope.launch {
+            if (chatManager.activeChat != publicKey) {
+                systemSoundPlayer.playNotificationSound(settings.notificationSoundUri, settings.notificationSoundVolume)
                 val contact = tryGetContact(publicKey, "Message") ?: Contact(publicKey)
                 notifyMessage(contact, message)
+                contactRepository.setHasUnreadMessages(publicKey, true)
+            } else {
+                systemSoundPlayer.playNotificationSound(settings.activeChatSoundUri, settings.activeChatSoundVolume)
             }
-            contactRepository.setHasUnreadMessages(publicKey, true)
-        } else {
-            systemSoundPlayer.playNotificationSound(settings.activeChatSoundUri, settings.activeChatSoundVolume)
         }
     }
 
     fun onFriendName(publicKey: String, newName: String) {
-        contactRepository.setName(publicKey, newName)
+        scope.launch(Dispatchers.IO) {
+            contactRepository.setName(publicKey, newName)
+        }
     }
 
     fun onSelfConnectionStatus(status: ConnectionStatus) {
@@ -142,6 +150,8 @@ class FriendEventHandler @Inject constructor(
     }
 
     fun onFriendTyping(publicKey: String, isTyping: Boolean) {
-        contactRepository.setTyping(publicKey, isTyping)
+        scope.launch(Dispatchers.IO) {
+            contactRepository.setTyping(publicKey, isTyping)
+        }
     }
 }

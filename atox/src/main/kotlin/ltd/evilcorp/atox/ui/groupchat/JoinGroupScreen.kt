@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -63,106 +64,130 @@ fun JoinGroupScreen(
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
+    Scaffold(
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.join_group),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack, enabled = !isJoining) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
+            )
+        }
+    ) { paddingValues ->
+        Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(16.dp)
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues),
+            color = MaterialTheme.colorScheme.background
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(16.dp)
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                 ) {
-                    Text(
-                        text = stringResource(R.string.join_group),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Text(
-                        text = stringResource(R.string.join_group_instructions),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    OutlinedTextField(
-                        value = chatIdHex,
-                        onValueChange = { input ->
-                            // Auto-strip clipboard inputs of whitespaces and newline characters during paste operations!
-                            val cleanInput = input.replace("\\s".toRegex(), "")
-                            chatIdHex = cleanInput.filter { c -> c in "0123456789abcdefABCDEF" }
-                            errorMessage = null
-                        },
-                        label = { Text(stringResource(R.string.group_chat_id)) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester),
-                        singleLine = true,
-                        enabled = !isJoining,
-                        shape = MaterialTheme.shapes.medium,
-                        isError = errorMessage != null,
-                        supportingText = {
-                            if (errorMessage != null) {
-                                Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.join_group),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                    )
 
-                    AtoxPasswordField(
-                        value = password,
-                        onValueChange = {
-                            password = it
-                            errorMessage = null
-                        },
-                        label = stringResource(R.string.group_password),
-                        placeholder = stringResource(R.string.group_password_placeholder),
-                        enabled = !isJoining,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        Text(
+                            text = stringResource(R.string.join_group_instructions),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = chatIdHex,
+                            onValueChange = { input ->
+                                // Auto-strip clipboard inputs of whitespaces and newline characters during paste operations!
+                                val cleanInput = input.replace("\\s".toRegex(), "")
+                                chatIdHex = cleanInput.filter { c -> c in "0123456789abcdefABCDEF" }
+                                errorMessage = null
+                            },
+                            label = { Text(stringResource(R.string.group_chat_id)) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
+                            singleLine = true,
+                            enabled = !isJoining,
+                            shape = MaterialTheme.shapes.medium,
+                            isError = errorMessage != null,
+                            supportingText = {
+                                if (errorMessage != null) {
+                                    Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                            )
+                        )
 
-                    AtoxLoadingButton(
-                        onClick = {
-                            val validationError = onValidateChatId(chatIdHex)
-                            if (validationError != null) {
-                                errorMessage = validationError
-                                return@AtoxLoadingButton
-                            }
-                            performHaptic()
-                            scope.launch {
-                                onJoinGroup(chatIdHex, password.takeIf { it.isNotBlank() })
-                            }
-                        },
-                        text = stringResource(R.string.join_group),
-                        isLoading = isJoining,
-                        enabled = chatIdHex.isNotBlank(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = MaterialTheme.shapes.medium
-                    )
+                        AtoxPasswordField(
+                            value = password,
+                            onValueChange = {
+                                password = it
+                                errorMessage = null
+                            },
+                            label = stringResource(R.string.group_password),
+                            placeholder = stringResource(R.string.group_password_placeholder),
+                            enabled = !isJoining,
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        AtoxLoadingButton(
+                            onClick = {
+                                val validationError = onValidateChatId(chatIdHex)
+                                if (validationError != null) {
+                                    errorMessage = validationError
+                                    return@AtoxLoadingButton
+                                }
+                                performHaptic()
+                                scope.launch {
+                                    onJoinGroup(chatIdHex, password.takeIf { it.isNotBlank() })
+                                }
+                            },
+                            text = stringResource(R.string.join_group),
+                            isLoading = isJoining,
+                            enabled = chatIdHex.isNotBlank(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = MaterialTheme.shapes.medium
+                        )
+                    }
                 }
             }
         }

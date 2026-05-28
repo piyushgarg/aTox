@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package ltd.evilcorp.domain.tox
+package ltd.evilcorp.domain.core.network
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.tox.ToxID
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.core.network.ToxID
 
 class ToxTypesTest {
     @Test

@@ -25,15 +25,15 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.domain.repository.IContactRepository
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.domain.feature.CallState
-import ltd.evilcorp.domain.feature.ChatManager
-import ltd.evilcorp.domain.feature.ContactManager
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.features.call.CallManager
+import ltd.evilcorp.domain.features.call.CallState
+import ltd.evilcorp.domain.features.chat.ChatManager
+import ltd.evilcorp.domain.features.contacts.ContactManager
+import ltd.evilcorp.domain.core.network.ITox
 
 const val KEY_TEXT_REPLY = "key_text_reply"
 const val KEY_CONTACT_PK = "key_contact_pk"

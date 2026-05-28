@@ -1,14 +1,14 @@
 package ltd.evilcorp.core.tox.runtime
 
 import ltd.evilcorp.core.tox.NativeTox
-import ltd.evilcorp.core.tox.save.SaveManager
-import ltd.evilcorp.domain.model.PublicKey
+import ltd.evilcorp.domain.core.network.save.ISaveManager
+import ltd.evilcorp.domain.core.model.PublicKey
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class ToxSessionSaver @Inject constructor(
-    private val saveManager: SaveManager
+    private val saveManager: ISaveManager
 ) {
     fun encryptAndSave(publicKey: PublicKey, saveData: ByteArray, passkey: ByteArray?) {
         val encryptedData = if (passkey != null) {

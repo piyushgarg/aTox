@@ -23,9 +23,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import ltd.evilcorp.domain.feature.CallState
-import ltd.evilcorp.domain.feature.GroupInvite
-import ltd.evilcorp.domain.feature.GroupManager
+import ltd.evilcorp.domain.features.call.CallState
+import ltd.evilcorp.domain.features.group.GroupInvite
+import ltd.evilcorp.domain.features.group.GroupManager
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,11 +38,11 @@ import ltd.evilcorp.atox.infrastructure.util.PermissionManager
 import ltd.evilcorp.atox.ui.navigation.AToxNavGraph
 import ltd.evilcorp.atox.ui.navigation.ToxLinkManager
 import ltd.evilcorp.atox.ui.theme.AToxTheme
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.FINGERPRINT_LEN
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.domain.tox.TOX_ID_LENGTH
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.core.model.FINGERPRINT_LEN
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.call.CallManager
+import ltd.evilcorp.domain.core.network.TOX_ID_LENGTH
 import java.io.File
 
 import ltd.evilcorp.atox.infrastructure.sharing.SharedContentManager
@@ -68,43 +68,79 @@ class MainActivity : AppCompatActivity() {
 
 
     @Inject
-    lateinit var autoAway: AutoAway
+    lateinit var autoAway: dagger.Lazy<AutoAway>
 
     @Inject
     lateinit var settings: Settings
 
     @Inject
-    lateinit var callManager: CallManager
+    lateinit var callManager: dagger.Lazy<CallManager>
 
     @Inject
-    lateinit var notificationHelper: NotificationHelper
+    lateinit var notificationHelper: dagger.Lazy<NotificationHelper>
 
     @Inject
     lateinit var appearanceManager: AppearanceManager
 
     @Inject
-    lateinit var permissionManager: PermissionManager
+    lateinit var permissionManager: dagger.Lazy<PermissionManager>
 
     @Inject
-    lateinit var systemSoundPlayer: SystemSoundPlayer
+    lateinit var systemSoundPlayer: dagger.Lazy<SystemSoundPlayer>
 
     @Inject
-    lateinit var groupManager: GroupManager
+    lateinit var sharedContentManager: dagger.Lazy<SharedContentManager>
 
     @Inject
-    lateinit var sharedContentManager: SharedContentManager
+    lateinit var toxLinkManager: dagger.Lazy<ToxLinkManager>
 
-    @Inject
-    lateinit var toxLinkManager: ToxLinkManager
-
-    private var groupInviteDialog: android.app.AlertDialog? = null
-    private val callScreenMinimized = mutableStateOf(false)
+    private var callScreenMinimized = mutableStateOf(false)
 
     @Suppress("LongMethod")
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
-        ltd.evilcorp.atox.ui.navigation.AppBarStateHolder.clear()
         super.onCreate(savedInstanceState)
+
+        var isAppearanceLoaded = false
+        val content: android.view.View = findViewById(android.R.id.content)
+        content.viewTreeObserver.addOnPreDrawListener(
+            object : android.view.ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    return if (isAppearanceLoaded) {
+                        content.viewTreeObserver.removeOnPreDrawListener(this)
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
+        )
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.CREATED) {
+                appearanceManager.appearance.collect { appearance ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val localeManager = getSystemService(android.app.LocaleManager::class.java)
+                        if (localeManager != null) {
+                            localeManager.applicationLocales = if (appearance.localeTag.isBlank()) {
+                                android.os.LocaleList.getEmptyLocaleList()
+                            } else {
+                                android.os.LocaleList.forLanguageTags(appearance.localeTag)
+                            }
+                        }
+                    } else {
+                        AppCompatDelegate.setApplicationLocales(
+                            if (appearance.localeTag.isBlank()) {
+                                androidx.core.os.LocaleListCompat.getEmptyLocaleList()
+                            } else {
+                                androidx.core.os.LocaleListCompat.forLanguageTags(appearance.localeTag)
+                            }
+                        )
+                    }
+                    isAppearanceLoaded = true
+                }
+            }
+        }
 
         enableEdgeToEdge()
         updateSecureWindow(settings.disableScreenshots)
@@ -147,11 +183,11 @@ class MainActivity : AppCompatActivity() {
                     settings = settings,
                     windowSizeClass = windowSizeClass,
 
-                    callManager = callManager,
-                    notificationHelper = notificationHelper,
-                    permissionManager = permissionManager,
-                    systemSoundPlayer = systemSoundPlayer,
-                    toxLinkManager = toxLinkManager,
+                    callManager = callManager.get(),
+                    notificationHelper = notificationHelper.get(),
+                    permissionManager = permissionManager.get(),
+                    systemSoundPlayer = systemSoundPlayer.get(),
+                    toxLinkManager = toxLinkManager.get(),
                     callScreenMinimized = callScreenMinimized,
                     onOpenFile = ::openFile,
                     onQuitApp = ::finish,
@@ -194,12 +230,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        autoAway.onBackground()
+        autoAway.get().onBackground()
     }
 
     override fun onResume() {
         super.onResume()
-        autoAway.onForeground()
+        autoAway.get().onForeground()
     }
 
     private fun handleIntent(intent: Intent) {
@@ -218,7 +254,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val toxId = data.drop(SCHEME.length)
-        toxLinkManager.setPendingToxId(toxId)
+        toxLinkManager.get().setPendingToxId(toxId)
     }
 
     private fun handleShareIntent(intent: Intent) {
@@ -229,7 +265,7 @@ class MainActivity : AppCompatActivity() {
                 if (type.startsWith("text/")) {
                     val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
                     if (!sharedText.isNullOrEmpty()) {
-                        sharedContentManager.setSharedContent(SharedContent.Text(sharedText))
+                        sharedContentManager.get().setSharedContent(SharedContent.Text(sharedText))
                         Log.i(TAG, "Parsed shared text: $sharedText")
                     }
                 } else {
@@ -240,7 +276,7 @@ class MainActivity : AppCompatActivity() {
                         intent.getParcelableExtra(Intent.EXTRA_STREAM)
                     }
                     if (streamUri != null) {
-                        sharedContentManager.setSharedContent(SharedContent.File(streamUri, type))
+                        sharedContentManager.get().setSharedContent(SharedContent.File(streamUri, type))
                         Log.i(TAG, "Parsed shared file URI: $streamUri")
                     }
                 }
@@ -252,7 +288,7 @@ class MainActivity : AppCompatActivity() {
                     intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
                 }
                 if (streamUris != null) {
-                    sharedContentManager.setSharedContent(SharedContent.MultipleFiles(streamUris.filterNotNull()))
+                    sharedContentManager.get().setSharedContent(SharedContent.MultipleFiles(streamUris.filterNotNull()))
                     Log.i(TAG, "Parsed shared multiple URIs: $streamUris")
                 }
             }
@@ -281,14 +317,12 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: android.content.ActivityNotFoundException) {
                     startActivity(Intent.createChooser(intent, getString(R.string.open_with)))
                 }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Security failure while opening file ${ft.fileName}", e)
+                android.widget.Toast.makeText(this@MainActivity, R.string.open_file_security_failure, android.widget.Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to open file ${ft.fileName}", e)
-                val messageRes = if (e is SecurityException) {
-                    R.string.open_file_security_failure
-                } else {
-                    R.string.open_file_failure
-                }
-                android.widget.Toast.makeText(this@MainActivity, messageRes, android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(this@MainActivity, R.string.open_file_failure, android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -311,7 +345,7 @@ class MainActivity : AppCompatActivity() {
                 stagedFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
-            } ?: throw IllegalStateException("Unable to open $uri for sharing")
+            } ?: error("Unable to open $uri for sharing")
             return androidx.core.content.FileProvider.getUriForFile(
                 this,
                 "$packageName.fileprovider",

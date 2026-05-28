@@ -32,10 +32,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.feature.GroupConnectionStatus
-import ltd.evilcorp.domain.model.Group
+import ltd.evilcorp.domain.features.group.GroupConnectionStatus
+import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 import ltd.evilcorp.atox.ui.groupchat.components.GroupItemCard
+
+private val ContentPaddingTop = 4.dp
+private val ContentPaddingBottomDefault = 16.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,12 +113,13 @@ fun GroupListScreen(
             val lazyListState = rememberLazyListState()
 
             Box(modifier = Modifier.fillMaxSize()) {
+                val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
                 LazyColumn(
                     state = lazyListState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        top = 4.dp,
-                        bottom = 16.dp
+                        top = ContentPaddingTop,
+                        bottom = ContentPaddingBottomDefault + bottomPadding
                     )
                 ) {
                     items(groups) { group ->

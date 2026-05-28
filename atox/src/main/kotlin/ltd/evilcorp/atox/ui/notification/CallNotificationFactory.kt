@@ -22,10 +22,10 @@ import ltd.evilcorp.atox.infrastructure.receiver.KEY_ACTION
 import ltd.evilcorp.atox.infrastructure.receiver.KEY_CONTACT_PK
 import ltd.evilcorp.atox.infrastructure.util.PendingIntentCompat
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FINGERPRINT_LEN
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.model.UserStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.core.model.FINGERPRINT_LEN
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import javax.inject.Inject
 import javax.inject.Singleton
 

@@ -7,15 +7,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.domain.repository.IContactRepository
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.model.FINGERPRINT_LEN
-import ltd.evilcorp.domain.tox.enums.ToxavFriendCallState
-import ltd.evilcorp.core.av.AudioPlayer
-import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.core.model.FINGERPRINT_LEN
+import ltd.evilcorp.domain.core.network.enums.ToxavFriendCallState
+import ltd.evilcorp.core.platform.media.playback.AudioPlayer
+import ltd.evilcorp.domain.features.call.CallManager
+import ltd.evilcorp.domain.core.network.ITox
 
 private const val TAG = "CallEventHandler"
 

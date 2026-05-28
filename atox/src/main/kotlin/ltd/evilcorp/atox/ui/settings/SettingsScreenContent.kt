@@ -16,7 +16,9 @@ import androidx.compose.ui.res.stringResource
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.domain.model.UserSettings
+import ltd.evilcorp.domain.features.settings.model.UserSettings
+import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
+import ltd.evilcorp.domain.features.settings.model.ProxyType
 import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsViewModel
 import ltd.evilcorp.atox.ui.settings.common.SettingsDestination
 import ltd.evilcorp.atox.ui.settings.common.SettingsRootContent
@@ -49,8 +51,8 @@ internal fun SettingsScreenContent(
     context: Context,
     languages: List<Pair<String, String>>,
     currentLanguageCode: String,
-    timeFormatPreference: ltd.evilcorp.domain.model.TimeFormatPreference,
-    dateFormatPreference: ltd.evilcorp.domain.model.DateFormatPreference,
+    timeFormatPreference: ltd.evilcorp.domain.features.settings.model.TimeFormatPreference,
+    dateFormatPreference: ltd.evilcorp.domain.features.settings.model.DateFormatPreference,
     performHaptic: () -> Unit,
     onDynamicColorChanged: (Boolean) -> Unit,
     onThemeChanged: (Int) -> Unit,
@@ -58,8 +60,8 @@ internal fun SettingsScreenContent(
     autoSaveDirectoryLabel: String,
     autoSaveDirectoryLauncher: ActivityResultLauncher<Uri?>,
     viewModel: SettingsViewModel,
-    bootstrapNodeSource: ltd.evilcorp.domain.model.BootstrapNodeSource,
-    proxyType: ltd.evilcorp.domain.model.ProxyType,
+    bootstrapNodeSource: ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource,
+    proxyType: ltd.evilcorp.domain.features.settings.model.ProxyType,
     proxyAddress: String,
     onDisableScreenshotsChanged: (Boolean) -> Unit,
     focusManager: FocusManager,

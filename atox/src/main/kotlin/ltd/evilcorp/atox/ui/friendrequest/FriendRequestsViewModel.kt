@@ -10,8 +10,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.domain.feature.FriendRequestManager
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
+import ltd.evilcorp.domain.features.contacts.FriendRequestManager
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 

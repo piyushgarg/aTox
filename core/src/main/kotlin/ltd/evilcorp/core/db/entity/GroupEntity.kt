@@ -3,8 +3,8 @@ package ltd.evilcorp.core.db.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import ltd.evilcorp.domain.model.Group
-import ltd.evilcorp.domain.model.GroupPrivacyState
+import ltd.evilcorp.domain.features.group.model.Group
+import ltd.evilcorp.domain.features.group.model.GroupPrivacyState
 
 @Entity(tableName = "groups")
 data class GroupEntity(

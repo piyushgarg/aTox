@@ -25,6 +25,11 @@ subprojects {
         config.setFrom(rootProject.files("detekt.yml"))
         baseline = file("detekt-baseline.xml")
         source.setFrom(files("src/main/kotlin", "src/test/kotlin"))
+        ignoreFailures = false
+    }
+
+    tasks.matching { it.name == "assemble" }.configureEach {
+        dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
     }
 }
 

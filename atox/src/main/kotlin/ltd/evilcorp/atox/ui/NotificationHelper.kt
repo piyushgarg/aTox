@@ -21,11 +21,11 @@ import ltd.evilcorp.atox.ui.notification.CHANNEL_FRIEND_REQUEST
 import ltd.evilcorp.atox.ui.notification.CHANNEL_CALL
 import ltd.evilcorp.atox.ui.notification.CHANNEL_GROUP_MESSAGE
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FriendRequest
-import ltd.evilcorp.domain.model.PublicKey
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.feature.INotificationHelper
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.core.network.INotificationHelper
 
 private const val TAG = "NotificationHelper"
 

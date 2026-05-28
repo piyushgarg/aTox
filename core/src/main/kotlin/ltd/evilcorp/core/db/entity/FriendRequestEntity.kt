@@ -3,7 +3,7 @@ package ltd.evilcorp.core.db.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import ltd.evilcorp.domain.model.FriendRequest
+import ltd.evilcorp.domain.features.contacts.model.FriendRequest
 
 @Entity(tableName = "friend_requests")
 data class FriendRequestEntity(

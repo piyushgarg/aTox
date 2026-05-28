@@ -4,9 +4,9 @@
 
 package ltd.evilcorp.atox.ui.chat
 
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.Message
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.Message
 
 data class ChatUiState(
     val contact: Contact? = null,

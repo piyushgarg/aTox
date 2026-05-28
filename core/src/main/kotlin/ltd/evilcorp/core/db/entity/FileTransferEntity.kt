@@ -3,8 +3,8 @@ package ltd.evilcorp.core.db.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.FT_NOT_STARTED
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.transfer.model.FT_NOT_STARTED
 
 @Entity(tableName = "file_transfers")
 data class FileTransferEntity(

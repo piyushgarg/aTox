@@ -54,6 +54,9 @@ fun AtoxSearchBar(
                 trailingIcon?.invoke()
             }
         },
+        colors = SearchBarDefaults.colors(
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
         modifier = modifier.fillMaxWidth(),
         content = { content() }
     )

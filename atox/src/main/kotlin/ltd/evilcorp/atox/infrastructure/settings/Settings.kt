@@ -5,17 +5,17 @@ import android.content.Context
 import android.content.pm.PackageManager
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
-import ltd.evilcorp.domain.model.BackupDestination
-import ltd.evilcorp.domain.model.BackupFrequency
-import ltd.evilcorp.domain.model.BootstrapNodeSource
-import ltd.evilcorp.domain.model.DateFormatPreference
-import ltd.evilcorp.domain.model.FtAutoAccept
-import ltd.evilcorp.domain.model.AppSound
-import ltd.evilcorp.domain.model.TimeFormatPreference
+import ltd.evilcorp.domain.features.settings.model.BackupDestination
+import ltd.evilcorp.domain.features.settings.model.BackupFrequency
+import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.FtAutoAccept
+import ltd.evilcorp.domain.features.settings.model.AppSound
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 import ltd.evilcorp.atox.infrastructure.receiver.BootReceiver
-import ltd.evilcorp.domain.model.ProxyType
-import ltd.evilcorp.domain.model.UserSettings
-import ltd.evilcorp.domain.repository.IUserSettingsRepository
+import ltd.evilcorp.domain.features.settings.model.ProxyType
+import ltd.evilcorp.domain.features.settings.model.UserSettings
+import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
 
 class Settings @Inject constructor(
     private val ctx: Context,

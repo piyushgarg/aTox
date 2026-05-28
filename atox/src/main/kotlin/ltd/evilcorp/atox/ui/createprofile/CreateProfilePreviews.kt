@@ -6,7 +6,7 @@ import ltd.evilcorp.atox.ui.theme.AToxTheme
 
 @Preview(name = "Create Profile Screen Preview", showSystemUi = true)
 @Composable
-private fun CreateProfileScreenPreview() {
+fun CreateProfileScreenPreview() {
     AToxTheme {
         CreateProfileContent(
             isLoading = false,

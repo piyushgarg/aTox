@@ -22,10 +22,10 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.LifecycleService
 import javax.inject.Inject
 import dagger.hilt.android.AndroidEntryPoint
-import ltd.evilcorp.domain.model.ConnectionStatus
-import ltd.evilcorp.domain.tox.ITox
-import ltd.evilcorp.domain.tox.save.ToxSaveStatus
-import ltd.evilcorp.domain.usecase.InitializeToxUseCase
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
+import ltd.evilcorp.domain.features.auth.usecase.InitializeToxUseCase
 
 private const val TAG = "ToxService"
 private const val NOTIFICATION_ID = 1984

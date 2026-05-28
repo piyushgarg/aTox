@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.model.BackupFrequency
+import ltd.evilcorp.domain.features.settings.model.BackupFrequency
 
 @Composable
 fun BackupFrequencyDialog(

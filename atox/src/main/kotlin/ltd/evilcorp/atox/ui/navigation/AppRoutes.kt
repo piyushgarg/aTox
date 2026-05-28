@@ -62,6 +62,12 @@ sealed interface AppRoutes {
     @Serializable
     data object JoinGroup : AppRoutes
 
+    @Serializable
+    data object SearchContacts : AppRoutes
+
+    @Serializable
+    data object SearchSettings : AppRoutes
+
     companion object {
         fun isMainTab(route: String?) = route != null && (
             route.endsWith("AppRoutes.Chats") ||

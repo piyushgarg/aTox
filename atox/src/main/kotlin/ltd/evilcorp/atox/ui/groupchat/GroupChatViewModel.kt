@@ -23,34 +23,46 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.Group
-import ltd.evilcorp.domain.model.GroupMessage
-import ltd.evilcorp.domain.model.GroupPeer
-import ltd.evilcorp.domain.model.Message
-import ltd.evilcorp.domain.model.MessageType
-import ltd.evilcorp.domain.model.Sender
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.repository.IContactRepository
-import ltd.evilcorp.domain.repository.IGroupRepository
-import ltd.evilcorp.domain.repository.IFileTransferRepository
-import ltd.evilcorp.domain.feature.GroupConnectionStatus
-import ltd.evilcorp.domain.feature.GroupManager
-import ltd.evilcorp.domain.feature.FileTransferManager
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.group.model.Group
+import ltd.evilcorp.domain.features.group.model.GroupMessage
+import ltd.evilcorp.domain.features.group.model.GroupPeer
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.features.chat.model.Sender
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
+import ltd.evilcorp.domain.features.group.repository.IGroupRepository
+import ltd.evilcorp.domain.features.transfer.repository.IFileTransferRepository
+import ltd.evilcorp.domain.features.group.GroupConnectionStatus
+import ltd.evilcorp.domain.features.group.GroupManager
+import ltd.evilcorp.domain.features.group.messagesFor
+import ltd.evilcorp.domain.features.group.getPeers
+import ltd.evilcorp.domain.features.group.sendMessage
+import ltd.evilcorp.domain.features.group.clearHistory
+import ltd.evilcorp.domain.features.group.deleteMessage
+import ltd.evilcorp.domain.features.group.leaveGroup
+import ltd.evilcorp.domain.features.group.setDraft
+import ltd.evilcorp.domain.features.group.inviteFriend
+import ltd.evilcorp.domain.features.transfer.FileTransferManager
 import java.io.File
 import java.util.Date
 
 import dagger.hilt.android.lifecycle.HiltViewModel
+
+private const val METADATA_SYNC_DELAY_MS = 3000L
+private const val FILE_TRANSFER_SIGNAL_DELAY_MS = 150L
+private const val RANDOM_CORRELATION_BOUND = 1000000
 
 @HiltViewModel
 class GroupChatViewModel @Inject constructor(
     private val groupManager: GroupManager,
     private val contactRepository: IContactRepository,
     private val context: Context,
-    private val systemSoundPlayer: SystemSoundPlayer,
     private val groupRepository: IGroupRepository,
     private val fileTransferRepository: IFileTransferRepository,
     private val fileTransferManager: FileTransferManager,
+    val voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 ) : ViewModel(), ltd.evilcorp.atox.ui.chat.IChatController {
     private var chatId = ""
     private var metadataSyncJob: kotlinx.coroutines.Job? = null
@@ -121,7 +133,7 @@ class GroupChatViewModel @Inject constructor(
         metadataSyncJob = viewModelScope.launch(Dispatchers.IO) {
             while (true) {
                 groupManager.checkAndUpdateGroupMetadata(chatId)
-                delay(3000)
+                delay(METADATA_SYNC_DELAY_MS)
             }
         }
     }
@@ -132,7 +144,7 @@ class GroupChatViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             groupManager.sendMessage(chatId, message, type)
             if (type == MessageType.FileTransfer && correlationId != -1) {
-                delay(150)
+                delay(FILE_TRANSFER_SIGNAL_DELAY_MS)
                 groupRepository.getMessages(chatId).take(1).collect { list ->
                     val lastMsg = list.lastOrNull { it.message == message }
                     if (lastMsg != null) {
@@ -187,11 +199,11 @@ class GroupChatViewModel @Inject constructor(
                 return@launch
             }
 
-            val correlationId = kotlin.random.Random.nextInt(1000000)
+            val correlationId = kotlin.random.Random.nextInt(RANDOM_CORRELATION_BOUND)
             val ft = FileTransfer(
                 publicKey = chatId,
                 fileNumber = correlationId,
-                fileKind = ltd.evilcorp.domain.model.FileKind.Data.ordinal,
+                fileKind = ltd.evilcorp.domain.features.transfer.model.FileKind.Data.ordinal,
                 fileSize = size,
                 fileName = name,
                 outgoing = true,
@@ -211,13 +223,13 @@ class GroupChatViewModel @Inject constructor(
             val name = f.name
             val size = f.length()
 
-            val correlationId = kotlin.random.Random.nextInt(1000000)
+            val correlationId = kotlin.random.Random.nextInt(RANDOM_CORRELATION_BOUND)
             val ft = FileTransfer(
                 publicKey = chatId,
                 fileNumber = correlationId,
-                fileKind = ltd.evilcorp.domain.model.FileKind.Data.ordinal,
+                fileKind = ltd.evilcorp.domain.features.transfer.model.FileKind.Data.ordinal,
                 fileSize = size,
-                fileName = "voice_message_${correlationId}.m4a",
+                fileName = "voice_message_${correlationId}.opus",
                 outgoing = true,
                 progress = size,
                 destination = uri.toString(),

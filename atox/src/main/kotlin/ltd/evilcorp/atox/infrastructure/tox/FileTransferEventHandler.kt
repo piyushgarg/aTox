@@ -5,22 +5,23 @@ import android.util.Log
 import java.net.URLConnection
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
-import ltd.evilcorp.domain.repository.IContactRepository
-import ltd.evilcorp.domain.model.Contact
-import ltd.evilcorp.domain.model.FtAutoAccept
-import ltd.evilcorp.domain.model.FileKind
-import ltd.evilcorp.domain.model.FileTransfer
-import ltd.evilcorp.domain.model.UserStatus
-import ltd.evilcorp.domain.model.FINGERPRINT_LEN
-import ltd.evilcorp.domain.tox.enums.ToxFileControl
-import ltd.evilcorp.domain.feature.ChatManager
-import ltd.evilcorp.domain.feature.FileTransferManager
-import ltd.evilcorp.domain.tox.ITox
+import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.settings.model.FtAutoAccept
+import ltd.evilcorp.domain.features.transfer.model.FileKind
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.core.model.FINGERPRINT_LEN
+import ltd.evilcorp.domain.core.network.enums.ToxFileControl
+import ltd.evilcorp.domain.features.chat.ChatManager
+import ltd.evilcorp.domain.features.transfer.FileTransferManager
+import ltd.evilcorp.domain.core.network.ITox
 
 private const val TAG = "FileTransferEventHandler"
 
@@ -58,22 +59,22 @@ class FileTransferEventHandler @Inject constructor(
     }
 
     fun onFileRecv(publicKey: String, fileNo: Int, kind: Int, fileSize: Long, filename: String) {
-        val name = if (kind == FileKind.Avatar.ordinal) publicKey else filename
-        val id = fileTransferManager.add(FileTransfer(publicKey, fileNo, kind, fileSize, name, outgoing = false))
+        scope.launch(Dispatchers.IO) {
+            val name = if (kind == FileKind.Avatar.ordinal) publicKey else filename
+            val id = fileTransferManager.add(FileTransfer(publicKey, fileNo, kind, fileSize, name, outgoing = false))
 
-        if (kind == FileKind.Data.ordinal) {
-            if (chatManager.activeChat != publicKey) {
-                scope.launch {
+            if (kind == FileKind.Data.ordinal) {
+                if (chatManager.activeChat != publicKey) {
                     val contact = tryGetContact(publicKey, "FileRecv") ?: Contact(publicKey)
                     val message = context.getString(R.string.notification_file_transfer, name)
                     notifyMessage(contact, message)
+                    contactRepository.setHasUnreadMessages(publicKey, true)
                 }
-                contactRepository.setHasUnreadMessages(publicKey, true)
-            }
 
-            val autoAccept = settings.ftAutoAccept
-            if (autoAccept == FtAutoAccept.All || (autoAccept == FtAutoAccept.Images && isImage(filename))) {
-                fileTransferManager.accept(id)
+                val autoAccept = settings.ftAutoAccept
+                if (autoAccept == FtAutoAccept.All || (autoAccept == FtAutoAccept.Images && isImage(filename))) {
+                    fileTransferManager.accept(id)
+                }
             }
         }
     }

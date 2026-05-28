@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <opus/opus.h>
 #include <tox/tox.h>
 #include <tox/toxencryptsave.h>
 #include <android/log.h>
@@ -1406,6 +1407,46 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     }
 
     return JNI_VERSION_1_6;
+}
+
+JNIEXPORT jlong JNICALL
+Java_ltd_evilcorp_core_tox_OpusEncoder_nativeCreate(JNIEnv *env, jobject thiz, jint sampleRate, jint channels) {
+    int error = 0;
+    OpusEncoder *enc = opus_encoder_create(sampleRate, channels, OPUS_APPLICATION_VOIP, &error);
+    if (error != OPUS_OK) {
+        LOGE("opus_encoder_create failed: %d", error);
+        return 0;
+    }
+    return reinterpret_cast<jlong>(enc);
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_OpusEncoder_nativeEncode(JNIEnv *env, jobject thiz, jlong encoderPtr, jshortArray pcm, jint frameSize) {
+    OpusEncoder *enc = reinterpret_cast<OpusEncoder*>(encoderPtr);
+    if (!enc) return nullptr;
+
+    jsize len = env->GetArrayLength(pcm);
+    std::vector<opus_int16> pcm_data(len);
+    env->GetShortArrayRegion(pcm, 0, len, reinterpret_cast<jshort*>(pcm_data.data()));
+
+    std::vector<unsigned char> out_data(4000);
+    opus_int32 encoded = opus_encode(enc, pcm_data.data(), frameSize, out_data.data(), out_data.size());
+    if (encoded < 0) {
+        LOGE("opus_encode failed: %d", encoded);
+        return nullptr;
+    }
+
+    jbyteArray res = env->NewByteArray(encoded);
+    env->SetByteArrayRegion(res, 0, encoded, reinterpret_cast<const jbyte*>(out_data.data()));
+    return res;
+}
+
+JNIEXPORT void JNICALL
+Java_ltd_evilcorp_core_tox_OpusEncoder_nativeDestroy(JNIEnv *env, jobject thiz, jlong encoderPtr) {
+    OpusEncoder *enc = reinterpret_cast<OpusEncoder*>(encoderPtr);
+    if (enc) {
+        opus_encoder_destroy(enc);
+    }
 }
 
 }
