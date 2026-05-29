@@ -15,32 +15,32 @@ class ConvertersTest {
     @Test
     fun `user status can be converted`() {
         UserStatus.entries.forEach {
-            assertEquals(it.ordinal, Converters.fromStatus(it))
-            assertEquals(it, Converters.toStatus(it.ordinal))
+            assertEquals(it.id, Converters.fromStatus(it))
+            assertEquals(it, Converters.toStatus(it.id))
         }
     }
 
     @Test
     fun `connection status can be converted`() {
         ConnectionStatus.entries.forEach {
-            assertEquals(it.ordinal, Converters.fromConnection(it))
-            assertEquals(it, Converters.toConnection(it.ordinal))
+            assertEquals(it.id, Converters.fromConnection(it))
+            assertEquals(it, Converters.toConnection(it.id))
         }
     }
 
     @Test
     fun `sender can be converted`() {
         Sender.entries.forEach {
-            assertEquals(it.ordinal, Converters.fromSender(it))
-            assertEquals(it, Converters.toSender(it.ordinal))
+            assertEquals(it.id, Converters.fromSender(it))
+            assertEquals(it, Converters.toSender(it.id))
         }
     }
 
     @Test
     fun `message type can be converted`() {
         MessageType.entries.forEach {
-            assertEquals(it.ordinal, Converters.fromMessageType(it))
-            assertEquals(it, Converters.toMessageType(it.ordinal))
+            assertEquals(it.id, Converters.fromMessageType(it))
+            assertEquals(it, Converters.toMessageType(it.id))
         }
     }
 }

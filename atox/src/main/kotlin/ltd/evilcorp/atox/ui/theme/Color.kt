@@ -68,7 +68,7 @@ val PeerColors = listOf(
     Color(0xFFF06292), // Pink
 )
 
-fun getPeerColor(peerName: String): Color {
-    val hash = peerName.hashCode().let { if (it < 0) -it else it }
-    return PeerColors[hash % PeerColors.size]
+fun getPeerColor(index: Int): Color {
+    return PeerColors[index % PeerColors.size]
 }
+

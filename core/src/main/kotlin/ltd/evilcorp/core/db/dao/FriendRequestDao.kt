@@ -11,10 +11,10 @@ import ltd.evilcorp.core.db.entity.FriendRequestEntity
 @Dao
 interface FriendRequestDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun save(friendRequest: FriendRequestEntity)
+    suspend fun save(friendRequest: FriendRequestEntity)
 
     @Delete
-    fun delete(friendRequest: FriendRequestEntity)
+    suspend fun delete(friendRequest: FriendRequestEntity)
 
     @Query("SELECT * FROM friend_requests")
     fun loadAll(): Flow<List<FriendRequestEntity>>
@@ -23,5 +23,5 @@ interface FriendRequestDao {
     fun load(publicKey: String): Flow<FriendRequestEntity?>
 
     @Query("SELECT COUNT(public_key) FROM friend_requests")
-    fun count(): Int
+    suspend fun count(): Int
 }

@@ -24,10 +24,10 @@ fun CallHistoryCard(
     title: String,
     timeString: String,
     isOutgoing: Boolean,
+    missed: Boolean,
+    cancelled: Boolean,
     onClick: () -> Unit,
 ) {
-    val missed = title.contains("missed", ignoreCase = true) || title.contains("пропущ", ignoreCase = true)
-    val cancelled = title.contains("cancel", ignoreCase = true) || title.contains("отмен", ignoreCase = true)
     val alignment = if (isOutgoing) Alignment.End else Alignment.Start
     val containerColor = if (isOutgoing) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.78f)

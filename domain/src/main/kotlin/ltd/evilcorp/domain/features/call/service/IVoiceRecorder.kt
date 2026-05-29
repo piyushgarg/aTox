@@ -2,7 +2,7 @@ package ltd.evilcorp.domain.features.call.service
 
 interface IVoiceRecorder {
     fun startRecording(): Boolean
-    fun stopRecording(): String?
-    fun cancelRecording()
+    suspend fun stopRecording(): String?
+    suspend fun cancelRecording()
     fun release()
 }

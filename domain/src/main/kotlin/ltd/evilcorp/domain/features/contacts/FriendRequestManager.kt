@@ -5,7 +5,6 @@
 
 package ltd.evilcorp.domain.features.contacts
 
-import java.util.Date
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +31,7 @@ class FriendRequestManager @Inject constructor(
     fun get(id: PublicKey): Flow<FriendRequest?> = friendRequestRepository.get(id.string())
 
     fun accept(friendRequest: FriendRequest) = scope.launch {
-        val acceptTime = Date().time
+        val acceptTime = System.currentTimeMillis()
         tox.acceptFriendRequest(PublicKey(friendRequest.publicKey))
         messageRepository.add(
             Message(

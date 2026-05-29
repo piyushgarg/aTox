@@ -47,20 +47,20 @@ class CallManager @Inject constructor(
     private val scope: CoroutineScope,
     private val contactRepository: IContactRepository,
     private val logCallUseCase: LogCallUseCase,
-    private val signalPlayer: ICallSignalPlayer,
-    private val audioRecorder: IAudioRecorder,
-    private val audioRoutingManager: IAudioRoutingManager,
+    private val mediaCoordinator: CallMediaCoordinator,
+    private val sessionRegistry: ICallSessionRegistry,
 ) {
-    private val _inCall = MutableStateFlow<CallState>(CallState.Idle)
-    val inCall: StateFlow<CallState> get() = _inCall
+    private val signalPlayer get() = mediaCoordinator.signalPlayer
+    private val audioRecorder get() = mediaCoordinator.audioRecorder
+    private val audioRoutingManager get() = mediaCoordinator.audioRoutingManager
+
+    val inCall: StateFlow<CallState> get() = sessionRegistry.inCall
 
     val sendingAudio: StateFlow<Boolean> get() = audioRecorder.sendingAudio
 
-    private val _speakerphoneOn = MutableStateFlow(false)
-    val speakerphoneOnState: StateFlow<Boolean> get() = _speakerphoneOn
+    val speakerphoneOnState: StateFlow<Boolean> get() = sessionRegistry.speakerphoneOn
 
-    private val _microphoneEnabled = MutableStateFlow(true)
-    val microphoneEnabled: StateFlow<Boolean> get() = _microphoneEnabled
+    val microphoneEnabled: StateFlow<Boolean> get() = sessionRegistry.microphoneEnabled
 
     private var transitionJob: Job? = null
 
@@ -71,7 +71,7 @@ class CallManager @Inject constructor(
             },
             onFocusGain = {
                 val target = currentTarget()
-                if (target != null && _inCall.value is CallState.Active && _microphoneEnabled.value) {
+                if (target != null && sessionRegistry.inCall.value is CallState.Active && sessionRegistry.microphoneEnabled.value) {
                     startAudioCapture(target)
                 }
             }
@@ -83,7 +83,7 @@ class CallManager @Inject constructor(
     }
 
     suspend fun startOutgoingCall(publicKey: PublicKey): Boolean {
-        if (_inCall.value != CallState.Idle) return false
+        if (sessionRegistry.inCall.value != CallState.Idle) return false
 
         val contact = contactRepository.get(publicKey.string()).first() ?: return false
         if (contact.connectionStatus == ConnectionStatus.None) {
@@ -91,13 +91,13 @@ class CallManager @Inject constructor(
         }
 
         return try {
-            _microphoneEnabled.value = true
+            sessionRegistry.setMicrophoneEnabled(true)
             requestAudioFocus()
             tox.startCall(publicKey)
             audioRoutingManager.setCommunicationMode(true)
             setState(CallState.OutgoingRequesting(publicKey, System.currentTimeMillis()))
             signalPlayer.playRingback(scope) {
-                val state = _inCall.value
+                val state = sessionRegistry.inCall.value
                 state is CallState.OutgoingRequesting ||
                     state is CallState.OutgoingWaiting ||
                     state is CallState.OutgoingRinging
@@ -105,11 +105,11 @@ class CallManager @Inject constructor(
             transitionJob?.cancel()
             transitionJob = scope.launch {
                 delay(TRANSITION_WAITING_DELAY_MS)
-                if (_inCall.value is CallState.OutgoingRequesting) {
+                if (sessionRegistry.inCall.value is CallState.OutgoingRequesting) {
                     setState(CallState.OutgoingWaiting(publicKey, System.currentTimeMillis()))
                 }
                 delay(TRANSITION_RINGING_DELAY_MS)
-                if (_inCall.value is CallState.OutgoingWaiting) {
+                if (sessionRegistry.inCall.value is CallState.OutgoingWaiting) {
                     setState(CallState.OutgoingRinging(publicKey, System.currentTimeMillis()))
                 }
             }
@@ -122,25 +122,25 @@ class CallManager @Inject constructor(
     }
 
     fun onIncomingCall(from: Contact) {
-        if (_inCall.value != CallState.Idle) {
+        if (sessionRegistry.inCall.value != CallState.Idle) {
             scope.launch {
                 runCatching { tox.endCall(PublicKey(from.publicKey)) }
             }
             return
         }
-        _microphoneEnabled.value = true
+        sessionRegistry.setMicrophoneEnabled(true)
         setState(CallState.IncomingRinging(from, System.currentTimeMillis()))
         signalPlayer.playIncomingRingtone(scope)
     }
 
     fun removePendingCall(publicKey: PublicKey) {
-        val incoming = _inCall.value as? CallState.IncomingRinging ?: return
+        val incoming = sessionRegistry.inCall.value as? CallState.IncomingRinging ?: return
         if (incoming.contact.publicKey != publicKey.string()) return
         finishSession(publicKey, localHangup = true, record = CallHistoryType.Missed)
     }
 
     suspend fun acceptIncomingCall(publicKey: PublicKey): Boolean {
-        val incoming = _inCall.value as? CallState.IncomingRinging ?: return false
+        val incoming = sessionRegistry.inCall.value as? CallState.IncomingRinging ?: return false
         if (incoming.contact.publicKey != publicKey.string()) return false
         return try {
             signalPlayer.stopSignals()
@@ -158,7 +158,7 @@ class CallManager @Inject constructor(
     }
 
     fun onRemoteAnswered(publicKey: PublicKey) {
-        val current = _inCall.value
+        val current = sessionRegistry.inCall.value
         when (current) {
             is CallState.OutgoingRequesting ->
                 if (current.publicKey == publicKey) setState(CallState.Connecting(publicKey, current.startedAt, outgoing = true))
@@ -171,7 +171,7 @@ class CallManager @Inject constructor(
     }
 
     fun onCallConnected(publicKey: PublicKey) {
-        val current = _inCall.value
+        val current = sessionRegistry.inCall.value
         val nextState = when (current) {
             is CallState.Connecting ->
                 if (current.publicKey == publicKey) {
@@ -190,13 +190,13 @@ class CallManager @Inject constructor(
 
         signalPlayer.stopSignals()
         setState(nextState)
-        if (_microphoneEnabled.value) {
+        if (sessionRegistry.microphoneEnabled.value) {
             startAudioCapture(publicKey)
         }
     }
 
     fun endCall(publicKey: PublicKey) {
-        val record = when (val current = _inCall.value) {
+        val record = when (val current = sessionRegistry.inCall.value) {
             is CallState.IncomingRinging ->
                 if (current.contact.publicKey == publicKey.string()) CallHistoryType.Missed else null
             is CallState.OutgoingRequesting -> null
@@ -214,7 +214,7 @@ class CallManager @Inject constructor(
     }
 
     fun terminate(publicKey: PublicKey) {
-        val record = when (val current = _inCall.value) {
+        val record = when (val current = sessionRegistry.inCall.value) {
             is CallState.IncomingRinging ->
                 if (current.contact.publicKey == publicKey.string()) CallHistoryType.Missed else null
             is CallState.OutgoingRequesting -> null
@@ -232,22 +232,22 @@ class CallManager @Inject constructor(
     }
 
     fun startSendingAudio(): Boolean {
-        _microphoneEnabled.value = true
+        sessionRegistry.setMicrophoneEnabled(true)
         val target = currentTarget() ?: return false
-        if (_inCall.value is CallState.Active) {
+        if (sessionRegistry.inCall.value is CallState.Active) {
             startAudioCapture(target)
         }
         return true
     }
 
     fun stopSendingAudio() {
-        _microphoneEnabled.value = false
+        sessionRegistry.setMicrophoneEnabled(false)
         audioRecorder.stopAudioCapture()
     }
 
     fun toggleSpeakerphone() {
-        val next = !_speakerphoneOn.value
-        _speakerphoneOn.value = next
+        val next = !sessionRegistry.speakerphoneOn.value
+        sessionRegistry.setSpeakerphoneOn(next)
         setSpeakerphoneRoute(next)
         restartAudioCaptureForRouteChange()
     }
@@ -269,23 +269,23 @@ class CallManager @Inject constructor(
     }
 
     private fun setState(state: CallState) {
-        _inCall.value = state
+        sessionRegistry.setCallState(state)
     }
 
     private fun cleanupSession() {
         transitionJob?.cancel()
         transitionJob = null
-        _microphoneEnabled.value = true
+        sessionRegistry.setMicrophoneEnabled(true)
         audioRecorder.stopAudioCapture()
         signalPlayer.stopSignals()
         abandonAudioFocus()
-        _speakerphoneOn.value = false
+        sessionRegistry.setSpeakerphoneOn(false)
         setSpeakerphoneRoute(false)
         audioRoutingManager.setCommunicationMode(false)
         setState(CallState.Idle)
     }
 
-    private fun currentTarget(): PublicKey? = when (val current = _inCall.value) {
+    private fun currentTarget(): PublicKey? = when (val current = sessionRegistry.inCall.value) {
         is CallState.OutgoingRequesting -> current.publicKey
         is CallState.OutgoingWaiting -> current.publicKey
         is CallState.OutgoingRinging -> current.publicKey
@@ -296,19 +296,19 @@ class CallManager @Inject constructor(
     }
 
     private fun startAudioCapture(to: PublicKey) {
-        audioRecorder.startAudioCapture(scope, to, _speakerphoneOn.value) {
+        audioRecorder.startAudioCapture(scope, to, sessionRegistry.speakerphoneOn.value) {
             currentTarget() == to
         }
     }
 
     private fun restartAudioCaptureForRouteChange() {
         val target = currentTarget() ?: return
-        if (_inCall.value !is CallState.Active || !_microphoneEnabled.value || !audioRecorder.sendingAudio.value) return
+        if (sessionRegistry.inCall.value !is CallState.Active || !sessionRegistry.microphoneEnabled.value || !audioRecorder.sendingAudio.value) return
 
         audioRecorder.stopAudioCapture()
         scope.launch {
             audioRecorder.joinRecording()
-            if (_inCall.value is CallState.Active && _microphoneEnabled.value && currentTarget() == target) {
+            if (sessionRegistry.inCall.value is CallState.Active && sessionRegistry.microphoneEnabled.value && currentTarget() == target) {
                 startAudioCapture(target)
             }
         }

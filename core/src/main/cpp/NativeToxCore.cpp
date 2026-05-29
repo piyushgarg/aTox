@@ -6,9 +6,55 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <atomic>
+#include <cassert>
+#include <thread>
 
 #define LOG_TAG "NativeToxCore"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+
+class JniThreadGuard {
+public:
+    static std::atomic<std::thread::id> s_active_thread_id;
+    static std::atomic<int> s_active_count;
+
+    JniThreadGuard() {
+        #ifndef NDEBUG
+        auto current_tid = std::this_thread::get_id();
+        int count = s_active_count.fetch_add(1);
+        if (count > 0) {
+            auto active_tid = s_active_thread_id.load();
+            if (active_tid != current_tid) {
+                __android_log_print(ANDROID_LOG_ERROR, "NativeToxCore",
+                     "FATAL: Concurrent JNI access detected! Thread %lu entered while thread %lu is still executing a JNI method.",
+                     (unsigned long)std::hash<std::thread::id>{}(current_tid),
+                     (unsigned long)std::hash<std::thread::id>{}(active_tid));
+                assert(false && "Concurrent Tox JNI access!");
+            }
+        } else {
+            s_active_thread_id.store(current_tid);
+        }
+        #else
+        s_active_count.fetch_add(1);
+        #endif
+    }
+
+    ~JniThreadGuard() {
+        int count = s_active_count.fetch_sub(1);
+        #ifndef NDEBUG
+        if (count == 1) {
+            s_active_thread_id.store(std::thread::id());
+        }
+        #endif
+    }
+};
+
+#ifndef NDEBUG
+std::atomic<std::thread::id> JniThreadGuard::s_active_thread_id{};
+#endif
+std::atomic<int> JniThreadGuard::s_active_count{0};
+
+#define TOX_THREAD_GUARD JniThreadGuard ___thread_guard;
 
 static JavaVM* g_vm;
 static jmethodID mid_onFriendMessage;
@@ -460,6 +506,7 @@ extern "C" {
 // Создание нового инстанса Tox с настройками по умолчанию
 JNIEXPORT jlong JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxNew(JNIEnv *env, jobject thiz, jbyteArray savedata) {
+    TOX_THREAD_GUARD
     struct Tox_Options *options = tox_options_new(nullptr);
     std::vector<uint8_t> sd = jba2vec(env, savedata);
     if (!sd.empty()) {
@@ -480,6 +527,7 @@ JNIEXPORT jlong JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxNewWithOptions(JNIEnv *env, jobject thiz, jbyteArray savedata,
                                                        jboolean ipv6Enabled, jboolean udpEnabled, jboolean localDiscoveryEnabled,
                                                        jint proxyType, jstring proxyHost, jint proxyPort) {
+    TOX_THREAD_GUARD
     struct Tox_Options *options = tox_options_new(nullptr);
     
     std::vector<uint8_t> sd = jba2vec(env, savedata);
@@ -512,6 +560,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxNewWithOptions(JNIEnv *env, jobject thiz
 // Уничтожение инстанса Tox и освобождение ресурсов
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxKill(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    TOX_THREAD_GUARD
     Tox *tox = reinterpret_cast<Tox*>(toxPtr);
     if (tox) {
         if (tox_listeners.count(tox)) {
@@ -525,6 +574,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxKill(JNIEnv *env, jobject thiz, jlong to
 // Подключение к публичному узлу (Bootstrap)
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxBootstrap(JNIEnv *env, jobject thiz, jlong toxPtr, jstring address, jint port, jbyteArray publicKey) {
+    TOX_THREAD_GUARD
     const char *addr = env->GetStringUTFChars(address, nullptr);
     std::vector<uint8_t> pk = jba2vec(env, publicKey);
     tox_bootstrap(reinterpret_cast<Tox*>(toxPtr), addr, port, pk.data(), nullptr);
@@ -534,6 +584,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxBootstrap(JNIEnv *env, jobject thiz, jlo
 // Добавление TCP-релея для стабильного соединения
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxAddTcpRelay(JNIEnv *env, jobject thiz, jlong toxPtr, jstring address, jint port, jbyteArray publicKey) {
+    TOX_THREAD_GUARD
     const char *addr = env->GetStringUTFChars(address, nullptr);
     std::vector<uint8_t> pk = jba2vec(env, publicKey);
     tox_add_tcp_relay(reinterpret_cast<Tox*>(toxPtr), addr, port, pk.data(), nullptr);
@@ -543,6 +594,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxAddTcpRelay(JNIEnv *env, jobject thiz, j
 // Проведение одной сетевой итерации ядра Tox и диспетчеризация callback-событий в Kotlin
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxIterate(JNIEnv *env, jobject thiz, jlong toxPtr, jobject listener) {
+    TOX_THREAD_GUARD
     Tox *tox = reinterpret_cast<Tox*>(toxPtr);
     if (tox_listeners.find(tox) == tox_listeners.end()) {
         tox_listeners[tox] = env->NewGlobalRef(listener);
@@ -1343,6 +1395,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGroupJoinDirect(JNIEnv *env, jobject thi
 // Переподключение к ранее сохранённой NGC-группе после загрузки профиля
 JNIEXPORT jboolean JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxGroupReconnect(JNIEnv *env, jobject thiz, jlong toxPtr, jint groupNumber) {
+    TOX_THREAD_GUARD
     Tox *tox = reinterpret_cast<Tox*>(toxPtr);
     Tox_Err_Group_Reconnect err;
     bool res = tox_group_reconnect(tox, groupNumber, &err);
@@ -1350,6 +1403,24 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGroupReconnect(JNIEnv *env, jobject thiz
         LOGE("tox_group_reconnect failed: %d", err);
         return false;
     }
+    return res;
+}
+
+// Перечисление всех активных NGC групп в текущей сессии Tox.
+JNIEXPORT jintArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupGetChatlist(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    TOX_THREAD_GUARD
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint32_t> groups;
+    for (uint32_t i = 0; i <= 65535; i++) {
+        uint8_t chat_id[TOX_GROUP_CHAT_ID_SIZE];
+        Tox_Err_Group_State_Query err;
+        if (tox_group_get_chat_id(tox, i, chat_id, &err)) {
+            groups.push_back(i);
+        }
+    }
+    jintArray res = env->NewIntArray(groups.size());
+    env->SetIntArrayRegion(res, 0, groups.size(), reinterpret_cast<const jint*>(groups.data()));
     return res;
 }
 

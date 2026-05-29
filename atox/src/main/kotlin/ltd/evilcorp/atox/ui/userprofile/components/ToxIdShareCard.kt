@@ -42,10 +42,11 @@ fun ToxIdShareCard(
     toxId: String,
     onCopyClick: () -> Unit,
     onShareClick: () -> Unit,
-    onQrClick: () -> Unit
+    onQrClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {

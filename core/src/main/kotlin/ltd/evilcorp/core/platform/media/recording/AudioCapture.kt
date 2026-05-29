@@ -75,17 +75,18 @@ class AudioCapture private constructor(
         audioRecord.release()
     }
 
+    private val pcmBuffer = ShortArray((sampleRate * channels * frameLengthMs / MS_PER_SECOND).toInt())
+
     fun read(): ShortArray? {
-        val bytes = ShortArray((sampleRate * channels * frameLengthMs / MS_PER_SECOND).toInt())
-        val read = audioRecord.read(bytes, 0, bytes.size)
+        val read = audioRecord.read(pcmBuffer, 0, pcmBuffer.size)
         if (read <= 0) {
             Log.w(TAG, "AudioRecord read failed: $read")
             return null
         }
-        if (read < bytes.size) {
-            bytes.fill(0, fromIndex = read)
+        if (read < pcmBuffer.size) {
+            pcmBuffer.fill(0, fromIndex = read)
         }
-        return bytes
+        return pcmBuffer
     }
 
     companion object {

@@ -25,13 +25,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
-import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.theme.ContactBackgrounds
 import ltd.evilcorp.atox.ui.theme.avatarContentColor
 import kotlin.math.abs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import ltd.evilcorp.atox.ui.common.LocalFileStorageProvider
 
 private val avatarBitmapCache = LruCache<String, ImageBitmap>(64)
 
@@ -44,6 +44,7 @@ fun ContactAvatar(
     fontSize: TextUnit,
     modifier: Modifier = Modifier,
 ) {
+    val fileStorageProvider = LocalFileStorageProvider.current
     val fallbackName = stringResource(R.string.contact_default_name)
     val displayName = name.ifEmpty { fallbackName }
     val initials = remember(displayName) {
@@ -58,18 +59,9 @@ fun ContactAvatar(
         ContactBackgrounds[abs(publicKey.hashCode()).rem(ContactBackgrounds.size)]
     }
     val lastModified = remember(avatarUri) {
-        avatarUri.takeIf { it.isNotEmpty() }?.let {
-            runCatching {
-                val parsedUri = Uri.parse(it)
-                val path = parsedUri.path ?: if (it.startsWith("file:")) {
-                    it.substringAfter("file:").substringBefore("?")
-                } else null
-                val file = path?.let(::File)
-                if (file != null && file.exists()) {
-                    file.lastModified()
-                } else 0L
-            }.getOrDefault(0L)
-        } ?: 0L
+        if (avatarUri.isNotEmpty()) {
+            fileStorageProvider.lastModified(avatarUri)
+        } else 0L
     }
 
     val initialBitmap = remember(avatarUri, lastModified) {
@@ -87,15 +79,13 @@ fun ContactAvatar(
             val cacheKey = "$avatarUri:$lastModified"
             avatarBitmapCache.get(cacheKey) ?: withContext(Dispatchers.IO) {
                 runCatching {
-                    val parsedUri = Uri.parse(avatarUri)
-                    val path = parsedUri.path ?: if (avatarUri.startsWith("file:")) {
-                        avatarUri.substringAfter("file:").substringBefore("?")
-                    } else null
-                    val file = path?.let(::File)
-                    if (file != null && file.exists()) {
-                        BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()?.also {
-                            avatarBitmapCache.put(cacheKey, it)
-                        }
+                    if (fileStorageProvider.exists(avatarUri)) {
+                        val path = fileStorageProvider.getAbsolutePath(avatarUri)
+                        if (path != null) {
+                            BitmapFactory.decodeFile(path)?.asImageBitmap()?.also {
+                                avatarBitmapCache.put(cacheKey, it)
+                            }
+                        } else null
                     } else {
                         null
                     }

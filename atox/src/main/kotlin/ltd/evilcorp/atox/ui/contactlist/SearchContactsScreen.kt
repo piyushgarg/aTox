@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -77,89 +79,96 @@ fun SearchContactsScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
         ) {
-            ltd.evilcorp.atox.ui.common.AtoxSearchBar(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                onSearch = {},
-                active = true,
-                onActiveChange = { active ->
-                    if (!active) {
-                        onBack()
-                    }
-                },
-                placeholder = stringResource(R.string.contact_list_search_placeholder),
+            Column(
                 modifier = Modifier
+                    .widthIn(max = 640.dp)
                     .fillMaxWidth()
+                    .fillMaxHeight()
+                    .windowInsetsPadding(WindowInsets.statusBars)
             ) {
-                val filteredContacts = remember(searchQuery, contacts) {
-                    if (searchQuery.isBlank()) emptyList()
-                    else contacts.filter {
-                        it.name.contains(searchQuery, ignoreCase = true) ||
-                        it.publicKey.contains(searchQuery, ignoreCase = true)
-                    }
-                }
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ltd.evilcorp.atox.ui.common.AtoxSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    onSearch = {},
+                    active = true,
+                    onActiveChange = { active ->
+                        if (!active) {
+                            onBack()
+                        }
+                    },
+                    placeholder = stringResource(R.string.contact_list_search_placeholder),
+                    modifier = Modifier
+                        .fillMaxWidth()
                 ) {
-                    if (filteredContacts.isEmpty() && searchQuery.isNotBlank()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.search_no_results),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    val filteredContacts = remember(searchQuery, contacts) {
+                        if (searchQuery.isBlank()) emptyList()
+                        else contacts.filter {
+                            it.name.contains(searchQuery, ignoreCase = true) ||
+                            it.publicKey.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (filteredContacts.isEmpty() && searchQuery.isNotBlank()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.search_no_results),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            items(
+                                items = filteredContacts,
+                                key = { contact -> contact.publicKey }
+                            ) { contact ->
+                                ListItem(
+                                    headlineContent = {
+                                        Text(
+                                            text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            text = contact.publicKey,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    },
+                                    leadingContent = {
+                                        ContactAvatar(
+                                            name = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                                            publicKey = contact.publicKey,
+                                            avatarUri = contact.avatarUri,
+                                            size = 40.dp,
+                                            fontSize = 16.sp
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onContactClick(contact)
+                                        }
                                 )
                             }
-                        }
-                    } else {
-                        items(
-                            items = filteredContacts,
-                            key = { contact -> contact.publicKey }
-                        ) { contact ->
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        text = contact.publicKey,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                leadingContent = {
-                                    ContactAvatar(
-                                        name = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        publicKey = contact.publicKey,
-                                        avatarUri = contact.avatarUri,
-                                        size = 40.dp,
-                                        fontSize = 16.sp
-                                    )
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onContactClick(contact)
-                                    }
-                            )
                         }
                     }
                 }

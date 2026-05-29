@@ -1,6 +1,5 @@
 package ltd.evilcorp.atox.ui.groupchat
 
-import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -15,53 +14,48 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
-import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.domain.features.group.model.GroupMessage
 import ltd.evilcorp.domain.features.group.model.GroupPeer
-import ltd.evilcorp.domain.features.chat.model.Message
 import ltd.evilcorp.domain.features.chat.model.MessageType
-import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
-import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
-import ltd.evilcorp.domain.features.group.repository.IGroupRepository
-import ltd.evilcorp.domain.features.transfer.repository.IFileTransferRepository
 import ltd.evilcorp.domain.features.group.GroupConnectionStatus
-import ltd.evilcorp.domain.features.group.GroupManager
-import ltd.evilcorp.domain.features.group.messagesFor
-import ltd.evilcorp.domain.features.group.getPeers
-import ltd.evilcorp.domain.features.group.sendMessage
-import ltd.evilcorp.domain.features.group.clearHistory
-import ltd.evilcorp.domain.features.group.deleteMessage
-import ltd.evilcorp.domain.features.group.leaveGroup
-import ltd.evilcorp.domain.features.group.setDraft
-import ltd.evilcorp.domain.features.group.inviteFriend
-import ltd.evilcorp.domain.features.transfer.FileTransferManager
-import java.io.File
-import java.util.Date
-
+import ltd.evilcorp.domain.features.group.usecase.GetGroupChatUseCase
+import ltd.evilcorp.domain.features.group.usecase.SetActiveGroupUseCase
+import ltd.evilcorp.domain.features.group.usecase.SyncGroupMetadataUseCase
+import ltd.evilcorp.domain.features.group.usecase.GetGroupConnectionStatusUseCase
+import ltd.evilcorp.domain.features.group.usecase.GetGroupMessagesUseCase
+import ltd.evilcorp.domain.features.group.usecase.GetGroupPeersUseCase
+import ltd.evilcorp.domain.features.group.usecase.GetGroupFileTransfersUseCase
+import ltd.evilcorp.domain.features.contacts.usecase.GetContactsUseCase
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfAvatarUriUseCase
+import ltd.evilcorp.domain.features.group.usecase.GroupChatActions
+import ltd.evilcorp.domain.features.group.usecase.GroupFileTransferActions
+import ltd.evilcorp.domain.features.group.usecase.LeaveGroupUseCase
+import ltd.evilcorp.domain.features.group.usecase.InviteFriendToGroupUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 
 private const val METADATA_SYNC_DELAY_MS = 3000L
-private const val FILE_TRANSFER_SIGNAL_DELAY_MS = 150L
-private const val RANDOM_CORRELATION_BOUND = 1000000
 
 @HiltViewModel
 class GroupChatViewModel @Inject constructor(
-    private val groupManager: GroupManager,
-    private val contactRepository: IContactRepository,
-    private val context: Context,
-    private val groupRepository: IGroupRepository,
-    private val fileTransferRepository: IFileTransferRepository,
-    private val fileTransferManager: FileTransferManager,
+    private val getGroupChatUseCase: GetGroupChatUseCase,
+    private val setActiveGroupUseCase: SetActiveGroupUseCase,
+    private val syncGroupMetadataUseCase: SyncGroupMetadataUseCase,
+    private val getGroupConnectionStatusUseCase: GetGroupConnectionStatusUseCase,
+    private val getGroupMessagesUseCase: GetGroupMessagesUseCase,
+    private val getGroupPeersUseCase: GetGroupPeersUseCase,
+    private val getGroupFileTransfersUseCase: GetGroupFileTransfersUseCase,
+    private val getContactsUseCase: GetContactsUseCase,
+    private val getSelfAvatarUriUseCase: GetSelfAvatarUriUseCase,
+    private val chatActions: GroupChatActions,
+    private val fileTransferActions: GroupFileTransferActions,
+    private val leaveGroupUseCase: LeaveGroupUseCase,
+    private val inviteFriendToGroupUseCase: InviteFriendToGroupUseCase,
     val voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 ) : ViewModel(), ltd.evilcorp.atox.ui.chat.IChatController {
     private var chatId = ""
@@ -73,228 +67,124 @@ class GroupChatViewModel @Inject constructor(
     val selfAvatarUri: StateFlow<String> = _selfAvatarUri.asStateFlow()
 
     init {
-        viewModelScope.launch(Dispatchers.IO) {
-            val file = File(context.filesDir, "self_avatar.png")
-            if (file.exists()) {
-                _selfAvatarUri.value = file.toURI().toString()
-            }
-        }
-        viewModelScope.launch {
-            groupManager.groupMigratedEvent.collect { (oldId, newId) ->
-                if (chatId == oldId) {
-                    Log.i("GroupChatViewModel", "Active group migrated from $oldId to $newId, dynamic redirection triggered.")
-                    setActiveGroup(newId)
-                }
-            }
+        val uri = getSelfAvatarUriUseCase.execute()
+        if (uri != null) {
+            _selfAvatarUri.value = uri
         }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val group: StateFlow<Group?> = activeGroupChatId
         .filterNotNull()
-        .flatMapLatest { cid -> groupManager.get(cid) }
+        .flatMapLatest { cid -> getGroupChatUseCase.execute(cid) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val connectionStatus: StateFlow<GroupConnectionStatus> = activeGroupChatId
         .filterNotNull()
-        .flatMapLatest { cid -> groupManager.connectionStatuses }
-        .map { statuses -> statuses[chatId] ?: GroupConnectionStatus.Disconnected }
+        .flatMapLatest { cid -> getGroupConnectionStatusUseCase.execute(cid) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GroupConnectionStatus.Disconnected)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val messages: StateFlow<List<GroupMessage>> = activeGroupChatId
         .filterNotNull()
-        .flatMapLatest { cid -> groupManager.messagesFor(cid) }
+        .flatMapLatest { cid -> getGroupMessagesUseCase.execute(cid) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val peers: StateFlow<List<GroupPeer>> = activeGroupChatId
         .filterNotNull()
-        .flatMapLatest { cid -> groupManager.getPeers(cid) }
+        .flatMapLatest { cid -> getGroupPeersUseCase.execute(cid) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val contacts: StateFlow<List<Contact>> = contactRepository.getAll()
+    val contacts: StateFlow<List<Contact>> = getContactsUseCase.execute()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val fileTransfers: StateFlow<List<FileTransfer>> = activeGroupChatId
         .filterNotNull()
-        .flatMapLatest { cid -> fileTransferRepository.get(cid) }
+        .flatMapLatest { cid -> getGroupFileTransfersUseCase.execute(cid) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setActiveGroup(chatId: String) {
         this.chatId = chatId
         activeGroupChatId.value = chatId
-        groupManager.activeGroup = chatId
-
+        setActiveGroupUseCase.execute(chatId)
+ 
         // Start background synchronization of metadata and peer keys (avatars)
         metadataSyncJob?.cancel()
         metadataSyncJob = viewModelScope.launch(Dispatchers.IO) {
             while (true) {
-                groupManager.checkAndUpdateGroupMetadata(chatId)
+                syncGroupMetadataUseCase.execute(chatId)
                 delay(METADATA_SYNC_DELAY_MS)
             }
         }
     }
 
-    fun sendMessageInternal(message: String, type: MessageType = MessageType.Normal, correlationId: Int = -1) {
-        if (message.trim().isEmpty()) return
-        
-        viewModelScope.launch(Dispatchers.IO) {
-            groupManager.sendMessage(chatId, message, type)
-            if (type == MessageType.FileTransfer && correlationId != -1) {
-                delay(FILE_TRANSFER_SIGNAL_DELAY_MS)
-                groupRepository.getMessages(chatId).take(1).collect { list ->
-                    val lastMsg = list.lastOrNull { it.message == message }
-                    if (lastMsg != null) {
-                        lastMsg.correlationId = correlationId
-                        groupRepository.addMessage(lastMsg)
-                    }
-                }
-            }
-        }
-    }
-
     override fun sendMessage(message: String, type: MessageType) {
-        sendMessageInternal(message, type, -1)
+        if (message.trim().isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            chatActions.sendGroupMessage.execute(chatId, message, type)
+        }
     }
 
     override fun sendFile(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
-            val (name, size) = try {
-                if (uri.scheme == "file") {
-                    val f = File(uri.path ?: return@launch)
-                    Pair(f.name, f.length())
-                } else {
-                    context.contentResolver.query(uri, null, null, null, null, null)?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            val fileSize = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.OpenableColumns.SIZE))
-                            val displayName = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.OpenableColumns.DISPLAY_NAME))
-                            Pair(displayName, fileSize)
-                        } else null
-                    }
-                } ?: return@launch
-            } catch (e: Exception) {
-                Log.e("GroupChatViewModel", "Failed to query file details", e)
-                return@launch
-            }
-
-            val cacheDir = File(context.cacheDir, "outgoing")
-            cacheDir.mkdirs()
-            val destFile = File(cacheDir, "${java.util.UUID.randomUUID()}_$name")
-            try {
-                val input = if (uri.scheme == "file") {
-                    java.io.FileInputStream(File(uri.path ?: throw java.io.FileNotFoundException()))
-                } else {
-                    context.contentResolver.openInputStream(uri)
-                }
-                input?.use { inp ->
-                    destFile.outputStream().use { output ->
-                        inp.copyTo(output)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("GroupChatViewModel", "Failed to copy file to outgoing cache", e)
-                return@launch
-            }
-
-            val correlationId = kotlin.random.Random.nextInt(RANDOM_CORRELATION_BOUND)
-            val ft = FileTransfer(
-                publicKey = chatId,
-                fileNumber = correlationId,
-                fileKind = ltd.evilcorp.domain.features.transfer.model.FileKind.Data.ordinal,
-                fileSize = size,
-                fileName = name,
-                outgoing = true,
-                progress = size,
-                destination = Uri.fromFile(destFile).toString(),
-            )
-            val id = fileTransferRepository.add(ft).toInt()
-
-            val signalMsg = "[FILE:$name|$size|$id]"
-            sendMessageInternal(signalMsg, MessageType.FileTransfer, id)
+            chatActions.sendGroupFile.execute(chatId, uri.toString())
         }
     }
 
     override fun sendVoice(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
-            val f = File(uri.path ?: return@launch)
-            val name = f.name
-            val size = f.length()
-
-            val correlationId = kotlin.random.Random.nextInt(RANDOM_CORRELATION_BOUND)
-            val ft = FileTransfer(
-                publicKey = chatId,
-                fileNumber = correlationId,
-                fileKind = ltd.evilcorp.domain.features.transfer.model.FileKind.Data.ordinal,
-                fileSize = size,
-                fileName = "voice_message_${correlationId}.opus",
-                outgoing = true,
-                progress = size,
-                destination = uri.toString(),
-            )
-            val id = fileTransferRepository.add(ft).toInt()
-
-            val signalMsg = "[VOICE:10|$id]"
-            sendMessageInternal(signalMsg, MessageType.FileTransfer, id)
+            chatActions.sendGroupVoice.execute(chatId, uri.toString())
         }
     }
 
     fun acceptFt(id: Int) {
         viewModelScope.launch {
-            fileTransferManager.accept(id)
+            fileTransferActions.acceptGroupFileTransfer.execute(id)
         }
     }
 
     fun rejectFt(id: Int) {
         viewModelScope.launch {
-            fileTransferManager.reject(id)
+            fileTransferActions.rejectGroupFileTransfer.execute(id)
         }
     }
 
     fun cancelFt(msg: GroupMessage) {
         viewModelScope.launch {
-            fileTransferManager.delete(msg.correlationId)
+            fileTransferActions.cancelGroupFileTransfer.execute(msg.correlationId)
         }
     }
 
     fun saveFt(id: Int, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
-            fileTransferRepository.get(id).take(1).collect { ft ->
-                val sourceFile = File(Uri.parse(ft.destination).path ?: return@collect)
-                if (sourceFile.exists()) {
-                    context.contentResolver.openOutputStream(uri)?.use { out ->
-                        sourceFile.inputStream().use { input ->
-                            input.copyTo(out)
-                        }
-                    }
-                }
-            }
+            fileTransferActions.saveGroupFileTransfer.execute(id, uri.toString())
         }
     }
 
     fun clearHistory() {
         viewModelScope.launch {
-            groupManager.clearHistory(chatId)
+            chatActions.clearGroupHistory.execute(chatId)
         }
     }
 
     fun deleteMessage(msg: GroupMessage) {
         viewModelScope.launch {
-            groupManager.deleteMessage(msg.id)
+            chatActions.deleteGroupMessage.execute(msg.id)
         }
     }
 
     fun leaveGroup() {
         viewModelScope.launch {
-            groupManager.leaveGroup(chatId)
+            leaveGroupUseCase.execute(chatId)
         }
     }
 
     fun setDraft(draft: String) {
         viewModelScope.launch {
-            groupManager.setDraft(chatId, draft)
+            chatActions.setGroupDraft.execute(chatId, draft)
         }
     }
 
@@ -302,7 +192,7 @@ class GroupChatViewModel @Inject constructor(
 
     fun inviteFriend(friendPublicKey: String) {
         viewModelScope.launch {
-            groupManager.inviteFriend(chatId, friendPublicKey)
+            inviteFriendToGroupUseCase.execute(chatId, friendPublicKey)
         }
     }
 

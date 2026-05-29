@@ -16,6 +16,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -40,22 +41,30 @@ class AppearanceManager @Inject constructor(
 
     fun updateThemeMode(themeMode: Int) {
         if (appearance.value.themeMode == themeMode) return
-        repository.updateThemeMode(themeMode)
+        scope.launch {
+            repository.updateThemeMode(themeMode)
+        }
     }
 
     fun updateDynamicColorEnabled(enabled: Boolean) {
         if (appearance.value.dynamicColorEnabled == enabled) return
-        repository.updateDynamicColorEnabled(enabled)
+        scope.launch {
+            repository.updateDynamicColorEnabled(enabled)
+        }
     }
 
     fun updateAccentColorSeed(accentColorSeed: Int) {
         if (appearance.value.accentColorSeed == accentColorSeed) return
-        repository.updateAccentColorSeed(accentColorSeed)
+        scope.launch {
+            repository.updateAccentColorSeed(accentColorSeed)
+        }
     }
 
     fun updateLocaleTag(localeTag: String) {
         if (appearance.value.localeTag == localeTag) return
-        repository.updateLocaleTag(localeTag)
+        scope.launch {
+            repository.updateLocaleTag(localeTag)
+        }
         applyLocaleTag(context, localeTag)
     }
 

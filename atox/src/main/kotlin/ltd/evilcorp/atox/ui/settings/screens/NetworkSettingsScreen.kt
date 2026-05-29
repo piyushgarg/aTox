@@ -40,8 +40,10 @@ private val ContentPaddingTop = 16.dp
 private val ContentPaddingBottomDefault = 32.dp
 private val HorizontalMargin = 16.dp
 private val SpacingSpacedBy = 16.dp
+private const val DIVIDER_ALPHA = 0.08f
+private const val DISABLED_ALPHA = 0.38f
 
-@Suppress("FunctionNaming", "MagicNumber")
+@Suppress("FunctionNaming")
 @Composable
 fun NetworkSettingsScreen(
     paddingValues: PaddingValues,
@@ -90,7 +92,7 @@ fun NetworkSettingsScreen(
                     performHaptic()
                     onUdpEnabledChanged(checked)
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
                 SettingsSwitchRow(
                     title = stringResource(R.string.pref_run_at_startup),
                     subtitle = stringResource(R.string.settings_start_on_boot_sub),
@@ -99,7 +101,7 @@ fun NetworkSettingsScreen(
                     performHaptic()
                     onRunAtStartupChanged(checked)
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
                 val bootstrapLabel = when (bootstrapNodeSource) {
                     BootstrapNodeSource.BuiltIn -> stringResource(R.string.settings_nodes_builtin)
                     BootstrapNodeSource.UserProvided -> stringResource(R.string.settings_nodes_user)
@@ -128,9 +130,9 @@ fun NetworkSettingsScreen(
                     performHaptic()
                     onProxyTypeClick()
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
                 val isProxyEnabled = proxyType != ProxyType.None
-                val fieldsAlpha = if (isProxyEnabled) 1.0f else 0.38f
+                val fieldsAlpha = if (isProxyEnabled) 1.0f else DISABLED_ALPHA
                 Column(
                     modifier = Modifier
                         .padding(16.dp)
@@ -185,7 +187,7 @@ fun NetworkSettingsScreen(
                     performHaptic()
                     onDisableScreenshotsChanged(checked)
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
                 SettingsSwitchRow(
                     title = stringResource(R.string.pref_confirm_quitting),
                     subtitle = stringResource(R.string.quit_confirm),
@@ -194,7 +196,7 @@ fun NetworkSettingsScreen(
                     performHaptic()
                     onConfirmQuittingChanged(checked)
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
                 SettingsSwitchRow(
                     title = stringResource(R.string.pref_confirm_calling),
                     subtitle = stringResource(R.string.call_confirm),

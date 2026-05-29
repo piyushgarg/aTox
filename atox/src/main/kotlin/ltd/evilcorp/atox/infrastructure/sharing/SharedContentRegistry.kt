@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import ltd.evilcorp.atox.SharedContent
 
 @Singleton
-class SharedContentManager @Inject constructor() {
+class SharedContentRegistry @Inject constructor() {
     private val _sharedContent = MutableStateFlow<SharedContent?>(null)
     val sharedContent: StateFlow<SharedContent?> = _sharedContent.asStateFlow()
 

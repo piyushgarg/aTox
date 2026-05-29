@@ -26,6 +26,13 @@ import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 import ltd.evilcorp.domain.features.auth.usecase.InitializeToxUseCase
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+
+import ltd.evilcorp.domain.core.di.IoDispatcher
+import kotlinx.coroutines.CoroutineDispatcher
 
 private const val TAG = "ToxService"
 private const val NOTIFICATION_ID = 1984
@@ -35,6 +42,10 @@ class ToxService : LifecycleService() {
     private val channelId = "ToxService"
     private var connectionStatus: ConnectionStatus? = null
     private val notifier by lazy { NotificationManagerCompat.from(this) }
+
+    @Inject
+    @IoDispatcher
+    lateinit var ioDispatcher: CoroutineDispatcher
 
     @Inject
     lateinit var tox: ITox
@@ -83,20 +94,48 @@ class ToxService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
 
-        if (!tox.started) {
-            if (initializeToxUseCase.execute(null) != ToxSaveStatus.Ok) {
-                Log.e(TAG, "Tox service started without a Tox save")
-                stopSelf()
-            }
-        }
+        createNotificationChannel()
+        startInitialForegroundService()
 
         if (!permissionManager.canPostNotifications()) {
             Log.w(TAG, "Notifications disallowed")
         }
 
-        createNotificationChannel()
+        // Execute heavy JNI and disk IO initialization asynchronously in background to prevent main thread ANR
+        lifecycleScope.launch {
+            if (!tox.started) {
+                val status = withContext(ioDispatcher) {
+                    initializeToxUseCase.execute(null)
+                }
+                if (status != ToxSaveStatus.Ok) {
+                    Log.e(TAG, "Tox service started without a Tox save")
+                    stopSelf()
+                    return@launch
+                }
+            }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Start lifecycle controller only after successful JNI engine startup
+            lifecycleController.start(
+                lifecycleOwner = this@ToxService,
+                onConnectionStatusChanged = { newStatus ->
+                    connectionStatus = newStatus
+                    if (permissionManager.canPostNotifications()) {
+                        notifier.notify(NOTIFICATION_ID, notificationFor(connectionStatus))
+                    }
+                },
+                onCallStateChanged = ::handleCallStateChanged
+            )
+        }
+    }
+
+    private fun startInitialForegroundService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                NOTIFICATION_ID,
+                notificationFor(connectionStatus),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
                 NOTIFICATION_ID,
                 notificationFor(connectionStatus),
@@ -105,43 +144,39 @@ class ToxService : LifecycleService() {
         } else {
             startForeground(NOTIFICATION_ID, notificationFor(connectionStatus))
         }
+    }
 
-        lifecycleController.start(
-            lifecycleOwner = this,
-            onConnectionStatusChanged = { newStatus ->
-                connectionStatus = newStatus
-                if (permissionManager.canPostNotifications()) {
-                    notifier.notify(NOTIFICATION_ID, notificationFor(connectionStatus))
-                }
-            },
-            onCallStateChanged = { inCall ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val foregroundType = if (inCall) {
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-                    } else {
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-                    }
-                    try {
-                        startForeground(
-                            NOTIFICATION_ID,
-                            notificationFor(connectionStatus),
-                            foregroundType
-                        )
-                    } catch (e: SecurityException) {
-                        Log.e(TAG, "Failed to start foreground service with type microphone", e)
-                        try {
-                            startForeground(
-                                NOTIFICATION_ID,
-                                notificationFor(connectionStatus),
-                                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-                            )
-                        } catch (ex: Exception) {
-                            Log.e(TAG, "Failed to start fallback dataSync foreground service", ex)
-                        }
-                    }
+    private fun handleCallStateChanged(inCall: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val defaultType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            } else {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            }
+            val foregroundType = if (inCall) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or defaultType
+            } else {
+                defaultType
+            }
+            try {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notificationFor(connectionStatus),
+                    foregroundType
+                )
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Failed to start foreground service with type microphone", e)
+                try {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notificationFor(connectionStatus),
+                        defaultType
+                    )
+                } catch (ex: Exception) {
+                    Log.e(TAG, "Failed to start fallback foreground service", ex)
                 }
             }
-        )
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

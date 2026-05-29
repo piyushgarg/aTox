@@ -47,7 +47,7 @@ fun NavGraphBuilder.profileTabRoute(
         val user by profileViewModel.user.collectAsStateWithLifecycle()
         val connectionStatus = user?.connectionStatus ?: ConnectionStatus.None
 
-        val avatarFile by profileViewModel.avatarFile.collectAsStateWithLifecycle()
+        val avatarBitmap by profileViewModel.avatarBitmap.collectAsStateWithLifecycle()
         val cropState by profileViewModel.cropState.collectAsStateWithLifecycle()
         val storedSettings by settings.state.collectAsStateWithLifecycle()
         val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
@@ -110,7 +110,7 @@ fun NavGraphBuilder.profileTabRoute(
                 UserProfileScreen(
                     user = user,
                     toxId = profileViewModel.toxId.string(),
-                    avatarFile = avatarFile,
+                    selfAvatarBitmap = avatarBitmap,
                     cropState = cropState,
                     selectedImageUri = selectedImageUri,
                     onSelectedImageUriChanged = { selectedImageUri = it },

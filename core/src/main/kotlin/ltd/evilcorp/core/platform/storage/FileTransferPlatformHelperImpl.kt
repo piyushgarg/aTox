@@ -10,6 +10,8 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import ltd.evilcorp.domain.features.transfer.IFileTransferPlatformHelper
+import ltd.evilcorp.domain.core.io.IInputStream
+import ltd.evilcorp.core.platform.io.JvmInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -68,13 +70,14 @@ class FileTransferPlatformHelperImpl @Inject constructor(
         return Uri.fromFile(destFile).toString()
     }
 
-    override fun openInputStream(uriString: String): InputStream? {
+    override fun openInputStream(uriString: String): IInputStream? {
         val uri = Uri.parse(uriString)
-        return if (uri.scheme == "file") {
+        val stream = if (uri.scheme == "file") {
             FileInputStream(File(uri.path ?: return null))
         } else {
             resolver.openInputStream(uri)
         }
+        return stream?.let { JvmInputStream(it) }
     }
 
     override fun releaseFilePermission(uriString: String) {
@@ -154,5 +157,22 @@ class FileTransferPlatformHelperImpl @Inject constructor(
             android.util.Log.e("FileTransferHelper", "Failed to auto-save file to directory", e)
         }
         return null
+    }
+
+    override fun saveFileToUri(sourceFilePath: String, targetUriString: String): Boolean {
+        return try {
+            val sourceFile = File(sourceFilePath)
+            if (!sourceFile.exists()) return false
+            val targetUri = Uri.parse(targetUriString)
+            resolver.openOutputStream(targetUri)?.use { out ->
+                sourceFile.inputStream().use { input ->
+                    input.copyTo(out)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("FileTransferHelper", "Failed to save file to URI $targetUriString", e)
+            false
+        }
     }
 }

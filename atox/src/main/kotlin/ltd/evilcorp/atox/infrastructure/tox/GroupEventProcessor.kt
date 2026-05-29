@@ -16,17 +16,17 @@ private const val TAG = "GroupEventProcessor"
  * Eagerly injects independent reactive handlers to maintain active event loop lifecycles on app start.
  */
 @Singleton
-@Suppress("UnusedPrivateProperty")
 class GroupEventProcessor @Inject constructor(
     private val scope: CoroutineScope,
     private val groupEventHandler: GroupEventHandler,
     private val groupEventBus: GroupEventBus,
     // Eagerly inject independent reactive handlers to trigger Hilt initialization
-    private val databaseUpdater: GroupDatabaseUpdater,
-    private val notificationDispatcher: GroupNotificationDispatcher,
-    private val soundPlayer: GroupSoundPlayer,
+    databaseUpdater: GroupDatabaseUpdater,
+    notificationDispatcher: GroupNotificationDispatcher,
+    soundPlayer: GroupSoundPlayer,
 ) {
     init {
+        Log.d(TAG, "Eagerly initialized independent reactive handlers: $databaseUpdater, $notificationDispatcher, $soundPlayer")
         scope.launch {
             groupEventHandler.groupEvents.collect { event ->
                 try {

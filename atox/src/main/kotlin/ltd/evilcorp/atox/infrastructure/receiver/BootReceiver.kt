@@ -19,6 +19,7 @@ import javax.inject.Inject
 import dagger.hilt.android.AndroidEntryPoint
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.atox.infrastructure.settings.Settings
+import ltd.evilcorp.atox.infrastructure.service.ToxService
 import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 
 private const val ENCRYPTED = "aTox profile encrypted"
@@ -41,7 +42,8 @@ class BootReceiver : BroadcastReceiver() {
                 Log.w(TAG, "Boot completed broadcast received but startup is disabled in settings. Skipping.")
                 return
             }
-            if (toxStarter.tryLoadTox(null) == ToxSaveStatus.Encrypted) {
+            val status = toxStarter.tryLoadTox(null)
+            if (status == ToxSaveStatus.Encrypted) {
                 Log.i(TAG, "Telling the user to unlock their profile")
                 if (!permissionManager.canPostNotifications()) {
                     Log.w(TAG, "Missing notify-permission")
@@ -74,6 +76,10 @@ class BootReceiver : BroadcastReceiver() {
                 val notifier = NotificationManagerCompat.from(context)
                 notifier.createNotificationChannel(channel)
                 notifier.notify(ENCRYPTED.hashCode(), notification)
+            } else if (status == ToxSaveStatus.Ok) {
+                Log.i(TAG, "Starting ToxService automatically since profile is decrypted")
+                val serviceIntent = Intent(context, ToxService::class.java)
+                androidx.core.content.ContextCompat.startForegroundService(context, serviceIntent)
             }
         }
     }

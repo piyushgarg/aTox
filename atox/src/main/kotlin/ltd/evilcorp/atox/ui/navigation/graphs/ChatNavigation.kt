@@ -132,7 +132,7 @@ fun NavGraphBuilder.chatGraph(
                         }
 
                         val groupNumber = if (chatIdOrBytes.length == CHAT_ID_LENGTH) {
-                            val pending = groupListViewModel.getPendingInvite()
+                            val pending = groupListViewModel.getPendingInviteDirect()
                             if (pending != null && pending.groupName.equals(groupName, ignoreCase = true)) {
                                  groupListViewModel.joinWithPendingInvite(pending)
                             } else {
@@ -154,7 +154,7 @@ fun NavGraphBuilder.chatGraph(
                                 }
                             }
                         } else {
-                            Toast.makeText(context, "Не удалось вступить в группу", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.group_join_failed), Toast.LENGTH_SHORT).show()
                         }
                     }
                 }

@@ -13,4 +13,8 @@ data class GroupMessage(
     var timestamp: Long = 0,
 ) {
     var id: Long = 0
+
+    val colorIndex: Int
+        get() = (senderName.hashCode().let { if (it < 0) -it else it } % 8)
 }
+

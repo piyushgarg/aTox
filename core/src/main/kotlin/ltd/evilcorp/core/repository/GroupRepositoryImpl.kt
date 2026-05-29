@@ -73,6 +73,12 @@ class GroupRepositoryImpl @Inject constructor(
     override suspend fun existsByCorrelationId(groupChatId: String, correlationId: Int): Boolean =
         groupMessageDao.existsByCorrelationId(groupChatId, correlationId) > 0
 
+    override suspend fun getMessageIds(groupChatId: String): List<Int> =
+        groupMessageDao.getMessageIds(groupChatId)
+
+    override suspend fun getMessagesByIds(groupChatId: String, ids: Set<Int>): List<GroupMessage> =
+        groupMessageDao.getMessagesByIds(groupChatId, ids).map { it.toDomain() }
+
     override suspend fun addPeer(peer: GroupPeer) = groupPeerDao.save(GroupPeerEntity.fromDomain(peer))
     override suspend fun updatePeer(peer: GroupPeer) = groupPeerDao.update(GroupPeerEntity.fromDomain(peer))
     override suspend fun deletePeer(peer: GroupPeer) = groupPeerDao.delete(GroupPeerEntity.fromDomain(peer))

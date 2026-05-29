@@ -3,14 +3,33 @@ package ltd.evilcorp.atox.ui.createprofile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,7 +48,6 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
-
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -51,16 +69,7 @@ fun CreateProfileScreen(
             }
             is CreateProfileUiState.Error -> {
                 keyboardController?.hide()
-                val error = (state as CreateProfileUiState.Error).error
-                val errorResId = when (error) {
-                    CreateProfileError.RestorePasswordRequired -> R.string.backup_import_password_required
-                    CreateProfileError.RestoreFailed -> R.string.backup_import_failure
-                    CreateProfileError.BadProxyHost -> R.string.bad_host
-                    CreateProfileError.BadProxyPort -> R.string.bad_port
-                    CreateProfileError.BadProxyType -> R.string.bad_type
-                    CreateProfileError.ProxyNotFound -> R.string.proxy_not_found
-                    CreateProfileError.Unknown -> R.string.create_profile_error_failed
-                }
+                val errorResId = (state as CreateProfileUiState.Error).errorResId
                 errorText = context.getString(errorResId)
             }
             else -> {}
@@ -117,7 +126,7 @@ fun CreateProfileContent(
         contentAlignment = Alignment.Center
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
             shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
         ) {

@@ -6,6 +6,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.asCoroutineDispatcher
+import java.util.concurrent.Executors
 import ltd.evilcorp.domain.core.network.bootstrap.IBootstrapNodeRegistry
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,6 +23,16 @@ class ToxEngine @Inject constructor(
     private val scope: CoroutineScope,
     private val nodeRegistry: IBootstrapNodeRegistry,
 ) {
+    private var toxExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "ToxJniThread")
+    }
+    private var toxDispatcher = toxExecutor.asCoroutineDispatcher()
+
+    private var toxAvExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "ToxAvJniThread")
+    }
+    private var toxAvDispatcher = toxAvExecutor.asCoroutineDispatcher()
+
     private var running = false
     private var toxAvRunning = false
     private var iterateJob: Job? = null
@@ -32,7 +44,20 @@ class ToxEngine @Inject constructor(
         running = true
         isBootstrapNeeded = true
 
-        iterateJob = scope.launch(Dispatchers.IO) {
+        if (toxExecutor.isShutdown) {
+            toxExecutor = Executors.newSingleThreadExecutor { runnable ->
+                Thread(runnable, "ToxJniThread")
+            }
+            toxDispatcher = toxExecutor.asCoroutineDispatcher()
+        }
+        if (toxAvExecutor.isShutdown) {
+            toxAvExecutor = Executors.newSingleThreadExecutor { runnable ->
+                Thread(runnable, "ToxAvJniThread")
+            }
+            toxAvDispatcher = toxAvExecutor.asCoroutineDispatcher()
+        }
+
+        iterateJob = scope.launch(toxDispatcher) {
             while (running || toxAvRunning) {
                 try {
                     if (isBootstrapNeeded) {
@@ -60,7 +85,7 @@ class ToxEngine @Inject constructor(
             onStopped()
         }
 
-        iterateAvJob = scope.launch(Dispatchers.IO) {
+        iterateAvJob = scope.launch(toxAvDispatcher) {
             toxAvRunning = true
             while (running) {
                 try {
@@ -77,6 +102,8 @@ class ToxEngine @Inject constructor(
 
     fun stop() {
         running = false
+        toxExecutor.shutdown()
+        toxAvExecutor.shutdown()
     }
 
     fun isRunning(): Boolean = running || toxAvRunning

@@ -11,15 +11,19 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import ltd.evilcorp.domain.features.contacts.model.FriendRequest
-import ltd.evilcorp.domain.features.contacts.FriendRequestManager
+import ltd.evilcorp.domain.features.contacts.usecase.GetFriendRequestsUseCase
+import ltd.evilcorp.domain.features.contacts.usecase.AcceptFriendRequestUseCase
+import ltd.evilcorp.domain.features.contacts.usecase.RejectFriendRequestUseCase
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 
 @HiltViewModel
 class FriendRequestsViewModel @Inject constructor(
-    private val friendRequestManager: FriendRequestManager,
+    private val getFriendRequestsUseCase: GetFriendRequestsUseCase,
+    private val acceptFriendRequestUseCase: AcceptFriendRequestUseCase,
+    private val rejectFriendRequestUseCase: RejectFriendRequestUseCase,
 ) : ViewModel() {
-    val friendRequests: StateFlow<List<FriendRequest>> = friendRequestManager.getAll()
+    val friendRequests: StateFlow<List<FriendRequest>> = getFriendRequestsUseCase.execute()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -27,10 +31,10 @@ class FriendRequestsViewModel @Inject constructor(
         )
 
     fun acceptFriendRequest(friendRequest: FriendRequest) {
-        friendRequestManager.accept(friendRequest)
+        acceptFriendRequestUseCase.execute(friendRequest)
     }
 
     fun rejectFriendRequest(friendRequest: FriendRequest) {
-        friendRequestManager.reject(friendRequest)
+        rejectFriendRequestUseCase.execute(friendRequest)
     }
 }

@@ -37,7 +37,6 @@ fun ChatListTabPreview() {
             groupInvite = null,
             groupInviteFriendName = "",
             listState = rememberLazyListState(),
-            searchQuery = "",
             dateFormatPreference = DateFormatPreference.System,
             timeFormatPreference = TimeFormatPreference.System,
             onContactClick = {},

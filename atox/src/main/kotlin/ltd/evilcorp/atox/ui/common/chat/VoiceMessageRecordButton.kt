@@ -22,7 +22,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.domain.features.call.service.IVoiceRecorder
-import java.io.File
+import ltd.evilcorp.atox.ui.common.LocalFileStorageProvider
+import kotlinx.coroutines.launch
 
 @Suppress("LoopWithTooManyJumpStatements", "UnusedParameter")
 @Composable
@@ -41,6 +42,8 @@ fun VoiceMessageRecordButton(
     context: android.content.Context,
     modifier: Modifier = Modifier
 ) {
+    val fileStorageProvider = LocalFileStorageProvider.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -83,7 +86,9 @@ fun VoiceMessageRecordButton(
                                 cancelled = true
                                 onRecordingStateChanged(false)
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                voiceRecorder.cancelRecording()
+                                scope.launch {
+                                    voiceRecorder.cancelRecording()
+                                }
                                 Toast.makeText(context, context.getString(R.string.slide_to_cancel), Toast.LENGTH_SHORT).show()
                                 break
                             }
@@ -95,12 +100,13 @@ fun VoiceMessageRecordButton(
 
                         if (!cancelled) {
                             onRecordingStateChanged(false)
-                            val filePath = voiceRecorder.stopRecording()
-                            if (filePath != null) {
-                                val file = File(filePath)
-                                if (file.exists() && file.length() > 0) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onSendVoice(android.net.Uri.fromFile(file))
+                            scope.launch {
+                                val filePath = voiceRecorder.stopRecording()
+                                if (filePath != null) {
+                                    if (fileStorageProvider.exists(filePath) && fileStorageProvider.size(filePath) > 0) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onSendVoice(android.net.Uri.parse("file://$filePath"))
+                                    }
                                 }
                             }
                         }

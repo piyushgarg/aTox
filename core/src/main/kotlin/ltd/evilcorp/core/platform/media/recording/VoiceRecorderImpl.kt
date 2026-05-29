@@ -133,9 +133,8 @@ class VoiceRecorderImpl @Inject constructor(
         }
     }
 
-    @Synchronized
-    override fun stopRecording(): String? {
-        if (!isRecordingActive) return null
+    override suspend fun stopRecording(): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (!isRecordingActive) return@withContext null
         isRecordingActive = false
         val file = voiceFile
         try {
@@ -148,12 +147,11 @@ class VoiceRecorderImpl @Inject constructor(
         opusEncoder = null
         encoderPtr = 0
         voiceFile = null
-        return file?.absolutePath
+        file?.absolutePath
     }
 
-    @Synchronized
-    override fun cancelRecording() {
-        if (!isRecordingActive) return
+    override suspend fun cancelRecording() = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (!isRecordingActive) return@withContext
         isRecordingActive = false
         val file = voiceFile
         try {
@@ -170,6 +168,6 @@ class VoiceRecorderImpl @Inject constructor(
     }
 
     override fun release() {
-        cancelRecording()
+        isRecordingActive = false
     }
 }

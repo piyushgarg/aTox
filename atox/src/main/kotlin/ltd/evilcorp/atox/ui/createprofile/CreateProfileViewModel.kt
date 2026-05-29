@@ -11,11 +11,13 @@ import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.domain.features.auth.model.User
-import ltd.evilcorp.domain.features.auth.UserManager
-import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
-import ltd.evilcorp.domain.features.backup.usecase.BackupUseCase
-import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
+import ltd.evilcorp.domain.features.backup.usecase.GetBackupProviderDataUseCase
+import ltd.evilcorp.domain.features.backup.usecase.ImportBackupUseCase
+import ltd.evilcorp.domain.features.auth.usecase.ClearDatabaseUseCase
+import ltd.evilcorp.domain.features.auth.usecase.CreateProfileUseCase
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
+import ltd.evilcorp.domain.features.auth.usecase.VerifyProfileExistsUseCase
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,37 +25,29 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
 
-sealed interface CreateProfileError {
-    object RestorePasswordRequired : CreateProfileError
-    object RestoreFailed : CreateProfileError
-    object BadProxyHost : CreateProfileError
-    object BadProxyPort : CreateProfileError
-    object BadProxyType : CreateProfileError
-    object ProxyNotFound : CreateProfileError
-    object Unknown : CreateProfileError
-}
-
 sealed interface CreateProfileUiState {
     object Idle : CreateProfileUiState
     object Loading : CreateProfileUiState
     object Success : CreateProfileUiState
-    data class Error(val error: CreateProfileError) : CreateProfileUiState
+    data class Error(val errorResId: Int) : CreateProfileUiState
 }
 
 @HiltViewModel
 class CreateProfileViewModel @Inject constructor(
     private val backupProcessor: ProfileBackupProcessor,
-    private val profileDeleter: IProfileRepository,
-    private val backupUseCase: BackupUseCase,
-    private val userManager: UserManager,
-    private val tox: ITox,
+    private val clearDatabaseUseCase: ClearDatabaseUseCase,
+    private val getBackupProviderDataUseCase: GetBackupProviderDataUseCase,
+    private val importBackupUseCase: ImportBackupUseCase,
+    private val createProfileUseCase: CreateProfileUseCase,
+    private val getSelfUserUseCase: GetSelfUserUseCase,
+    private val verifyProfileExistsUseCase: VerifyProfileExistsUseCase,
     private val toxStarter: ToxStarter,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CreateProfileUiState>(CreateProfileUiState.Idle)
     val uiState = _uiState.asStateFlow()
 
     fun startTox(save: ByteArray? = null, password: String? = null): ToxSaveStatus = toxStarter.startTox(save, password)
-    suspend fun create(user: User) = userManager.create(user)
+    suspend fun create(user: User) = createProfileUseCase.execute(user)
 
     fun restoreBackup(uriString: String, password: String?) {
         viewModelScope.launch {
@@ -61,14 +55,14 @@ class CreateProfileViewModel @Inject constructor(
             val status = withContext(Dispatchers.IO) {
                 val backup = backupProcessor.readBackupBytes(uriString) ?: return@withContext ToxSaveStatus.SaveNotFound
                 val toxCore = runCatching {
-                    backupUseCase.providerData(backup, password, "tox_core")
+                    getBackupProviderDataUseCase.execute(backup, password, "tox_core")
                 }.getOrNull() ?: return@withContext ToxSaveStatus.Encrypted
-                profileDeleter.clearDatabase()
+                clearDatabaseUseCase.execute()
                 val status = startTox(toxCore, password.takeIf { !it.isNullOrBlank() })
                 if (status != ToxSaveStatus.Ok) return@withContext status
                 runCatching {
-                    backupUseCase.import(backup, password, skipIds = setOf("tox_core"))
-                    userManager.verifyExists(tox.publicKey)
+                    importBackupUseCase.execute(backup, password, skipIds = setOf("tox_core"))
+                    verifyProfileExistsUseCase.execute(getSelfUserUseCase.publicKey)
                 }.onFailure {
                     return@withContext ToxSaveStatus.BadFormat
                 }
@@ -78,12 +72,11 @@ class CreateProfileViewModel @Inject constructor(
             if (status == ToxSaveStatus.Ok) {
                 _uiState.value = CreateProfileUiState.Success
             } else {
-                val error = when (status) {
-                    ToxSaveStatus.Encrypted -> CreateProfileError.RestorePasswordRequired
-                    ToxSaveStatus.BadFormat -> CreateProfileError.RestoreFailed
-                    else -> CreateProfileError.RestoreFailed
+                val errorResId = when (status) {
+                    ToxSaveStatus.Encrypted -> R.string.backup_import_password_required
+                    else -> R.string.backup_import_failure
                 }
-                _uiState.value = CreateProfileUiState.Error(error)
+                _uiState.value = CreateProfileUiState.Error(errorResId)
             }
         }
     }
@@ -94,7 +87,7 @@ class CreateProfileViewModel @Inject constructor(
             val status = withContext(Dispatchers.IO) {
                 val status = startTox()
                 if (status == ToxSaveStatus.Ok) {
-                    create(User(publicKey = tox.publicKey.string(), name = name))
+                    create(User(publicKey = getSelfUserUseCase.publicKey.string(), name = name))
                 }
                 status
             }
@@ -102,14 +95,14 @@ class CreateProfileViewModel @Inject constructor(
             if (status == ToxSaveStatus.Ok) {
                 _uiState.value = CreateProfileUiState.Success
             } else {
-                val error = when (status) {
-                    ToxSaveStatus.BadProxyHost -> CreateProfileError.BadProxyHost
-                    ToxSaveStatus.BadProxyPort -> CreateProfileError.BadProxyPort
-                    ToxSaveStatus.BadProxyType -> CreateProfileError.BadProxyType
-                    ToxSaveStatus.ProxyNotFound -> CreateProfileError.ProxyNotFound
-                    else -> CreateProfileError.Unknown
+                val errorResId = when (status) {
+                    ToxSaveStatus.BadProxyHost -> R.string.bad_host
+                    ToxSaveStatus.BadProxyPort -> R.string.bad_port
+                    ToxSaveStatus.BadProxyType -> R.string.bad_type
+                    ToxSaveStatus.ProxyNotFound -> R.string.proxy_not_found
+                    else -> R.string.create_profile_error_failed
                 }
-                _uiState.value = CreateProfileUiState.Error(error)
+                _uiState.value = CreateProfileUiState.Error(errorResId)
             }
         }
     }

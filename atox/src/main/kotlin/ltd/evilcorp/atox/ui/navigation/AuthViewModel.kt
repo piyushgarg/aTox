@@ -5,7 +5,8 @@ import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
-import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
+import ltd.evilcorp.domain.features.settings.usecase.GetToxRunningStateUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -29,22 +30,23 @@ private const val LOAD_TIMEOUT_MS = 10_000L
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val tox: ITox,
+    private val getSelfUserUseCase: GetSelfUserUseCase,
+    private val getToxRunningStateUseCase: GetToxRunningStateUseCase,
     private val toxStarter: ToxStarter,
 ) : ViewModel() {
-    val publicKey by lazy { tox.publicKey }
+    val publicKey by lazy { getSelfUserUseCase.publicKey }
 
     val launchState = MutableStateFlow<LaunchUiState>(LaunchUiState.Loading)
     val unlockState = MutableStateFlow<UnlockUiState>(UnlockUiState.Idle)
 
-    fun isToxRunning(): Boolean = tox.started
+    fun isToxRunning(): Boolean = getToxRunningStateUseCase.execute()
 
     fun tryLoadTox(password: String?): ToxSaveStatus {
         return toxStarter.tryLoadTox(password)
     }
 
     suspend fun loadToxAsync(password: String?) {
-        if (tox.started) {
+        if (getToxRunningStateUseCase.execute()) {
             launchState.value = LaunchUiState.Success(ToxSaveStatus.Ok)
             return
         }

@@ -16,15 +16,21 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.core.network.IToxStarter
 import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
-import ltd.evilcorp.domain.features.backup.usecase.BackupUseCase
-import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
-import ltd.evilcorp.domain.features.auth.UserManager
-import ltd.evilcorp.domain.core.network.ITox
-
+import ltd.evilcorp.domain.features.backup.usecase.ExportBackupUseCase
+import ltd.evilcorp.domain.features.backup.usecase.ImportBackupUseCase
+import ltd.evilcorp.domain.features.backup.usecase.GetBackupProviderDataUseCase
 import ltd.evilcorp.domain.features.settings.ISettingsFileProcessor
+import ltd.evilcorp.domain.features.settings.usecase.GetToxRunningStateUseCase
+import ltd.evilcorp.domain.features.settings.usecase.StartToxUseCase
+import ltd.evilcorp.domain.features.settings.usecase.ManageToxLifecycleUseCase
+import ltd.evilcorp.domain.features.settings.usecase.ToxLifecycleAction
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
+import ltd.evilcorp.domain.features.auth.usecase.VerifyProfileExistsUseCase
+import ltd.evilcorp.domain.features.auth.usecase.ClearDatabaseUseCase
+import ltd.evilcorp.domain.features.auth.usecase.ManageProfileCheckpointUseCase
+import ltd.evilcorp.domain.features.auth.usecase.CheckpointAction
 
 sealed interface BackupUiEvent {
     data class ShowToast(val messageResId: Int) : BackupUiEvent
@@ -33,11 +39,17 @@ sealed interface BackupUiEvent {
 @HiltViewModel
 class BackupSettingsViewModel @Inject constructor(
     private val fileProcessor: ISettingsFileProcessor,
-    private val toxStarter: IToxStarter,
-    private val tox: ITox,
-    private val backupUseCase: BackupUseCase,
-    private val profileDeleter: IProfileRepository,
-    private val userManager: UserManager,
+    private val startToxUseCase: StartToxUseCase,
+    private val manageToxLifecycleUseCase: ManageToxLifecycleUseCase,
+    private val getToxRunningStateUseCase: GetToxRunningStateUseCase,
+    private val exportBackupUseCase: ExportBackupUseCase,
+    private val importBackupUseCase: ImportBackupUseCase,
+    private val getBackupProviderDataUseCase: GetBackupProviderDataUseCase,
+    val backupProviders: List<@JvmSuppressWildcards IBackupDataProvider>,
+    private val clearDatabaseUseCase: ClearDatabaseUseCase,
+    private val getSelfUserUseCase: GetSelfUserUseCase,
+    private val verifyProfileExistsUseCase: VerifyProfileExistsUseCase,
+    private val manageProfileCheckpointUseCase: ManageProfileCheckpointUseCase,
 ) : ViewModel() {
     private val _backupExporting = MutableStateFlow(false)
     val backupExporting: StateFlow<Boolean> get() = _backupExporting
@@ -48,16 +60,14 @@ class BackupSettingsViewModel @Inject constructor(
     private val _uiEvents = MutableSharedFlow<BackupUiEvent>()
     val uiEvents = _uiEvents.asSharedFlow()
 
-    val backupProviders: List<IBackupDataProvider> = backupUseCase.providers
-
-    fun isToxStarted(): Boolean = tox.started
+    fun isToxStarted(): Boolean = getToxRunningStateUseCase.execute()
 
     fun exportBackup(uriString: String, selectedIds: Set<String>, password: String?) {
         viewModelScope.launch {
             _backupExporting.value = true
             val success = withContext(Dispatchers.IO) {
                 runCatching {
-                    val data = backupUseCase.export(selectedIds, password)
+                    val data = exportBackupUseCase.execute(selectedIds, password)
                     fileProcessor.writeBytes(uriString, data)
                 }.getOrElse { false }
             }
@@ -74,26 +84,26 @@ class BackupSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _backupImporting.value = true
             val success = withContext(Dispatchers.IO) {
-                val checkpointCreated = profileDeleter.createCheckpoint()
+                val checkpointCreated = manageProfileCheckpointUseCase.execute(CheckpointAction.Create)
                 runCatching {
                     val backup = fileProcessor.readBytes(uriString) ?: error("Unable to open backup")
-                    val toxCore = backupUseCase.providerData(backup, password, "tox_core") ?: error("Missing Tox core data")
-                    toxStarter.stopTox()
-                    profileDeleter.clearDatabase()
-                    val status = toxStarter.startTox(toxCore, password.takeIf { !it.isNullOrBlank() })
+                    val toxCore = getBackupProviderDataUseCase.execute(backup, password, "tox_core") ?: error("Missing Tox core data")
+                    manageToxLifecycleUseCase.execute(ToxLifecycleAction.Stop)
+                    clearDatabaseUseCase.execute()
+                    val status = startToxUseCase.execute(toxCore, password.takeIf { !it.isNullOrBlank() })
                     check(status == ToxSaveStatus.Ok) { "Unable to start restored profile: $status" }
-                    backupUseCase.import(backup, password, skipIds = setOf("tox_core"))
-                    userManager.verifyExists(tox.publicKey)
+                    importBackupUseCase.execute(backup, password, skipIds = setOf("tox_core"))
+                    verifyProfileExistsUseCase.execute(getSelfUserUseCase.publicKey)
                     if (checkpointCreated) {
-                        profileDeleter.clearCheckpoint()
+                        manageProfileCheckpointUseCase.execute(CheckpointAction.Clear)
                     }
                     true
                 }.getOrElse { throwable ->
                     android.util.Log.e("BackupSettingsViewModel", "Backup restore failed", throwable)
                     if (checkpointCreated) {
-                        profileDeleter.restoreFromCheckpoint()
+                        manageProfileCheckpointUseCase.execute(CheckpointAction.Restore)
                     }
-                    toxStarter.stopTox()
+                    manageToxLifecycleUseCase.execute(ToxLifecycleAction.Stop)
                     false
                 }
             }

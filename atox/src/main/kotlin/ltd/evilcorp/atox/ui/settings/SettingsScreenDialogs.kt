@@ -20,7 +20,7 @@ internal fun SettingsScreenDialogs(
     onAccentColorSeedChanged: (Int) -> Unit,
     performHaptic: () -> Unit,
     focusManager: FocusManager,
-    accountPickerLauncher: ActivityResultLauncher<Intent>
+    launchers: SettingsLaunchers
 ) {
     val storedSettings = settings.state.collectAsState().value
     val showProxyDialog = viewModel.showProxyDialog.collectAsState().value
@@ -97,7 +97,7 @@ internal fun SettingsScreenDialogs(
                     null,
                     null
                 )
-                accountPickerLauncher.launch(intent)
+                launchers.accountPickerLauncher.launch(intent)
             } catch (e: Exception) { e.printStackTrace() }
         },
         onConfirmGoogleAccount = {

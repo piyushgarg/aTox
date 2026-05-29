@@ -45,8 +45,11 @@ import ltd.evilcorp.domain.features.call.CallManager
 import ltd.evilcorp.domain.core.network.TOX_ID_LENGTH
 import java.io.File
 
-import ltd.evilcorp.atox.infrastructure.sharing.SharedContentManager
+import ltd.evilcorp.atox.infrastructure.sharing.SharedContentRegistry
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.runtime.CompositionLocalProvider
+import ltd.evilcorp.domain.core.network.IFileStorageProvider
+import ltd.evilcorp.atox.ui.common.LocalFileStorageProvider
 
 private const val TAG = "MainActivity"
 private const val SCHEME = "tox:"
@@ -89,10 +92,23 @@ class MainActivity : AppCompatActivity() {
     lateinit var systemSoundPlayer: dagger.Lazy<SystemSoundPlayer>
 
     @Inject
-    lateinit var sharedContentManager: dagger.Lazy<SharedContentManager>
+    lateinit var sharedContentRegistry: dagger.Lazy<SharedContentRegistry>
 
     @Inject
     lateinit var toxLinkManager: dagger.Lazy<ToxLinkManager>
+
+    @Inject
+    lateinit var fileStorageProvider: IFileStorageProvider
+
+    @Inject
+    @ltd.evilcorp.domain.core.di.IoDispatcher
+    lateinit var ioDispatcher: kotlinx.coroutines.CoroutineDispatcher
+
+    @Inject
+    lateinit var incomingShareProcessor: ltd.evilcorp.atox.infrastructure.sharing.IncomingShareProcessor
+
+    @Inject
+    lateinit var localeInitializer: ltd.evilcorp.atox.appearance.LocaleInitializer
 
     private var callScreenMinimized = mutableStateOf(false)
 
@@ -119,24 +135,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.CREATED) {
                 appearanceManager.appearance.collect { appearance ->
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        val localeManager = getSystemService(android.app.LocaleManager::class.java)
-                        if (localeManager != null) {
-                            localeManager.applicationLocales = if (appearance.localeTag.isBlank()) {
-                                android.os.LocaleList.getEmptyLocaleList()
-                            } else {
-                                android.os.LocaleList.forLanguageTags(appearance.localeTag)
-                            }
-                        }
-                    } else {
-                        AppCompatDelegate.setApplicationLocales(
-                            if (appearance.localeTag.isBlank()) {
-                                androidx.core.os.LocaleListCompat.getEmptyLocaleList()
-                            } else {
-                                androidx.core.os.LocaleListCompat.forLanguageTags(appearance.localeTag)
-                            }
-                        )
-                    }
+                    localeInitializer.updateLocale(appearance.localeTag)
                     isAppearanceLoaded = true
                 }
             }
@@ -155,51 +154,53 @@ class MainActivity : AppCompatActivity() {
                     android.content.res.Configuration.UI_MODE_NIGHT_YES
             }
 
-            AToxTheme(
-                darkTheme = isDarkTheme,
-                dynamicColor = appearance.dynamicColorEnabled,
-                accentColorSeedArgb = appearance.accentColorSeed
-            ) {
-                val surfaceContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
-                LaunchedEffect(isDarkTheme, surfaceContainerColor) {
-                    val navBarColor = surfaceContainerColor.toArgb()
-                    window.navigationBarColor = navBarColor
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        window.isNavigationBarContrastEnforced = false
+            CompositionLocalProvider(LocalFileStorageProvider provides fileStorageProvider) {
+                AToxTheme(
+                    darkTheme = isDarkTheme,
+                    dynamicColor = appearance.dynamicColorEnabled,
+                    accentColorSeedArgb = appearance.accentColorSeed
+                ) {
+                    val surfaceContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+                    LaunchedEffect(isDarkTheme, surfaceContainerColor) {
+                        val navBarColor = surfaceContainerColor.toArgb()
+                        window.navigationBarColor = navBarColor
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            window.isNavigationBarContrastEnforced = false
+                        }
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                        window.attributes = window.attributes.apply {
+                            dimAmount = 0f
+                        }
+                        window.decorView.alpha = 1f
+                        WindowCompat.getInsetsController(window, window.decorView).apply {
+                            isAppearanceLightStatusBars = !isDarkTheme
+                            isAppearanceLightNavigationBars = !isDarkTheme
+                        }
                     }
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                    window.attributes = window.attributes.apply {
-                        dimAmount = 0f
-                    }
-                    window.decorView.alpha = 1f
-                    WindowCompat.getInsetsController(window, window.decorView).apply {
-                        isAppearanceLightStatusBars = !isDarkTheme
-                        isAppearanceLightNavigationBars = !isDarkTheme
-                    }
+
+                    AToxNavGraph(
+                        appearance = appearance,
+                        settings = settings,
+                        windowSizeClass = windowSizeClass,
+
+                        callManager = callManager.get(),
+                        notificationHelper = notificationHelper.get(),
+                        permissionManager = permissionManager.get(),
+                        systemSoundPlayer = systemSoundPlayer.get(),
+                        toxLinkManager = toxLinkManager.get(),
+                        callScreenMinimized = callScreenMinimized,
+                        onOpenFile = ::openFile,
+                        onQuitApp = ::finish,
+                        onThemeChanged = appearanceManager::updateThemeMode,
+                        onDynamicColorChanged = appearanceManager::updateDynamicColorEnabled,
+                        onAccentColorSeedChanged = appearanceManager::updateAccentColorSeed,
+                        onLocaleTagChanged = ::updateLocale,
+                        onDisableScreenshotsChanged = { disable ->
+                            settings.disableScreenshots = disable
+                            updateSecureWindow(disable)
+                        },
+                    )
                 }
-
-                AToxNavGraph(
-                    appearance = appearance,
-                    settings = settings,
-                    windowSizeClass = windowSizeClass,
-
-                    callManager = callManager.get(),
-                    notificationHelper = notificationHelper.get(),
-                    permissionManager = permissionManager.get(),
-                    systemSoundPlayer = systemSoundPlayer.get(),
-                    toxLinkManager = toxLinkManager.get(),
-                    callScreenMinimized = callScreenMinimized,
-                    onOpenFile = ::openFile,
-                    onQuitApp = ::finish,
-                    onThemeChanged = appearanceManager::updateThemeMode,
-                    onDynamicColorChanged = appearanceManager::updateDynamicColorEnabled,
-                    onAccentColorSeedChanged = appearanceManager::updateAccentColorSeed,
-                    onLocaleTagChanged = ::updateLocale,
-                    onDisableScreenshotsChanged = { disable ->
-                        settings.disableScreenshots = disable
-                        updateSecureWindow(disable)
-                    },
-                )
             }
         }
 
@@ -241,7 +242,7 @@ class MainActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent) {
         when (intent.action) {
             Intent.ACTION_VIEW -> handleToxLinkIntent(intent)
-            Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> handleShareIntent(intent)
+            Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> incomingShareProcessor.handleIntent(intent)
         }
     }
 
@@ -257,52 +258,12 @@ class MainActivity : AppCompatActivity() {
         toxLinkManager.get().setPendingToxId(toxId)
     }
 
-    private fun handleShareIntent(intent: Intent) {
-        try {
-            val action = intent.action
-            val type = intent.type
-            if (Intent.ACTION_SEND == action && type != null) {
-                if (type.startsWith("text/")) {
-                    val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                    if (!sharedText.isNullOrEmpty()) {
-                        sharedContentManager.get().setSharedContent(SharedContent.Text(sharedText))
-                        Log.i(TAG, "Parsed shared text: $sharedText")
-                    }
-                } else {
-                    val streamUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra(Intent.EXTRA_STREAM)
-                    }
-                    if (streamUri != null) {
-                        sharedContentManager.get().setSharedContent(SharedContent.File(streamUri, type))
-                        Log.i(TAG, "Parsed shared file URI: $streamUri")
-                    }
-                }
-            } else if (Intent.ACTION_SEND_MULTIPLE == action && type != null) {
-                val streamUris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
-                }
-                if (streamUris != null) {
-                    sharedContentManager.get().setSharedContent(SharedContent.MultipleFiles(streamUris.filterNotNull()))
-                    Log.i(TAG, "Parsed shared multiple URIs: $streamUris")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to handle share intent", e)
-        }
-    }
-
     private fun openFile(ft: FileTransfer) {
         lifecycleScope.launch {
             try {
                 val uri = ft.destination.toUri()
-                val shareUri = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    prepareShareUri(uri)
+                val shareUri = kotlinx.coroutines.withContext(ioDispatcher) {
+                    incomingShareProcessor.prepareShareUri(uri)
                 }
 
                 val mimeType = contentResolver.getType(shareUri) ?: android.webkit.MimeTypeMap.getSingleton()
@@ -325,34 +286,5 @@ class MainActivity : AppCompatActivity() {
                 android.widget.Toast.makeText(this@MainActivity, R.string.open_file_failure, android.widget.Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun prepareShareUri(uri: Uri): Uri {
-        if (uri.scheme == ContentResolver.SCHEME_FILE) {
-            return androidx.core.content.FileProvider.getUriForFile(
-                this,
-                "$packageName.fileprovider",
-                File(requireNotNull(uri.path))
-            )
-        }
-
-        if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
-            val sharedDir = File(cacheDir, "shared").apply { mkdirs() }
-            val extension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
-            val suffix = if (extension.isNotEmpty()) ".$extension" else ""
-            val stagedFile = File(sharedDir, "shared_${System.currentTimeMillis()}$suffix")
-            contentResolver.openInputStream(uri)?.use { input ->
-                stagedFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            } ?: error("Unable to open $uri for sharing")
-            return androidx.core.content.FileProvider.getUriForFile(
-                this,
-                "$packageName.fileprovider",
-                stagedFile
-            )
-        }
-
-        return uri
     }
 }

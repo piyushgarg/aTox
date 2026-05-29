@@ -1,12 +1,13 @@
 package ltd.evilcorp.atox.infrastructure.backup
 
 import javax.inject.Inject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 import ltd.evilcorp.domain.features.backup.repository.IChatHistoryBackupHelper
 import ltd.evilcorp.domain.features.chat.model.Message
-import org.json.JSONArray
-import org.json.JSONObject
 
 class ChatHistoryBackupDataProvider @Inject constructor(
     private val helper: IChatHistoryBackupHelper,
@@ -39,37 +40,51 @@ class CallLogBackupDataProvider @Inject constructor(
     }
 }
 
+@Serializable
+private data class MessageBackupPayload(
+    val id: Long,
+    val publicKey: String,
+    val message: String,
+    val sender: String,
+    val type: String,
+    val correlationId: Int,
+    val timestamp: Long
+)
+
+@Serializable
+private data class MessagesBackupContainer(
+    val messages: List<MessageBackupPayload>
+)
+
 private fun serializeMessages(messages: List<Message>): ByteArray {
-    val entries = JSONArray()
-    messages.forEach { message ->
-        entries.put(JSONObject().apply {
-            put("id", message.id)
-            put("publicKey", message.publicKey)
-            put("message", message.message)
-            put("sender", message.sender.name)
-            put("type", message.type.name)
-            put("correlationId", message.correlationId)
-            put("timestamp", message.timestamp)
-        })
-    }
-    return JSONObject().put("messages", entries).toString().encodeToByteArray()
+    val container = MessagesBackupContainer(
+        messages = messages.map { message ->
+            MessageBackupPayload(
+                id = message.id,
+                publicKey = message.publicKey,
+                message = message.message,
+                sender = message.sender.name,
+                type = message.type.name,
+                correlationId = message.correlationId,
+                timestamp = message.timestamp
+            )
+        }
+    )
+    return Json.encodeToString(container).encodeToByteArray()
 }
 
 private fun parseMessages(data: ByteArray): List<Message> {
-    val entries = JSONObject(data.decodeToString()).getJSONArray("messages")
-    return buildList {
-        for (index in 0 until entries.length()) {
-            val item = entries.getJSONObject(index)
-            add(Message(
-                publicKey = item.getString("publicKey"),
-                message = item.getString("message"),
-                sender = enumValueOf(item.getString("sender")),
-                type = enumValueOf(item.getString("type")),
-                correlationId = item.optInt("correlationId"),
-                timestamp = item.optLong("timestamp"),
-            ).apply {
-                id = item.optLong("id")
-            })
+    val container = Json.decodeFromString<MessagesBackupContainer>(data.decodeToString())
+    return container.messages.map { item ->
+        Message(
+            publicKey = item.publicKey,
+            message = item.message,
+            sender = enumValueOf(item.sender),
+            type = enumValueOf(item.type),
+            correlationId = item.correlationId,
+            timestamp = item.timestamp,
+        ).apply {
+            id = item.id
         }
     }
 }

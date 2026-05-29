@@ -10,12 +10,13 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import javax.inject.Inject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 import ltd.evilcorp.domain.features.backup.repository.IFileTransferBackupHelper
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
-import org.json.JSONArray
-import org.json.JSONObject
 
 class FileTransferHistoryBackupDataProvider @Inject constructor(
     private val helper: IFileTransferBackupHelper,
@@ -41,7 +42,7 @@ class TransferredFilesBackupDataProvider @Inject constructor(
     override val descriptionRes: Int = R.string.backup_module_transferred_files_description
 
     override suspend fun serialize(): ByteArray {
-        val manifest = JSONArray()
+        val manifestItems = mutableListOf<TransferredFileManifestItem>()
         val transfers = helper.serializeFileTransfers()
             .filter { it.destination.isNotBlank() }
 
@@ -59,16 +60,19 @@ class TransferredFilesBackupDataProvider @Inject constructor(
                     }.getOrDefault(false)
 
                     if (copied) {
-                        manifest.put(JSONObject().apply {
-                            put("id", transfer.id)
-                            put("fileName", transfer.fileName)
-                            put("entryName", entryName)
-                        })
+                        manifestItems.add(
+                            TransferredFileManifestItem(
+                                id = transfer.id,
+                                fileName = transfer.fileName,
+                                entryName = entryName
+                            )
+                        )
                     }
                 }
 
                 zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
-                zip.write(JSONObject().put("files", manifest).toString().encodeToByteArray())
+                val manifest = TransferredFileManifest(files = manifestItems)
+                zip.write(Json.encodeToString(manifest).encodeToByteArray())
                 zip.closeEntry()
             }
             bytes.toByteArray()
@@ -77,13 +81,13 @@ class TransferredFilesBackupDataProvider @Inject constructor(
 
     override suspend fun deserialize(data: ByteArray) {
         val files = mutableMapOf<String, ByteArray>()
-        var manifest = JSONArray()
+        var manifest = TransferredFileManifest(files = emptyList())
 
         ZipInputStream(ByteArrayInputStream(data)).use { zip ->
             generateSequence { zip.nextEntry }.forEach { entry ->
                 val bytes = zip.readBytes()
                 if (entry.name == MANIFEST_ENTRY) {
-                    manifest = JSONObject(bytes.decodeToString()).getJSONArray("files")
+                    manifest = Json.decodeFromString<TransferredFileManifest>(bytes.decodeToString())
                 } else {
                     files[entry.name] = bytes
                 }
@@ -92,11 +96,10 @@ class TransferredFilesBackupDataProvider @Inject constructor(
         }
 
         val restoreDir = File(context.filesDir, "ft/restored").apply { mkdirs() }
-        for (index in 0 until manifest.length()) {
-            val item = manifest.getJSONObject(index)
-            val id = item.getInt("id")
-            val entryName = item.getString("entryName")
-            val fileName = item.getString("fileName").sanitizeFileName()
+        for (item in manifest.files) {
+            val id = item.id
+            val entryName = item.entryName
+            val fileName = item.fileName.sanitizeFileName()
             val content = files[entryName] ?: continue
             val restored = File(restoreDir, "$id-$fileName")
             restored.writeBytes(content)
@@ -107,41 +110,69 @@ class TransferredFilesBackupDataProvider @Inject constructor(
 
 private const val MANIFEST_ENTRY = "manifest.json"
 
+@Serializable
+private data class FileTransferBackupPayload(
+    val id: Int,
+    val publicKey: String,
+    val fileNumber: Int,
+    val fileKind: Int,
+    val fileSize: Long,
+    val fileName: String,
+    val outgoing: Boolean,
+    val progress: Long,
+    val destination: String
+)
+
+@Serializable
+private data class FileTransfersBackupContainer(
+    val fileTransfers: List<FileTransferBackupPayload>
+)
+
+@Serializable
+private data class TransferredFileManifestItem(
+    val id: Int,
+    val fileName: String,
+    val entryName: String
+)
+
+@Serializable
+private data class TransferredFileManifest(
+    val files: List<TransferredFileManifestItem>
+)
+
 private fun serializeFileTransfers(fileTransfers: List<FileTransfer>): ByteArray {
-    val entries = JSONArray()
-    fileTransfers.forEach { transfer ->
-        entries.put(JSONObject().apply {
-            put("id", transfer.id)
-            put("publicKey", transfer.publicKey)
-            put("fileNumber", transfer.fileNumber)
-            put("fileKind", transfer.fileKind)
-            put("fileSize", transfer.fileSize)
-            put("fileName", transfer.fileName)
-            put("outgoing", transfer.outgoing)
-            put("progress", transfer.progress)
-            put("destination", transfer.destination)
-        })
-    }
-    return JSONObject().put("fileTransfers", entries).toString().encodeToByteArray()
+    val container = FileTransfersBackupContainer(
+        fileTransfers = fileTransfers.map { transfer ->
+            FileTransferBackupPayload(
+                id = transfer.id,
+                publicKey = transfer.publicKey,
+                fileNumber = transfer.fileNumber,
+                fileKind = transfer.fileKind,
+                fileSize = transfer.fileSize,
+                fileName = transfer.fileName,
+                outgoing = transfer.outgoing,
+                progress = transfer.progress,
+                destination = transfer.destination
+            )
+        }
+    )
+    return Json.encodeToString(container).encodeToByteArray()
 }
 
 private fun parseFileTransfers(data: ByteArray): List<FileTransfer> {
-    val entries = JSONObject(data.decodeToString()).getJSONArray("fileTransfers")
-    return buildList {
-        for (index in 0 until entries.length()) {
-            val item = entries.getJSONObject(index)
-            add(FileTransfer(
-                publicKey = item.getString("publicKey"),
-                fileNumber = item.getInt("fileNumber"),
-                fileKind = item.getInt("fileKind"),
-                fileSize = item.getLong("fileSize"),
-                fileName = item.getString("fileName"),
-                outgoing = item.getBoolean("outgoing"),
-                progress = item.getLong("progress"),
-                destination = item.optString("destination"),
-            ).apply {
-                id = item.getInt("id")
-            })
+    val container = Json.decodeFromString<FileTransfersBackupContainer>(data.decodeToString())
+    return container.fileTransfers.map { item ->
+        FileTransfer(
+            publicKey = item.publicKey,
+            fileNumber = item.fileNumber,
+            fileKind = item.fileKind,
+            fileSize = item.fileSize,
+            fileName = item.fileName,
+            outgoing = item.outgoing,
+            progress = item.progress,
+            destination = item.destination,
+        ).apply {
+            id = item.id
         }
     }
 }

@@ -121,6 +121,12 @@ class ToxRuntime @Inject constructor(
         save()
     }
 
+    fun addFriendNoRequest(publicKey: PublicKey): Int {
+        val result = toxWrapper.addFriendNoRequest(publicKey)
+        if (result >= 0) save()
+        return result
+    }
+
     fun startFileTransfer(pk: PublicKey, fileNumber: Int) {
         Log.i(TAG, "Starting file transfer $fileNumber from ${pk.fingerprint()}")
         toxWrapper.startFileTransfer(pk, fileNumber)
@@ -280,6 +286,9 @@ class ToxRuntime @Inject constructor(
 
     fun groupReconnect(groupNumber: Int): Boolean =
         toxWrapper.groupReconnect(groupNumber)
+
+    fun groupGetChatlist(): IntArray =
+        toxWrapper.groupGetChatlist()
 
     fun groupavAdd(): Int =
         toxWrapper.groupavAdd()

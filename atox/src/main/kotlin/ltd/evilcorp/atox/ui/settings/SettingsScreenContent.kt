@@ -58,7 +58,7 @@ internal fun SettingsScreenContent(
     onThemeChanged: (Int) -> Unit,
     onLocaleTagChanged: (String) -> Unit,
     autoSaveDirectoryLabel: String,
-    autoSaveDirectoryLauncher: ActivityResultLauncher<Uri?>,
+    launchers: SettingsLaunchers,
     viewModel: SettingsViewModel,
     bootstrapNodeSource: ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource,
     proxyType: ltd.evilcorp.domain.features.settings.model.ProxyType,
@@ -68,9 +68,6 @@ internal fun SettingsScreenContent(
     backupViewModel: BackupSettingsViewModel,
     backupExporting: Boolean,
     backupImporting: Boolean,
-    backupLauncher: ActivityResultLauncher<String>,
-    restoreBackupLauncher: ActivityResultLauncher<Array<String>>,
-    ringtonePickerLauncher: ActivityResultLauncher<Intent>,
     mandatoryBackupId: String,
     searchItems: List<SearchableSetting>
 ) {
@@ -123,7 +120,7 @@ internal fun SettingsScreenContent(
             performHaptic = performHaptic,
             onFtAutoAcceptClick = { viewModel.setShowFtAcceptDialog(true) },
             onAutoSaveToDownloadsChanged = { settings.autoSaveToDownloads = it },
-            onAutoSaveDirectoryClick = { autoSaveDirectoryLauncher.launch(null) },
+            onAutoSaveDirectoryClick = { launchers.autoSaveDirectoryLauncher.launch(null) },
             onClearCacheClick = {
                 viewModel.clearCache()
                 state.cacheSizeText = formatSize(context, 0)
@@ -212,7 +209,7 @@ internal fun SettingsScreenContent(
             onSoundPickerClick = { target, currentUri, type ->
                 state.soundPickerTarget = target
                 launchRingtonePicker(
-                    ringtonePickerLauncher,
+                    launchers.ringtonePickerLauncher,
                     when (target) {
                         SoundPickerTarget.Sent -> context.getString(R.string.settings_sent_sound_title)
                         SoundPickerTarget.Call -> context.getString(R.string.settings_call_sound_title)
@@ -253,9 +250,9 @@ internal fun SettingsScreenContent(
             },
             onGoogleAccountClick = { state.showGoogleAccountDialog = true },
             onSelectedBackupIdsChanged = { state.selectedBackupIds = it },
-            onCreateBackupClick = { backupLauncher.launch("atox-backup.zip") },
+            onCreateBackupClick = { launchers.backupLauncher.launch("atox-backup.zip") },
             onRestoreBackupClick = {
-                restoreBackupLauncher.launch(arrayOf("application/zip"))
+                launchers.restoreBackupLauncher.launch(arrayOf("application/zip"))
             },
             performHaptic = performHaptic
         )

@@ -12,4 +12,8 @@ data class GroupPeer(
     var role: String = "User",
     var isOurselves: Boolean = false,
     var status: UserStatus = UserStatus.None,
-)
+) {
+    val colorIndex: Int
+        get() = (name.hashCode().let { if (it < 0) -it else it } % 8)
+}
+

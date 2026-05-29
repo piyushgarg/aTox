@@ -42,6 +42,8 @@ interface IGroupRepository {
     suspend fun deleteMessage(id: Long)
     suspend fun setReceipt(groupChatId: String, correlationId: Int, timestamp: Long)
     suspend fun existsByCorrelationId(groupChatId: String, correlationId: Int): Boolean
+    suspend fun getMessageIds(groupChatId: String): List<Int>
+    suspend fun getMessagesByIds(groupChatId: String, ids: Set<Int>): List<GroupMessage>
 
     suspend fun addPeer(peer: GroupPeer)
     suspend fun updatePeer(peer: GroupPeer)

@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -117,6 +118,7 @@ fun ChatInputBar(
     var textInput by remember { mutableStateOf("") }
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     // Voice message recording states
     var isRecording by remember { mutableStateOf(false) }
@@ -135,7 +137,9 @@ fun ChatInputBar(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
                 if (isRecording) {
-                    voiceRecorder.cancelRecording()
+                    coroutineScope.launch {
+                        voiceRecorder.cancelRecording()
+                    }
                     isRecording = false
                 }
             }

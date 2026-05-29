@@ -6,33 +6,33 @@ package ltd.evilcorp.atox.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.launch
-import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
-import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
-import ltd.evilcorp.domain.features.settings.model.BackupFrequency
-import ltd.evilcorp.domain.features.settings.model.BackupDestination
-import ltd.evilcorp.domain.core.network.bootstrap.IBootstrapNodeRegistry
-import ltd.evilcorp.domain.features.settings.model.ProxyType
-import ltd.evilcorp.domain.core.network.ITox
-import ltd.evilcorp.domain.features.transfer.FileTransferManager
-import ltd.evilcorp.domain.features.transfer.getCacheSize
-import ltd.evilcorp.domain.features.transfer.clearCache
-import ltd.evilcorp.domain.features.settings.usecase.CheckProxyUseCase
-import ltd.evilcorp.domain.features.settings.model.ProxyStatus
-import ltd.evilcorp.domain.features.auth.UserManager
-import ltd.evilcorp.domain.features.auth.model.User
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import ltd.evilcorp.domain.features.auth.model.User
+import ltd.evilcorp.domain.features.settings.model.BackupDestination
+import ltd.evilcorp.domain.features.settings.model.BackupFrequency
+import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
+import ltd.evilcorp.domain.features.settings.model.ProxyStatus
+import ltd.evilcorp.domain.features.settings.model.ProxyType
+import ltd.evilcorp.domain.features.settings.usecase.CheckProxyUseCase
+import ltd.evilcorp.domain.features.settings.usecase.GetUserSettingsUseCase
+import ltd.evilcorp.domain.features.settings.usecase.UpdateUserSettingsUseCase
+import ltd.evilcorp.domain.features.settings.usecase.UpdateAction
+import ltd.evilcorp.domain.features.settings.usecase.ManageToxLifecycleUseCase
+import ltd.evilcorp.domain.features.settings.usecase.GetCacheSizeUseCase
+import ltd.evilcorp.domain.features.settings.usecase.ClearCacheUseCase
+import ltd.evilcorp.domain.features.settings.usecase.SetRunAtStartupUseCase
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
 
 private const val TOX_SHUTDOWN_POLL_DELAY_MS = 200L
 private const val MAX_PORT_NUMBER = 65535
@@ -43,16 +43,17 @@ sealed interface SettingsUiEvent {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settings: Settings,
-    private val toxStarter: ToxStarter,
-    private val tox: ITox,
-    private val nodeRegistry: IBootstrapNodeRegistry,
-    private val fileTransferManager: FileTransferManager,
+    private val getUserSettingsUseCase: GetUserSettingsUseCase,
+    private val updateUserSettingsUseCase: UpdateUserSettingsUseCase,
+    private val manageToxLifecycleUseCase: ManageToxLifecycleUseCase,
+    private val getCacheSizeUseCase: GetCacheSizeUseCase,
+    private val clearCacheUseCase: ClearCacheUseCase,
+    private val setRunAtStartupUseCase: SetRunAtStartupUseCase,
     private val checkProxyUseCase: CheckProxyUseCase,
-    private val userManager: UserManager,
+    private val getSelfUserUseCase: GetSelfUserUseCase,
 ) : ViewModel() {
-    val publicKey by lazy { tox.publicKey }
-    val user: StateFlow<User?> = userManager.get(publicKey)
+    val publicKey by lazy { getSelfUserUseCase.publicKey }
+    val user: StateFlow<User?> = getSelfUserUseCase.execute()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -92,19 +93,25 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setUdpEnabled(enabled: Boolean) {
-        if (enabled == settings.udpEnabled) return
-        settings.udpEnabled = enabled
+        if (enabled == getUserSettingsUseCase.settings.value.udpEnabled) return
+        viewModelScope.launch {
+            updateUserSettingsUseCase.execute(UpdateAction.UdpEnabled(enabled))
+        }
         restartNeeded = true
     }
 
     fun setRunAtStartup(enabled: Boolean) {
-        settings.runAtStartup = enabled
+        viewModelScope.launch {
+            setRunAtStartupUseCase.execute(enabled)
+        }
     }
 
     fun setProxyPortString(portStr: String): Boolean {
         if (portStr.isEmpty()) {
-            settings.proxyPort = 0
-            if (settings.proxyType != ProxyType.None) {
+            viewModelScope.launch {
+                updateUserSettingsUseCase.execute(UpdateAction.ProxyPort(0))
+            }
+            if (getUserSettingsUseCase.settings.value.proxyType != ProxyType.None) {
                 restartNeeded = true
             }
             checkProxy()
@@ -113,8 +120,10 @@ class SettingsViewModel @Inject constructor(
         if (portStr.all { it.isDigit() }) {
             val portInt = portStr.toIntOrNull()
             if (portInt != null && portInt in 0..MAX_PORT_NUMBER) {
-                settings.proxyPort = portInt
-                if (settings.proxyType != ProxyType.None) {
+                viewModelScope.launch {
+                    updateUserSettingsUseCase.execute(UpdateAction.ProxyPort(portInt))
+                }
+                if (getUserSettingsUseCase.settings.value.proxyType != ProxyType.None) {
                     restartNeeded = true
                 }
                 checkProxy()
@@ -128,34 +137,73 @@ class SettingsViewModel @Inject constructor(
     fun checkProxy() {
         checkProxyJob?.cancel(null)
         checkProxyJob = viewModelScope.launch(Dispatchers.IO) {
+            val currentSettings = getUserSettingsUseCase.settings.value
             val proxyStatusResult = checkProxyUseCase.execute(
-                settings.udpEnabled,
-                settings.proxyType,
-                settings.proxyAddress,
-                settings.proxyPort
+                currentSettings.udpEnabled,
+                currentSettings.proxyType,
+                currentSettings.proxyAddress,
+                currentSettings.proxyPort
             )
             _proxyStatus.value = proxyStatusResult
         }
     }
 
     fun setBootstrapNodeSource(source: BootstrapNodeSource) {
-        settings.bootstrapNodeSource = source
         viewModelScope.launch {
-            nodeRegistry.reset()
+            updateUserSettingsUseCase.execute(UpdateAction.BootstrapNodeSourceAction(source))
         }
         restartNeeded = true
     }
 
     fun setBackupFrequency(frequency: BackupFrequency) {
-        settings.backupFrequency = frequency
+        viewModelScope.launch {
+            updateUserSettingsUseCase.execute(UpdateAction.BackupFrequencyAction(frequency))
+        }
     }
 
     fun setBackupDestinations(destinations: Set<BackupDestination>) {
-        settings.backupDestinations = destinations
+        viewModelScope.launch {
+            updateUserSettingsUseCase.execute(
+                UpdateAction.BackupDestinationOrdinals(
+                    destinations.takeIf { it.isNotEmpty() }?.map { it.ordinal }?.toSet()
+                        ?: setOf(BackupDestination.Local.ordinal)
+                )
+            )
+        }
     }
 
-    fun getCacheSize(): Long = fileTransferManager.getCacheSize()
-    fun clearCache() = fileTransferManager.clearCache()
+    fun setSentMessageSoundUri(uri: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            updateUserSettingsUseCase.execute(UpdateAction.SentMessageSoundUri(uri))
+        }
+    }
+
+    fun setCallRingtoneUri(uri: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            updateUserSettingsUseCase.execute(UpdateAction.CallRingtoneUri(uri))
+        }
+    }
+
+    fun setNotificationSoundUri(uri: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            updateUserSettingsUseCase.execute(UpdateAction.NotificationSoundUri(uri))
+        }
+    }
+
+    fun setActiveChatSoundUri(uri: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            updateUserSettingsUseCase.execute(UpdateAction.ActiveChatSoundUri(uri))
+        }
+    }
+
+    fun setAutoSaveDirectoryUri(uri: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            updateUserSettingsUseCase.execute(UpdateAction.AutoSaveDirectoryUri(uri))
+        }
+    }
+
+    fun getCacheSize(): Long = getCacheSizeUseCase.execute()
+    fun clearCache() = clearCacheUseCase.execute()
 
     fun commit() {
         if (!restartNeeded) {
@@ -163,14 +211,13 @@ class SettingsViewModel @Inject constructor(
             return
         }
 
-        val password = tox.password
-        toxStarter.stopTox()
-
+        val password = manageToxLifecycleUseCase.password
         viewModelScope.launch {
-            while (tox.started) {
+            manageToxLifecycleUseCase.execute(ltd.evilcorp.domain.features.settings.usecase.ToxLifecycleAction.Stop)
+            while (manageToxLifecycleUseCase.started) {
                 delay(TOX_SHUTDOWN_POLL_DELAY_MS)
             }
-            toxStarter.tryLoadTox(password)
+            manageToxLifecycleUseCase.execute(ltd.evilcorp.domain.features.settings.usecase.ToxLifecycleAction.TryLoad(password))
             _committed.value = true
         }
     }

@@ -5,37 +5,57 @@
 
 package ltd.evilcorp.domain.features.backup
 
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
-import org.json.JSONArray
-import org.json.JSONObject
+import ltd.evilcorp.domain.core.platform.IPlatformServices
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
-class ExportManager @Inject constructor(private val messageRepository: IMessageRepository) {
+@Serializable
+internal data class ExportData(
+    val version: Int,
+    val timestamp: String,
+    @SerialName("contact_public_key")
+    val contactPublicKey: String,
+    val entries: List<ExportEntry>
+)
+
+@Serializable
+internal data class ExportEntry(
+    val message: String,
+    val sender: String,
+    val type: String,
+    val timestamp: String
+)
+
+class ExportManager @Inject constructor(
+    private val messageRepository: IMessageRepository,
+    private val platformServices: IPlatformServices
+) {
+    private val json = Json { prettyPrint = true; prettyPrintIndent = "  " }
+
     fun generateExportMessagesJString(publicKey: String): String {
         val messages = runBlocking { messageRepository.get(publicKey).first() }
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
 
-        val root = JSONObject()
-        root.put("version", 1)
-        root.put("timestamp", dateFormat.format(Date()))
-        root.put("contact_public_key", publicKey)
-
-        val entries = JSONArray()
-        for (message in messages) {
-            val jsonMessage = JSONObject().apply {
-                put("message", message.message)
-                put("sender", message.sender.toString())
-                put("type", message.type.toString())
-                put("timestamp", dateFormat.format(Date(message.timestamp)))
-            }
-            entries.put(jsonMessage)
+        val entries = messages.map {
+            ExportEntry(
+                message = it.message,
+                sender = it.sender.toString(),
+                type = it.type.toString(),
+                timestamp = platformServices.formatDate(it.timestamp)
+            )
         }
-        root.put("entries", entries)
-        return root.toString(2)
+
+        val exportData = ExportData(
+            version = 1,
+            timestamp = platformServices.formatDate(System.currentTimeMillis()),
+            contactPublicKey = publicKey,
+            entries = entries
+        )
+
+        return json.encodeToString(ExportData.serializer(), exportData)
     }
 }

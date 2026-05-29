@@ -1,9 +1,12 @@
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
 package ltd.evilcorp.atox.ui.groupchat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,17 +16,21 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.domain.features.group.model.GroupPrivacyState
-import ltd.evilcorp.domain.features.group.GroupManager
 import ltd.evilcorp.domain.features.group.GroupConnectionStatus
-import ltd.evilcorp.domain.features.group.leaveGroup
-import ltd.evilcorp.domain.features.group.joinByChatId
-import ltd.evilcorp.domain.features.group.getChatId
-import ltd.evilcorp.domain.features.group.getChatIdByGroupNumber
-import ltd.evilcorp.domain.features.group.joinGroupWithBytes
-import ltd.evilcorp.domain.features.group.inviteFriend
-import ltd.evilcorp.domain.features.auth.UserManager
-import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.features.group.GroupInvite
 import ltd.evilcorp.domain.features.auth.model.User
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
+import ltd.evilcorp.domain.features.group.usecase.GetGroupsUseCase
+import ltd.evilcorp.domain.features.group.usecase.GetGroupConnectionStatusesUseCase
+import ltd.evilcorp.domain.features.group.usecase.CreateGroupUseCase
+import ltd.evilcorp.domain.features.group.usecase.LeaveGroupUseCase
+import ltd.evilcorp.domain.features.group.usecase.JoinGroupUseCase
+import ltd.evilcorp.domain.features.group.usecase.JoinAction
+import kotlinx.coroutines.flow.firstOrNull
+import ltd.evilcorp.domain.features.group.usecase.GetGroupChatIdUseCase
+import ltd.evilcorp.domain.features.group.usecase.ChatIdQuery
+import ltd.evilcorp.domain.features.group.usecase.InviteFriendToGroupUseCase
+import ltd.evilcorp.domain.features.group.usecase.GetGroupInviteUseCase
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 
@@ -31,19 +38,25 @@ private const val HEX_KEY_LENGTH = 64
 
 @HiltViewModel
 class GroupListViewModel @Inject constructor(
-    private val groupManager: GroupManager,
-    private val userManager: UserManager,
-    private val tox: ITox,
+    private val getGroupsUseCase: GetGroupsUseCase,
+    private val getGroupConnectionStatusesUseCase: GetGroupConnectionStatusesUseCase,
+    private val getSelfUserUseCase: GetSelfUserUseCase,
+    private val createGroupUseCase: CreateGroupUseCase,
+    private val leaveGroupUseCase: LeaveGroupUseCase,
+    private val joinGroupUseCase: JoinGroupUseCase,
+    private val getGroupChatIdUseCase: GetGroupChatIdUseCase,
+    private val inviteFriendToGroupUseCase: InviteFriendToGroupUseCase,
+    private val getGroupInviteUseCase: GetGroupInviteUseCase,
 ) : ViewModel() {
 
-    val publicKey by lazy { tox.publicKey }
-    val user: StateFlow<User?> = userManager.get(publicKey)
+    val publicKey by lazy { getSelfUserUseCase.publicKey }
+    val user: StateFlow<User?> = getSelfUserUseCase.execute()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val groups: StateFlow<List<Group>> = groupManager.getAll()
+    val groups: StateFlow<List<Group>> = getGroupsUseCase.execute()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val connectionStatuses: StateFlow<Map<String, GroupConnectionStatus>> = groupManager.connectionStatuses
+    val connectionStatuses: StateFlow<Map<String, GroupConnectionStatus>> = getGroupConnectionStatusesUseCase.execute()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _isCreating = MutableStateFlow(false)
@@ -53,8 +66,7 @@ class GroupListViewModel @Inject constructor(
         _isCreating.value = true
         return try {
             withContext(Dispatchers.IO) {
-                val nickname = groupManager.getDefaultSelfName()
-                groupManager.createGroup(privacyState, name, nickname, password)
+                createGroupUseCase.execute(name, privacyState, password)
             }
         } catch (e: Exception) {
             android.util.Log.e("GroupListViewModel", "Failed to create group: $e")
@@ -65,7 +77,7 @@ class GroupListViewModel @Inject constructor(
     }
 
     suspend fun leaveGroup(group: Group) = withContext(Dispatchers.IO) {
-        groupManager.leaveGroup(group.chatId)
+        leaveGroupUseCase.execute(group.chatId)
     }
 
     private val _isJoining = MutableStateFlow(false)
@@ -91,8 +103,7 @@ class GroupListViewModel @Inject constructor(
         return try {
             val cleanId = chatIdHex.trim().replace("\\s".toRegex(), "")
             withContext(Dispatchers.IO) {
-                val selfName = groupManager.getDefaultSelfName()
-                groupManager.joinByChatId(cleanId, selfName, password)
+                joinGroupUseCase.execute(JoinAction.ByChatId(cleanId, password))
             }
         } catch (e: Exception) {
             android.util.Log.e("GroupListViewModel", "Failed to join group by Chat ID: $e")
@@ -102,26 +113,33 @@ class GroupListViewModel @Inject constructor(
         }
     }
 
-    suspend fun getChatId(groupChatId: String): String? = groupManager.getChatId(groupChatId)
+    suspend fun getChatId(groupChatId: String): String? =
+        getGroupChatIdUseCase.execute(ChatIdQuery.ByGroupChatId(groupChatId))
 
-    suspend fun getChatIdByGroupNumber(groupNumber: Int): String? = groupManager.getChatIdByGroupNumber(groupNumber)
+    suspend fun getChatIdByGroupNumber(groupNumber: Int): String? =
+        getGroupChatIdUseCase.execute(ChatIdQuery.ByGroupNumber(groupNumber))
 
     suspend fun joinGroupWithBytes(friendPublicKey: String, inviteDataHex: String, password: String?): Int =
         withContext(Dispatchers.IO) {
-            val selfName = groupManager.getDefaultSelfName()
-            groupManager.joinGroupWithBytes(friendPublicKey, inviteDataHex, selfName, password)
+            joinGroupUseCase.execute(JoinAction.ByBytes(friendPublicKey, inviteDataHex, password))
         }
 
-    suspend fun inviteFriend(chatId: String, friendPublicKey: String): Boolean =
-        groupManager.inviteFriend(chatId, friendPublicKey)
+    suspend fun inviteFriend(chatId: String, friendPublicKey: String): Boolean {
+        return try {
+            inviteFriendToGroupUseCase.execute(chatId, friendPublicKey)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
 
-    fun getPendingInvite(): ltd.evilcorp.domain.features.group.GroupInvite? =
-        groupManager.getPendingInvite()
+    suspend fun getPendingInviteDirect(): GroupInvite? {
+        return getGroupInviteUseCase.execute().firstOrNull()
+    }
 
-    suspend fun joinWithPendingInvite(pending: ltd.evilcorp.domain.features.group.GroupInvite): Int =
+    suspend fun joinWithPendingInvite(pending: GroupInvite): Int =
         withContext(Dispatchers.IO) {
-            val selfName = groupManager.getDefaultSelfName()
-            groupManager.joinGroup(pending.friendNo, pending.inviteData, selfName)
+            joinGroupUseCase.execute(JoinAction.ByPendingInvite(pending))
         }
 
     suspend fun joinGroupFromChat(
@@ -130,7 +148,8 @@ class GroupListViewModel @Inject constructor(
         groupName: String,
     ): String? {
         val groupNumber = if (chatIdOrBytes.length == HEX_KEY_LENGTH) {
-            val pending = getPendingInvite()
+            val pendingFlow = getGroupInviteUseCase.execute()
+            val pending = pendingFlow.stateIn(viewModelScope).value
             if (pending != null && pending.groupName.equals(groupName, ignoreCase = true)) {
                 joinWithPendingInvite(pending)
             } else {

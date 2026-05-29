@@ -34,7 +34,6 @@ fun ChatListTab(
     groupInvite: GroupInvite?,
     groupInviteFriendName: String,
     listState: LazyListState,
-    searchQuery: String,
     dateFormatPreference: DateFormatPreference,
     timeFormatPreference: TimeFormatPreference,
     onContactClick: (Contact) -> Unit,
@@ -47,12 +46,6 @@ fun ChatListTab(
     onContactInteraction: () -> Unit,
 ) {
     val visibleContacts = contacts
-
-    LaunchedEffect(searchQuery) {
-        if (searchQuery.isNotEmpty()) {
-            listState.scrollToItem(0)
-        }
-    }
 
     if (friendRequests.isEmpty() && visibleContacts.isEmpty() && groupInvite == null) {
         EmptyChatList(onAddContactClick = onAddContactClick)

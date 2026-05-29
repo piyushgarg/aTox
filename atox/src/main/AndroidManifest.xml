@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -26,7 +27,11 @@
             android:theme="@style/AppTheme">
         <service android:name=".infrastructure.service.ToxService"
                 android:exported="false"
-                android:foregroundServiceType="dataSync|microphone" />
+                android:foregroundServiceType="specialUse|microphone|dataSync">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Serverless P2P communication engine that needs to remain connected to the P2P network to receive real-time messages and calls without a central push server." />
+        </service>
  
         <receiver android:name=".infrastructure.receiver.BootReceiver" android:enabled="false" android:exported="false">
             <intent-filter>

@@ -91,6 +91,7 @@ fun GroupChatScreen(
     onLeaveClick: (() -> Unit) -> Unit = {},
     onGroupInfoChanged: (name: String, topic: String, peersCount: Int, status: GroupConnectionStatus) -> Unit = { _, _, _, _ -> },
     voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
+    isExpanded: Boolean = false,
 ) {
     val group = groupState.value
     val messages = messagesState.value ?: emptyList()
@@ -253,18 +254,70 @@ fun GroupChatScreen(
                     onInviteClick = { showInviteDialog = true },
                     onPeersClick = { showPeersDialog = true },
                     onLeaveClick = { showLeaveDialog = true },
-                    containerColor = Color.Transparent
+                    containerColor = Color.Transparent,
+                    isExpanded = isExpanded
                 )
             }
         }
     ) { paddingValues ->
-        Box(
+        val isOffline = connStatus != GroupConnectionStatus.Connected
+        val isReconnecting = connStatus == GroupConnectionStatus.Reconnecting
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = paddingValues.calculateTopPadding())
         ) {
-            val peerColorsCache = remember { mutableMapOf<String, Color>() }
+            if (isOffline) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = if (isReconnecting) {
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.errorContainer
+                    },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (isReconnecting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.group_reconnecting),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.CloudOff,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.group_offline_banner),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                        }
+                    }
+                }
+            }
 
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
             ChatScreenContent(
                 messages = messages,
                 toMessage = { m ->
@@ -281,7 +334,7 @@ fun GroupChatScreen(
                     val isOutgoing = msg.sender == Sender.Sent
                     val senderPeer = peers.find { it.peerId == msg.peerId }
                     val senderName = senderPeer?.name ?: msg.senderName
-                    val peerColor = peerColorsCache.getOrPut(senderName) { getPeerColor(senderName) }
+                    val peerColor = getPeerColor(msg.colorIndex)
                     val matchingContact = contacts.find { it.publicKey.equals(senderPeer?.publicKey ?: "", ignoreCase = true) }
                     MessageBubbleConfig(
                         contactName = senderName,
@@ -321,5 +374,6 @@ fun GroupChatScreen(
             )
         }
     }
+}
 }
 

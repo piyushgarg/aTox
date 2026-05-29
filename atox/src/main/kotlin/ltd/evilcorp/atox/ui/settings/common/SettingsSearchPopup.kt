@@ -62,85 +62,96 @@ internal fun SettingsSearchPopup(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-            ltd.evilcorp.atox.ui.common.AtoxSearchBar(
-                query = searchQuery,
-                onQueryChange = onSearchQueryChange,
-                onSearch = {},
-                active = true,
-                onActiveChange = { active ->
-                    if (!active) {
-                        onDismissRequest()
-                    }
-                },
-                placeholder = stringResource(R.string.search_settings),
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Column(
                 modifier = Modifier
+                    .widthIn(max = 640.dp)
                     .fillMaxWidth()
+                    .fillMaxHeight()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
             ) {
-                val filteredItems = remember(searchQuery, searchItems) {
-                    if (searchQuery.isBlank()) {
-                        emptyList()
-                    } else {
-                        searchItems.filter {
-                            it.title.contains(searchQuery, ignoreCase = true) ||
-                            it.subtitle.contains(searchQuery, ignoreCase = true) ||
-                            it.category.contains(searchQuery, ignoreCase = true)
+                ltd.evilcorp.atox.ui.common.AtoxSearchBar(
+                    query = searchQuery,
+                    onQueryChange = onSearchQueryChange,
+                    onSearch = {},
+                    active = true,
+                    onActiveChange = { active ->
+                        if (!active) {
+                            onDismissRequest()
+                        }
+                    },
+                    placeholder = stringResource(R.string.search_settings),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    val filteredItems = remember(searchQuery, searchItems) {
+                        if (searchQuery.isBlank()) {
+                            emptyList()
+                        } else {
+                            searchItems.filter {
+                                it.title.contains(searchQuery, ignoreCase = true) ||
+                                it.subtitle.contains(searchQuery, ignoreCase = true) ||
+                                it.category.contains(searchQuery, ignoreCase = true)
+                            }
                         }
                     }
-                }
-                
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (filteredItems.isEmpty()) {
-                        if (searchQuery.isNotBlank()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(32.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.search_no_results),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                    
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (filteredItems.isEmpty()) {
+                            if (searchQuery.isNotBlank()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.search_no_results),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    } else {
-                        items(filteredItems) { item ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        performHaptic()
-                                        onItemClick(item)
-                                    }
-                                    .padding(16.dp)
-                            ) {
-                                Text(
-                                    text = item.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = item.subtitle,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = item.category,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                        } else {
+                            items(filteredItems) { item ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            performHaptic()
+                                            onItemClick(item)
+                                        }
+                                        .padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = item.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = item.subtitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = item.category,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
                         }
                     }
                 }

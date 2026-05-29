@@ -48,10 +48,23 @@ fun CallHistoryBubble(
             else -> msg.message
         }
     }
+    val missed = remember(msg.message) {
+        msg.message == "[CALL_HISTORY_MISSED]" ||
+        msg.message == "Missed call" ||
+        msg.message == "Пропущенный звонок"
+    }
+    val cancelled = remember(msg.message) {
+        msg.message == "[CALL_HISTORY_CANCELLED]" ||
+        msg.message == "Cancelled call" ||
+        msg.message == "Отменённый звонок" ||
+        msg.message == "Отмененный звонок"
+    }
     CallHistoryCard(
         title = displayTitle,
         timeString = timeString,
         isOutgoing = isOutgoing,
+        missed = missed,
+        cancelled = cancelled,
         onClick = {
             onHaptic()
             onCallHistoryClick()

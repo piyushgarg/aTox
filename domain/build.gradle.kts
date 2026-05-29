@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    kotlin("plugin.serialization")
 }
 
 kotlin {
@@ -13,7 +14,7 @@ kotlin {
 dependencies {
     implementation(libs.javax.inject)
     api(libs.kotlinx.coroutines.core)
-    implementation(libs.org.json)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.archunit.junit5)

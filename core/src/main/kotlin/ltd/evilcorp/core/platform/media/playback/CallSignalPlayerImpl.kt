@@ -25,11 +25,15 @@ private const val RINGBACK_TONE_DURATION_MS = 1_500
 private const val RINGBACK_TONE_INTERVAL_MS = 2_000L
 
 @Singleton
-@Suppress("MagicNumber")
 class CallSignalPlayerImpl @Inject constructor(
     private val context: Context,
     private val userSettingsRepository: IUserSettingsRepository
 ) : ICallSignalPlayer {
+    companion object {
+        private const val MAX_VOLUME_PERCENT = 100
+        private const val MAX_VOLUME_PERCENT_FLOAT = 100f
+    }
+
     private var ringtone: android.media.Ringtone? = null
     private var toneGenerator: ToneGenerator? = null
     private var ringbackJob: Job? = null
@@ -50,7 +54,7 @@ class CallSignalPlayerImpl @Inject constructor(
                 rt?.let {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                         it.isLooping = true
-                        val volume = settings.callSoundVolume.coerceIn(0, 100) / 100f
+                        val volume = settings.callSoundVolume.coerceIn(0, MAX_VOLUME_PERCENT) / MAX_VOLUME_PERCENT_FLOAT
                         it.volume = volume
                     }
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
@@ -89,7 +93,7 @@ class CallSignalPlayerImpl @Inject constructor(
         stopSignals()
         toneGenerator = ToneGenerator(
             AudioManager.STREAM_VOICE_CALL,
-            userSettingsRepository.settings.value.callSoundVolume.coerceIn(0, 100),
+            userSettingsRepository.settings.value.callSoundVolume.coerceIn(0, MAX_VOLUME_PERCENT),
         )
         ringbackJob = scope.launch {
             while (isCallActive()) {

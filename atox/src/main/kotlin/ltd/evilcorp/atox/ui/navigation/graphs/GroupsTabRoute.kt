@@ -31,7 +31,9 @@ import androidx.compose.material3.TopAppBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.groupsTabRoute(
-    navController: NavHostController
+    navController: NavHostController,
+    contactListViewModel: ContactListViewModel,
+    isExpanded: () -> Boolean,
 ) {
     composable<AppRoutes.Groups> {
         val context = LocalContext.current
@@ -74,7 +76,11 @@ fun NavGraphBuilder.groupsTabRoute(
                     groupsState = groupsState,
                     connectionStatusesState = connectionStatusesState,
                     onGroupClick = { group ->
-                        navController.navigate(AppRoutes.GroupChat(group.chatId))
+                        if (isExpanded()) {
+                            contactListViewModel.prepareOpenGroup(group)
+                        } else {
+                            navController.navigate(AppRoutes.GroupChat(group.chatId))
+                        }
                     },
                     onCreateGroupClick = {
                         navController.navigate(AppRoutes.CreateGroup)

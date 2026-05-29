@@ -29,8 +29,19 @@ import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
 import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
 import ltd.evilcorp.domain.core.network.enums.ToxMessageType
 import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
-import ltd.evilcorp.domain.features.backup.usecase.BackupUseCase
+import ltd.evilcorp.domain.features.backup.usecase.ExportBackupUseCase
+import ltd.evilcorp.domain.features.backup.usecase.ImportBackupUseCase
+import ltd.evilcorp.domain.features.backup.usecase.GetBackupProviderDataUseCase
 import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
+import ltd.evilcorp.domain.features.settings.usecase.GetToxRunningStateUseCase
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
+import ltd.evilcorp.domain.features.auth.usecase.VerifyProfileExistsUseCase
+import ltd.evilcorp.domain.features.auth.usecase.ClearDatabaseUseCase
+import ltd.evilcorp.domain.features.auth.usecase.ManageProfileCheckpointUseCase
+import ltd.evilcorp.domain.features.auth.usecase.CheckpointAction
+import ltd.evilcorp.domain.features.settings.usecase.StartToxUseCase
+import ltd.evilcorp.domain.features.settings.usecase.ManageToxLifecycleUseCase
+import ltd.evilcorp.domain.features.settings.usecase.ToxLifecycleAction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -41,6 +52,13 @@ class BackupSettingsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
+    private val fakePlatformServices = object : ltd.evilcorp.domain.core.platform.IPlatformServices {
+        override fun formatDate(timestamp: Long): String = ""
+        override fun generateSecureBytes(size: Int): ByteArray = ByteArray(size)
+        override fun zip(files: Map<String, ByteArray>): ByteArray = ByteArray(0)
+        override fun unzip(zipBytes: ByteArray): Map<String, ByteArray> = emptyMap()
+    }
+
     @Test
     fun restoreBackup_successfulPath_createsAndClearsCheckpoint() = runTest(testDispatcher) {
         Dispatchers.setMain(testDispatcher)
@@ -48,17 +66,25 @@ class BackupSettingsViewModelTest {
             val fileProcessor = FakeSettingsFileProcessor(readBytesResult = byteArrayOf(1, 2, 3))
             val tox = FakeTox()
             val toxStarter = FakeToxStarter(startToxStatus = ToxSaveStatus.Ok)
-            val backupUseCase = FakeBackupLogic(providerDataResult = byteArrayOf(4, 5, 6))
+            val exportBackupUseCase = FakeExportBackupUseCase()
+            val importBackupUseCase = FakeImportBackupUseCase()
+            val getBackupProviderDataUseCase = FakeGetBackupProviderDataUseCase(providerDataResult = byteArrayOf(4, 5, 6))
             val profileDeleter = FakeProfileDeleter(createCheckpointResult = true)
             val userManager = FakeUserManager(tox)
 
             val viewModel = BackupSettingsViewModel(
                 fileProcessor = fileProcessor,
-                toxStarter = toxStarter,
-                tox = tox,
-                backupUseCase = backupUseCase,
-                profileDeleter = profileDeleter,
-                userManager = userManager
+                startToxUseCase = StartToxUseCase(toxStarter),
+                manageToxLifecycleUseCase = ManageToxLifecycleUseCase(tox, toxStarter),
+                getToxRunningStateUseCase = GetToxRunningStateUseCase(tox),
+                exportBackupUseCase = exportBackupUseCase,
+                importBackupUseCase = importBackupUseCase,
+                getBackupProviderDataUseCase = getBackupProviderDataUseCase,
+                backupProviders = emptyList(),
+                clearDatabaseUseCase = ClearDatabaseUseCase(profileDeleter),
+                getSelfUserUseCase = GetSelfUserUseCase(userManager, tox),
+                verifyProfileExistsUseCase = VerifyProfileExistsUseCase(userManager),
+                manageProfileCheckpointUseCase = ManageProfileCheckpointUseCase(profileDeleter)
             )
 
             // Start collecting events in a background coroutine to prevent Flow emit from suspending
@@ -107,17 +133,25 @@ class BackupSettingsViewModelTest {
             val fileProcessor = FakeSettingsFileProcessor(shouldThrowOnRead = true)
             val tox = FakeTox()
             val toxStarter = FakeToxStarter()
-            val backupUseCase = FakeBackupLogic()
+            val exportBackupUseCase = FakeExportBackupUseCase()
+            val importBackupUseCase = FakeImportBackupUseCase()
+            val getBackupProviderDataUseCase = FakeGetBackupProviderDataUseCase(null)
             val profileDeleter = FakeProfileDeleter(createCheckpointResult = true)
             val userManager = FakeUserManager(tox)
 
             val viewModel = BackupSettingsViewModel(
                 fileProcessor = fileProcessor,
-                toxStarter = toxStarter,
-                tox = tox,
-                backupUseCase = backupUseCase,
-                profileDeleter = profileDeleter,
-                userManager = userManager
+                startToxUseCase = StartToxUseCase(toxStarter),
+                manageToxLifecycleUseCase = ManageToxLifecycleUseCase(tox, toxStarter),
+                getToxRunningStateUseCase = GetToxRunningStateUseCase(tox),
+                exportBackupUseCase = exportBackupUseCase,
+                importBackupUseCase = importBackupUseCase,
+                getBackupProviderDataUseCase = getBackupProviderDataUseCase,
+                backupProviders = emptyList(),
+                clearDatabaseUseCase = ClearDatabaseUseCase(profileDeleter),
+                getSelfUserUseCase = GetSelfUserUseCase(userManager, tox),
+                verifyProfileExistsUseCase = VerifyProfileExistsUseCase(userManager),
+                manageProfileCheckpointUseCase = ManageProfileCheckpointUseCase(profileDeleter)
             )
 
             // Start collecting events in a background coroutine to prevent Flow emit from suspending
@@ -164,17 +198,25 @@ class BackupSettingsViewModelTest {
             val fileProcessor = FakeSettingsFileProcessor(readBytesResult = byteArrayOf(1, 2, 3))
             val tox = FakeTox()
             val toxStarter = FakeToxStarter(startToxStatus = ToxSaveStatus.Encrypted)
-            val backupUseCase = FakeBackupLogic(providerDataResult = byteArrayOf(4, 5, 6))
+            val exportBackupUseCase = FakeExportBackupUseCase()
+            val importBackupUseCase = FakeImportBackupUseCase()
+            val getBackupProviderDataUseCase = FakeGetBackupProviderDataUseCase(providerDataResult = byteArrayOf(4, 5, 6))
             val profileDeleter = FakeProfileDeleter(createCheckpointResult = true)
             val userManager = FakeUserManager(tox)
 
             val viewModel = BackupSettingsViewModel(
                 fileProcessor = fileProcessor,
-                toxStarter = toxStarter,
-                tox = tox,
-                backupUseCase = backupUseCase,
-                profileDeleter = profileDeleter,
-                userManager = userManager
+                startToxUseCase = StartToxUseCase(toxStarter),
+                manageToxLifecycleUseCase = ManageToxLifecycleUseCase(tox, toxStarter),
+                getToxRunningStateUseCase = GetToxRunningStateUseCase(tox),
+                exportBackupUseCase = exportBackupUseCase,
+                importBackupUseCase = importBackupUseCase,
+                getBackupProviderDataUseCase = getBackupProviderDataUseCase,
+                backupProviders = emptyList(),
+                clearDatabaseUseCase = ClearDatabaseUseCase(profileDeleter),
+                getSelfUserUseCase = GetSelfUserUseCase(userManager, tox),
+                verifyProfileExistsUseCase = VerifyProfileExistsUseCase(userManager),
+                manageProfileCheckpointUseCase = ManageProfileCheckpointUseCase(profileDeleter)
             )
 
             // Start collecting events in a background coroutine to prevent Flow emit from suspending
@@ -245,6 +287,7 @@ class BackupSettingsViewModelTest {
         }
 
         override suspend fun createCheckpoint(): Boolean {
+            clearCheckpointCalled = false
             createCheckpointCalled = true
             return createCheckpointResult
         }
@@ -312,6 +355,8 @@ class BackupSettingsViewModelTest {
         override fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean = true
         override fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int = 0
         override fun groupReconnect(groupNumber: Int): Boolean = true
+        override fun addFriendNoRequest(publicKey: PublicKey): Int = 0
+        override fun groupGetChatlist(): IntArray = intArrayOf()
     }
 
     private class FakeToxStarter(
@@ -332,26 +377,31 @@ class BackupSettingsViewModelTest {
         override fun tryLoadTox(password: String?): ToxSaveStatus = startToxStatus
     }
 
-    // Renamed to avoid violating Konsist architecture rules
-    private class FakeBackupLogic(
+    private inner class FakeExportBackupUseCase : ExportBackupUseCase(emptyList(), fakePlatformServices) {
+        override suspend fun execute(selectedIds: Set<String>, password: String?): ByteArray = byteArrayOf(1, 2, 3)
+    }
+
+    private inner class FakeImportBackupUseCase : ImportBackupUseCase(emptyList(), fakePlatformServices) {
+        override suspend fun execute(data: ByteArray, password: String?, skipIds: Set<String>) {}
+    }
+
+    private inner class FakeGetBackupProviderDataUseCase(
         private val providerDataResult: ByteArray? = null
-    ) : BackupUseCase(emptyList()) {
-        override suspend fun providerData(data: ByteArray, password: String?, id: String): ByteArray? {
+    ) : GetBackupProviderDataUseCase(fakePlatformServices) {
+        override suspend fun execute(data: ByteArray, password: String?, id: String): ByteArray? {
             return providerDataResult
         }
-
-        override suspend fun import(data: ByteArray, password: String?, skipIds: Set<String>) {}
     }
 
     private class FakeUserRepository : IUserRepository {
         override fun get(publicKey: String): kotlinx.coroutines.flow.Flow<User?> = kotlinx.coroutines.flow.emptyFlow()
-        override fun add(user: User) {}
-        override fun exists(publicKey: String): Boolean = false
-        override fun updateName(publicKey: String, name: String) {}
-        override fun updateStatusMessage(publicKey: String, statusMessage: String) {}
-        override fun updateStatus(publicKey: String, status: UserStatus) {}
-        override fun update(user: User) {}
-        override fun updateConnection(publicKey: String, connectionStatus: ConnectionStatus) {}
+        override suspend fun add(user: User) {}
+        override suspend fun exists(publicKey: String): Boolean = false
+        override suspend fun updateName(publicKey: String, name: String) {}
+        override suspend fun updateStatusMessage(publicKey: String, statusMessage: String) {}
+        override suspend fun updateStatus(publicKey: String, status: UserStatus) {}
+        override suspend fun update(user: User) {}
+        override suspend fun updateConnection(publicKey: String, connectionStatus: ConnectionStatus) {}
     }
 
     private class FakeUserManager(tox: ITox) : UserManager(

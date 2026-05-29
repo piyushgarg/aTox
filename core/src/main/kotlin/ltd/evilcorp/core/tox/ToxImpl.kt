@@ -61,6 +61,9 @@ class ToxImpl @Inject constructor(
         runtime.acceptFriendRequest(publicKey)
     }
 
+    override fun addFriendNoRequest(publicKey: PublicKey): Int =
+        runtime.addFriendNoRequest(publicKey)
+
     override fun startFileTransfer(pk: PublicKey, fileNumber: Int) {
         runtime.startFileTransfer(pk, fileNumber)
     }
@@ -180,4 +183,7 @@ class ToxImpl @Inject constructor(
 
     override fun groupReconnect(groupNumber: Int): Boolean =
         runtime.groupReconnect(groupNumber)
+
+    override fun groupGetChatlist(): IntArray =
+        runtime.groupGetChatlist()
 }

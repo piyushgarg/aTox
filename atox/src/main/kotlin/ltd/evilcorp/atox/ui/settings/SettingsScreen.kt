@@ -8,12 +8,14 @@ import android.media.RingtoneManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,7 +53,7 @@ import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsViewModel
 import ltd.evilcorp.atox.ui.settings.backup.BackupUiEvent
 import ltd.evilcorp.atox.ui.settings.screens.SoundPickerTarget
 
-@Suppress("FunctionNaming", "CyclomaticComplexMethod", "ComplexMethod", "LongMethod", "ViewModelForwarding")
+@Suppress("FunctionNaming", "ViewModelForwarding")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -105,16 +107,6 @@ fun SettingsScreen(
     val showProxyDialog by viewModel.showProxyDialog.collectAsState()
     val showFtAcceptDialog by viewModel.showFtAcceptDialog.collectAsState()
     val showBootstrapDialog by viewModel.showBootstrapDialog.collectAsState()
-    val accountPickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val accountName = result.data?.getStringExtra(
-                android.accounts.AccountManager.KEY_ACCOUNT_NAME
-            )
-            if (!accountName.isNullOrBlank()) { state.googleAccountInput = accountName }
-        }
-    }
     LaunchedEffect(storedSettings.backupGoogleAccount) {
         state.googleAccountInput = storedSettings.backupGoogleAccount
     }
@@ -123,53 +115,9 @@ fun SettingsScreen(
     }
     val backupExporting by backupViewModel.backupExporting.collectAsState()
     val backupImporting by backupViewModel.backupImporting.collectAsState()
-    val backupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/zip")
-    ) { uri ->
-        if (uri != null) {
-            val encryptionPassword = state.backupPassword.takeIf { state.backupPasswordEnabled }
-            backupViewModel.exportBackup(
-                uri.toString(),
-                state.selectedBackupIds + mandatoryBackupId,
-                encryptionPassword
-            )
-        }
-    }
-    val restoreBackupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            state.pendingRestoreUri = uri.toString()
-            state.showRestoreConfirmDialog = true
-        }
-    }
-    val ringtonePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val pickedUri = result.data?.getParcelableExtra<Uri>(
-            RingtoneManager.EXTRA_RINGTONE_PICKED_URI
-        )
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            when (state.soundPickerTarget) {
-                SoundPickerTarget.Sent -> settings.sentMessageSoundUri = pickedUri?.toString().orEmpty()
-                SoundPickerTarget.Call -> settings.callRingtoneUri = pickedUri?.toString().orEmpty()
-                SoundPickerTarget.Notification -> settings.notificationSoundUri = pickedUri?.toString().orEmpty()
-                SoundPickerTarget.ActiveChat -> settings.activeChatSoundUri = pickedUri?.toString().orEmpty()
-            }
-        }
-    }
-    val autoSaveDirectoryLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
-    ) { uri ->
-        if (uri != null) {
-            runCatching {
-                val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                context.contentResolver.takePersistableUriPermission(uri, takeFlags)
-            }
-            settings.autoSaveDirectoryUri = uri.toString()
-        }
-    }
+
+    val launchers = rememberSettingsLaunchers(state, viewModel, backupViewModel, mandatoryBackupId)
+
     val autoSaveDirectoryLabel = remember(storedSettings.autoSaveDirectoryUri) {
         val uriString = storedSettings.autoSaveDirectoryUri
         if (uriString.isBlank()) {
@@ -295,73 +243,91 @@ fun SettingsScreen(
                 )
             }
         ) { scaffoldPadding ->
-            SettingsScreenContent(
-                state = state,
-                paddingValues = scaffoldPadding,
-                storedSettings = storedSettings,
-                appearance = appearance,
-                settings = settings,
-                context = context,
-                languages = languages,
-                currentLanguageCode = currentLanguageCode,
-                timeFormatPreference = timeFormatPreference,
-                dateFormatPreference = dateFormatPreference,
-                performHaptic = performHaptic,
-                onDynamicColorChanged = onDynamicColorChanged,
-                onThemeChanged = onThemeChanged,
-                onLocaleTagChanged = onLocaleTagChanged,
-                autoSaveDirectoryLabel = autoSaveDirectoryLabel,
-                autoSaveDirectoryLauncher = autoSaveDirectoryLauncher,
-                viewModel = viewModel,
-                bootstrapNodeSource = bootstrapNodeSource,
-                proxyType = proxyType,
-                proxyAddress = proxyAddress,
-                onDisableScreenshotsChanged = onDisableScreenshotsChanged,
-                focusManager = focusManager,
-                backupViewModel = backupViewModel,
-                backupExporting = backupExporting,
-                backupImporting = backupImporting,
-                backupLauncher = backupLauncher,
-                restoreBackupLauncher = restoreBackupLauncher,
-                ringtonePickerLauncher = ringtonePickerLauncher,
-                mandatoryBackupId = mandatoryBackupId,
-                searchItems = searchItems
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 640.dp)
+                        .fillMaxWidth()
+                ) {
+                    SettingsScreenContent(
+                        state = state,
+                        paddingValues = scaffoldPadding,
+                        storedSettings = storedSettings,
+                        appearance = appearance,
+                        settings = settings,
+                        context = context,
+                        languages = languages,
+                        currentLanguageCode = currentLanguageCode,
+                        timeFormatPreference = timeFormatPreference,
+                        dateFormatPreference = dateFormatPreference,
+                        performHaptic = performHaptic,
+                        onDynamicColorChanged = onDynamicColorChanged,
+                        onThemeChanged = onThemeChanged,
+                        onLocaleTagChanged = onLocaleTagChanged,
+                        autoSaveDirectoryLabel = autoSaveDirectoryLabel,
+                        launchers = launchers,
+                        viewModel = viewModel,
+                        bootstrapNodeSource = bootstrapNodeSource,
+                        proxyType = proxyType,
+                        proxyAddress = proxyAddress,
+                        onDisableScreenshotsChanged = onDisableScreenshotsChanged,
+                        focusManager = focusManager,
+                        backupViewModel = backupViewModel,
+                        backupExporting = backupExporting,
+                        backupImporting = backupImporting,
+                        mandatoryBackupId = mandatoryBackupId,
+                        searchItems = searchItems
+                    )
+                }
+            }
         }
     } else {
-        Box(modifier = Modifier.fillMaxSize()) {
-            SettingsScreenContent(
-                state = state,
-                paddingValues = PaddingValues(0.dp),
-                storedSettings = storedSettings,
-                appearance = appearance,
-                settings = settings,
-                context = context,
-                languages = languages,
-                currentLanguageCode = currentLanguageCode,
-                timeFormatPreference = timeFormatPreference,
-                dateFormatPreference = dateFormatPreference,
-                performHaptic = performHaptic,
-                onDynamicColorChanged = onDynamicColorChanged,
-                onThemeChanged = onThemeChanged,
-                onLocaleTagChanged = onLocaleTagChanged,
-                autoSaveDirectoryLabel = autoSaveDirectoryLabel,
-                autoSaveDirectoryLauncher = autoSaveDirectoryLauncher,
-                viewModel = viewModel,
-                bootstrapNodeSource = bootstrapNodeSource,
-                proxyType = proxyType,
-                proxyAddress = proxyAddress,
-                onDisableScreenshotsChanged = onDisableScreenshotsChanged,
-                focusManager = focusManager,
-                backupViewModel = backupViewModel,
-                backupExporting = backupExporting,
-                backupImporting = backupImporting,
-                backupLauncher = backupLauncher,
-                restoreBackupLauncher = restoreBackupLauncher,
-                ringtonePickerLauncher = ringtonePickerLauncher,
-                mandatoryBackupId = mandatoryBackupId,
-                searchItems = searchItems
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 640.dp)
+                    .fillMaxWidth()
+            ) {
+                SettingsScreenContent(
+                    state = state,
+                    paddingValues = PaddingValues(0.dp),
+                    storedSettings = storedSettings,
+                    appearance = appearance,
+                    settings = settings,
+                    context = context,
+                    languages = languages,
+                    currentLanguageCode = currentLanguageCode,
+                    timeFormatPreference = timeFormatPreference,
+                    dateFormatPreference = dateFormatPreference,
+                    performHaptic = performHaptic,
+                    onDynamicColorChanged = onDynamicColorChanged,
+                    onThemeChanged = onThemeChanged,
+                    onLocaleTagChanged = onLocaleTagChanged,
+                    autoSaveDirectoryLabel = autoSaveDirectoryLabel,
+                    launchers = launchers,
+                    viewModel = viewModel,
+                    bootstrapNodeSource = bootstrapNodeSource,
+                    proxyType = proxyType,
+                    proxyAddress = proxyAddress,
+                    onDisableScreenshotsChanged = onDisableScreenshotsChanged,
+                    focusManager = focusManager,
+                    backupViewModel = backupViewModel,
+                    backupExporting = backupExporting,
+                    backupImporting = backupImporting,
+                    mandatoryBackupId = mandatoryBackupId,
+                    searchItems = searchItems
+                )
+            }
         }
     }
     SettingsScreenDialogs(
@@ -373,6 +339,6 @@ fun SettingsScreen(
         onAccentColorSeedChanged = onAccentColorSeedChanged,
         performHaptic = performHaptic,
         focusManager = focusManager,
-        accountPickerLauncher = accountPickerLauncher
+        launchers = launchers
     )
 }

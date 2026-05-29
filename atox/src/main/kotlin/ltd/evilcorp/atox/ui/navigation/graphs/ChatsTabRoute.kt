@@ -47,12 +47,9 @@ fun NavGraphBuilder.chatsTabRoute(
                 ChatsRouteScreen(
                     connectionStatus = user?.connectionStatus ?: ConnectionStatus.None,
                     contacts = contacts,
-                    filteredContacts = filteredContacts,
                     friendRequests = friendRequests,
                     groupInvite = groupInvite,
                     groupInviteFriendName = groupInviteFriendName,
-                    searchQuery = searchQuery,
-                    onSearchQueryChanged = contactListViewModel::setSearchQuery,
                     dateFormatPreference = settings.dateFormatPreference,
                     timeFormatPreference = settings.timeFormatPreference,
                     onContactClick = { contact ->
@@ -72,11 +69,8 @@ fun NavGraphBuilder.chatsTabRoute(
                         }
                     },
                     onContactInteraction = {},
-                    isSearching = false,
-                    onSearchingChanged = { searching ->
-                        if (searching) {
-                            navController.navigate(AppRoutes.SearchContacts)
-                        }
+                    onSearchClick = {
+                        navController.navigate(AppRoutes.SearchContacts)
                     }
                 )
             }

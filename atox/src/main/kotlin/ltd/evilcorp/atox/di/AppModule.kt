@@ -10,6 +10,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import ltd.evilcorp.atox.infrastructure.backup.CallLogBackupDataProvider
@@ -21,13 +22,30 @@ import ltd.evilcorp.atox.infrastructure.backup.TransferredFilesBackupDataProvide
 import ltd.evilcorp.core.tox.save.AndroidSaveManagerImpl
 import ltd.evilcorp.domain.core.network.save.ISaveManager
 import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
+import ltd.evilcorp.domain.core.di.IoDispatcher
+import ltd.evilcorp.domain.core.di.DefaultDispatcher
+import ltd.evilcorp.domain.core.di.MainDispatcher
 
 @Module
 @InstallIn(SingletonComponent::class)
 class AppModule {
 
     @Provides
-    fun provideCoroutineScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    @IoDispatcher
+    fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+
+    @Provides
+    @DefaultDispatcher
+    fun provideDefaultDispatcher(): CoroutineDispatcher = Dispatchers.Default
+
+    @Provides
+    @MainDispatcher
+    fun provideMainDispatcher(): CoroutineDispatcher = Dispatchers.Main
+
+    @Provides
+    fun provideCoroutineScope(
+        @DefaultDispatcher defaultDispatcher: CoroutineDispatcher
+    ): CoroutineScope = CoroutineScope(SupervisorJob() + defaultDispatcher)
 
     @Provides
     fun provideSaveManager(ctx: Context): ISaveManager = AndroidSaveManagerImpl(ctx)

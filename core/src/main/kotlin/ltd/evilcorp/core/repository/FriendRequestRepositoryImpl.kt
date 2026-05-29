@@ -11,9 +11,9 @@ import ltd.evilcorp.domain.features.contacts.repository.IFriendRequestRepository
 
 @Singleton
 class FriendRequestRepositoryImpl @Inject internal constructor(private val friendRequestDao: FriendRequestDao) : IFriendRequestRepository {
-    override fun add(friendRequest: FriendRequest) = friendRequestDao.save(FriendRequestEntity.fromDomain(friendRequest))
+    override suspend fun add(friendRequest: FriendRequest) = friendRequestDao.save(FriendRequestEntity.fromDomain(friendRequest))
 
-    override fun delete(friendRequest: FriendRequest) = friendRequestDao.delete(FriendRequestEntity.fromDomain(friendRequest))
+    override suspend fun delete(friendRequest: FriendRequest) = friendRequestDao.delete(FriendRequestEntity.fromDomain(friendRequest))
 
     override fun getAll(): Flow<List<FriendRequest>> =
         friendRequestDao.loadAll().map { list -> list.map { it.toDomain() } }
@@ -21,5 +21,5 @@ class FriendRequestRepositoryImpl @Inject internal constructor(private val frien
     override fun get(publicKey: String): Flow<FriendRequest?> =
         friendRequestDao.load(publicKey).map { it?.toDomain() }
 
-    override fun count(): Int = friendRequestDao.count()
+    override suspend fun count(): Int = friendRequestDao.count()
 }

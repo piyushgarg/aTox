@@ -16,6 +16,8 @@ import ltd.evilcorp.domain.core.network.bootstrap.IBootstrapNodeJsonSource
 import ltd.evilcorp.atox.infrastructure.tox.AndroidBootstrapNodeJsonSource
 import ltd.evilcorp.domain.features.settings.ISettingsFileProcessor
 import ltd.evilcorp.atox.ui.settings.AndroidSettingsFileProcessor
+import ltd.evilcorp.domain.features.settings.IRunAtStartupController
+import ltd.evilcorp.atox.infrastructure.settings.AndroidRunAtStartupController
 import ltd.evilcorp.domain.features.call.IProximityManager
 import ltd.evilcorp.atox.infrastructure.service.AndroidProximityManager
 import ltd.evilcorp.domain.core.network.INotificationManager
@@ -61,6 +63,16 @@ import ltd.evilcorp.atox.ui.chat.FileExporter
 import ltd.evilcorp.atox.ui.chat.AndroidFileExporter
 import ltd.evilcorp.atox.ui.createprofile.ProfileBackupProcessor
 import ltd.evilcorp.atox.ui.createprofile.AndroidProfileBackupProcessor
+import ltd.evilcorp.domain.core.network.IFileStorageProvider
+import ltd.evilcorp.core.platform.storage.AndroidFileStorageProvider
+import ltd.evilcorp.domain.features.transfer.IFileTransferSessionRegistry
+import ltd.evilcorp.core.platform.storage.FileTransferSessionRegistryImpl
+import ltd.evilcorp.domain.features.group.IGroupSessionRegistry
+import ltd.evilcorp.core.platform.storage.GroupSessionRegistryImpl
+import ltd.evilcorp.domain.features.call.ICallSessionRegistry
+import ltd.evilcorp.core.platform.storage.CallSessionRegistryImpl
+import ltd.evilcorp.domain.core.platform.IPlatformServices
+import ltd.evilcorp.core.platform.JvmPlatformServices
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -178,4 +190,32 @@ interface AppBindingsModule {
     @Binds
     @Singleton
     fun bindProfileBackupProcessor(impl: AndroidProfileBackupProcessor): ProfileBackupProcessor
+
+    @Binds
+    @Singleton
+    fun bindFileStorageProvider(impl: AndroidFileStorageProvider): IFileStorageProvider
+
+    @Binds
+    @Singleton
+    fun bindFileTransferSessionRegistry(impl: FileTransferSessionRegistryImpl): IFileTransferSessionRegistry
+
+    @Binds
+    @Singleton
+    fun bindGroupSessionRegistry(impl: GroupSessionRegistryImpl): IGroupSessionRegistry
+
+    @Binds
+    @Singleton
+    fun bindCallSessionRegistry(impl: CallSessionRegistryImpl): ICallSessionRegistry
+
+    @Binds
+    @Singleton
+    fun bindRunAtStartupController(impl: AndroidRunAtStartupController): IRunAtStartupController
+
+    @Binds
+    @Singleton
+    fun bindPlatformServices(impl: JvmPlatformServices): IPlatformServices
+
+    @Binds
+    @Singleton
+    fun bindToxFriendEventBus(impl: ltd.evilcorp.atox.infrastructure.tox.ToxFriendEventBusImpl): ltd.evilcorp.domain.features.contacts.IToxFriendEventBus
 }

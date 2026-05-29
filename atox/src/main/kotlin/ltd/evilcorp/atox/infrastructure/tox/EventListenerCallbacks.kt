@@ -12,6 +12,7 @@ class EventListenerCallbacks @Inject constructor(
     private val fileTransferEventHandler: FileTransferEventHandler,
     private val callEventHandler: CallEventHandler,
     private val groupEventHandler: GroupEventHandler,
+    private val groupSyncManager: GroupSyncManager,
 ) {
     fun setUp(listener: ToxEventListener) = with(listener) {
         friendStatusMessageHandler = friendEventHandler::onFriendStatusMessage
@@ -21,6 +22,7 @@ class EventListenerCallbacks @Inject constructor(
         friendRequestHandler = { publicKey, _, message -> friendEventHandler.onFriendRequest(publicKey, message) }
         friendMessageHandler = { publicKey, type, _, message -> friendEventHandler.onFriendMessage(publicKey, type, message) }
         friendNameHandler = friendEventHandler::onFriendName
+        friendLosslessPacketHandler = groupSyncManager::handleLosslessPacket
         fileRecvChunkHandler = fileTransferEventHandler::onFileRecvChunk
         fileRecvHandler = fileTransferEventHandler::onFileRecv
         fileRecvControlHandler = fileTransferEventHandler::onFileRecvControl

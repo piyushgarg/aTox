@@ -39,20 +39,20 @@ class ChatFileTransferDelegate @Inject constructor(
     }
 
     suspend fun acceptFt(id: Int) {
-        manageFileTransferUseCase.accept(id)
+        manageFileTransferUseCase.execute(ltd.evilcorp.domain.features.transfer.usecase.FileTransferAction.Accept(id))
     }
 
     suspend fun rejectFt(id: Int) {
-        manageFileTransferUseCase.reject(id)
+        manageFileTransferUseCase.execute(ltd.evilcorp.domain.features.transfer.usecase.FileTransferAction.Reject(id))
     }
 
     suspend fun createFt(publicKey: PublicKey, file: Uri) {
         notificationHelper.invalidateAvatar(file.toString())
-        manageFileTransferUseCase.create(publicKey, file.toString())
+        manageFileTransferUseCase.execute(ltd.evilcorp.domain.features.transfer.usecase.FileTransferAction.Create(publicKey, file.toString()))
     }
 
     suspend fun deleteFt(correlationId: Int) {
-        manageFileTransferUseCase.delete(correlationId)
+        manageFileTransferUseCase.execute(ltd.evilcorp.domain.features.transfer.usecase.FileTransferAction.Delete(correlationId))
     }
 
     suspend fun exportFt(id: Int, dest: Uri): Result<Unit> {

@@ -82,7 +82,7 @@ fun GroupInviteCard(
         }
         
         Text(
-            text = "Вас пригласили присоединиться к групповому чату.",
+            text = stringResource(R.string.group_invite_card_body),
             fontSize = 13.sp,
             color = contentColor.copy(alpha = 0.8f)
         )
@@ -120,7 +120,7 @@ fun GroupInviteCard(
                     modifier = Modifier.height(32.dp)
                 ) {
                     Text(
-                        text = if (joined) "Перейти" else "Вступить",
+                        text = if (joined) stringResource(R.string.group_invite_view) else stringResource(R.string.group_invite_join),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )

@@ -6,10 +6,7 @@ package ltd.evilcorp.domain.features.transfer
 
 import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
 import ltd.evilcorp.domain.core.network.enums.ToxFileControl
-import java.io.InputStream
-import java.util.Date
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.ConcurrentHashMap
+import ltd.evilcorp.domain.core.io.IInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -40,25 +37,24 @@ private const val TAG = "FileTransferManager"
 private const val FINGERPRINT_LEN = 8
 private fun String.fingerprint() = take(FINGERPRINT_LEN)
 
-@Suppress("ArrayInDataClass")
-internal data class Chunk(val pos: Long, val data: ByteArray)
-
-internal data class OutgoingFile(val inputStream: InputStream, val unsentChunks: MutableList<Chunk>)
-
 @Singleton
 class FileTransferManager @Inject constructor(
     internal val scope: CoroutineScope,
-    internal val platformHelper: IFileTransferPlatformHelper,
-    internal val contactRepository: IContactRepository,
-    internal val messageRepository: IMessageRepository,
-    internal val fileTransferRepository: IFileTransferRepository,
+    private val storageCoordinator: FileStoragePlatformCoordinator,
+    private val repositories: FileTransferRepositories,
     internal val tox: IToxFileTransmitter,
     internal val toxProfile: IToxProfile,
-    internal val userSettingsRepository: IUserSettingsRepository,
-    internal val fileStorageHelper: IFileStorageHelper,
+    private val sessionRegistry: IFileTransferSessionRegistry,
 ) {
-    internal val fileTransfers = CopyOnWriteArrayList<FileTransfer>()
-    internal val outgoingFiles = ConcurrentHashMap<Pair<String, Int>, OutgoingFile>()
+    internal val platformHelper get() = storageCoordinator.platformHelper
+    internal val fileStorageHelper get() = storageCoordinator.fileStorageHelper
+    internal val contactRepository get() = repositories.contact
+    internal val messageRepository get() = repositories.message
+    internal val fileTransferRepository get() = repositories.transfer
+    internal val userSettingsRepository get() = repositories.userSettings
+
+    internal val fileTransfers get() = sessionRegistry.fileTransfers
+    internal val outgoingFiles get() = sessionRegistry.outgoingFiles
 
     suspend fun add(ft: FileTransfer): Int {
         println("$TAG: Add ${ft.fileNumber} for ${ft.publicKey.fingerprint()}")
@@ -76,7 +72,7 @@ class FileTransferManager @Inject constructor(
             FileKind.Data.ordinal -> {
                 val id = fileTransferRepository.add(ft).toInt()
                 messageRepository.add(
-                    Message(ft.publicKey, ft.fileName, Sender.Received, MessageType.FileTransfer, id, Date().time),
+                    Message(ft.publicKey, ft.fileName, Sender.Received, MessageType.FileTransfer, id, System.currentTimeMillis()),
                 )
                 fileTransfers.add(ft.copy().apply { this.id = id })
                 id
@@ -252,7 +248,7 @@ class FileTransferManager @Inject constructor(
         )
         val id = fileTransferRepository.add(ft).toInt()
         messageRepository.add(
-            Message(ft.publicKey, ft.fileName, Sender.Sent, MessageType.FileTransfer, id, Date().time),
+            Message(ft.publicKey, ft.fileName, Sender.Sent, MessageType.FileTransfer, id, System.currentTimeMillis()),
         )
         fileTransfers.add(ft.copy().apply { this.id = id })
 

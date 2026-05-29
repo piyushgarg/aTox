@@ -42,12 +42,16 @@ fun CallHistoryCardsPreview() {
                 title = "Incoming call (5 min)",
                 timeString = "12:34",
                 isOutgoing = false,
+                missed = false,
+                cancelled = false,
                 onClick = {}
             )
             CallHistoryCard(
                 title = "Outgoing call (missed)",
                 timeString = "Yesterday",
                 isOutgoing = true,
+                missed = true,
+                cancelled = false,
                 onClick = {}
             )
         }

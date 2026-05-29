@@ -85,7 +85,7 @@ fun PlaceholderScreen(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Выберите чат для начала общения",
+                text = stringResource(R.string.select_chat_to_start),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 fontSize = 14.sp

@@ -8,9 +8,10 @@ import kotlinx.coroutines.flow.Flow
 import ltd.evilcorp.core.db.entity.GroupMessageEntity
 
 @Dao
+@Suppress("ComplexInterface")
 interface GroupMessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun save(message: GroupMessageEntity)
+    suspend fun save(message: GroupMessageEntity)
 
     @Query("SELECT * FROM group_messages WHERE group_chat_id = :groupChatId ORDER BY id ASC")
     fun load(groupChatId: String): Flow<List<GroupMessageEntity>>
@@ -22,17 +23,23 @@ interface GroupMessageDao {
     fun loadUnsent(groupChatId: String): List<GroupMessageEntity>
 
     @Query("UPDATE group_messages SET correlation_id = :correlationId WHERE id = :id")
-    fun setCorrelationId(id: Long, correlationId: Int)
+    suspend fun setCorrelationId(id: Long, correlationId: Int)
 
     @Query("DELETE FROM group_messages WHERE group_chat_id = :groupChatId")
-    fun delete(groupChatId: String)
+    suspend fun delete(groupChatId: String)
 
     @Query("UPDATE group_messages SET timestamp = :timestamp WHERE group_chat_id = :groupChatId AND correlation_id = :correlationId AND timestamp = 0")
-    fun setReceipt(groupChatId: String, correlationId: Int, timestamp: Long)
+    suspend fun setReceipt(groupChatId: String, correlationId: Int, timestamp: Long)
 
     @Query("SELECT COUNT(*) FROM group_messages WHERE group_chat_id = :groupChatId AND correlation_id = :correlationId")
     fun existsByCorrelationId(groupChatId: String, correlationId: Int): Int
 
+    @Query("SELECT correlation_id FROM group_messages WHERE group_chat_id = :groupChatId")
+    fun getMessageIds(groupChatId: String): List<Int>
+
+    @Query("SELECT * FROM group_messages WHERE group_chat_id = :groupChatId AND correlation_id IN (:ids)")
+    fun getMessagesByIds(groupChatId: String, ids: Set<Int>): List<GroupMessageEntity>
+
     @Query("DELETE FROM group_messages WHERE id = :id")
-    fun deleteMessage(id: Long)
+    suspend fun deleteMessage(id: Long)
 }

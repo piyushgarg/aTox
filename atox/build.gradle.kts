@@ -113,6 +113,7 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.konsist.junit5)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.org.json)
 
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.test.rules)

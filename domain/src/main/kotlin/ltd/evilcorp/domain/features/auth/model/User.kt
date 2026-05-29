@@ -4,11 +4,11 @@ import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 
 data class User(
     val publicKey: String,
-    var name: String = "aTox user",
-    var statusMessage: String = "Brought to you live, by aTox",
-    var status: UserStatus = UserStatus.None,
-    var connectionStatus: ConnectionStatus = ConnectionStatus.None,
-    var password: String = "",
+    val name: String = "aTox user",
+    val statusMessage: String = "Brought to you live, by aTox",
+    val status: UserStatus = UserStatus.None,
+    val connectionStatus: ConnectionStatus = ConnectionStatus.None,
+    val password: String = "",
 )
 
 val User.initials: String

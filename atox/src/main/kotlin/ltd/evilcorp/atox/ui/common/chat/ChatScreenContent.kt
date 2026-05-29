@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -228,7 +230,8 @@ fun <T> ChatScreenContent(
 
                         val bubbleConfig = remember(item) { getBubbleConfig(item) }
 
-                        Column {
+                        @OptIn(ExperimentalFoundationApi::class)
+                        Column(modifier = Modifier.animateItem()) {
                             if (rawIndex == 0 || currentHeader != previousHeader) {
                                 DateSeparator(label = currentHeader)
                                 if (bubbleConfig.showAvatar) {
@@ -238,12 +241,12 @@ fun <T> ChatScreenContent(
 
                             MessageBubble(
                                 msg = msg,
-                                messages = mappedMessages,
+                                messages = StableMessageList(mappedMessages),
                                 uiConfig = uiConfig,
                                 contactName = bubbleConfig.contactName,
                                 onHaptic = performHaptic,
                                 onCallHistoryClick = onCallHistoryClick,
-                                fileTransfers = fileTransfers,
+                                fileTransfers = StableFileTransferList(fileTransfers),
                                 onAcceptFt = onAcceptFt,
                                 onRejectFt = onRejectFt,
                                 onCancelFt = { onCancelFt(item) },

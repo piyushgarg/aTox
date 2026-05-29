@@ -176,6 +176,20 @@ class ToxWrapper(
         }
     }
 
+    // Adds a friend to the list without sending a request.
+    fun addFriendNoRequest(pk: PublicKey): Int = synchronized(jniLock) {
+        try {
+            val result = nativeTox.toxAddFriendNorequest(toxPtr, pk.bytes())
+            if (result >= 0) {
+                updateContactMapping()
+            }
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception while adding friend norequest $pk: $e")
+            -1
+        }
+    }
+
     // File transfer delegation methods
     fun startFileTransfer(pk: PublicKey, fileNumber: Int) = fileTransmitter.startFileTransfer(pk, fileNumber)
     fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = fileTransmitter.stopFileTransfer(pk, fileNumber)
@@ -273,6 +287,7 @@ class ToxWrapper(
     fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
         groupBridge.groupJoinDirect(chatId, selfName, password)
     fun groupReconnect(groupNumber: Int): Boolean = groupBridge.groupReconnect(groupNumber)
+    fun groupGetChatlist(): IntArray = groupBridge.groupGetChatlist()
 
     // Legacy conference/groupav delegation methods
     fun groupavAdd(): Int = groupBridge.groupavAdd()

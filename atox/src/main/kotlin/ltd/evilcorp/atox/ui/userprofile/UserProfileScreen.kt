@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -84,7 +85,7 @@ import ltd.evilcorp.atox.ui.theme.StatusAvailable
 import ltd.evilcorp.atox.ui.theme.StatusAway
 import ltd.evilcorp.atox.ui.theme.StatusBusy
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarEditDialog
-import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
+import ltd.evilcorp.atox.ui.userprofile.components.ToxLogoutConfirmDialog
 import ltd.evilcorp.atox.ui.userprofile.components.QrCodeDialog
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarProcessingDialog
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarSourceDialog
@@ -95,16 +96,14 @@ import ltd.evilcorp.atox.ui.userprofile.components.ProfileAvatarBox
 import ltd.evilcorp.domain.features.auth.model.User
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.domain.features.auth.model.initials
-import androidx.compose.ui.tooling.preview.Preview
-import ltd.evilcorp.atox.ui.theme.AToxTheme
-import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserProfileScreen(
     user: User?,
     toxId: String,
-    avatarFile: java.io.File?,
+    selfAvatarBitmap: androidx.compose.ui.graphics.ImageBitmap?,
     cropState: AvatarCropUiState = AvatarCropUiState.Idle,
     selectedImageUri: android.net.Uri?,
     onSelectedImageUriChanged: (android.net.Uri?) -> Unit,
@@ -125,18 +124,6 @@ fun UserProfileScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
-
-    val selfAvatarBitmap = remember(avatarFile) {
-        if (avatarFile != null && avatarFile.exists() && avatarFile.length() > 0L) {
-            try {
-                android.graphics.BitmapFactory.decodeFile(avatarFile.absolutePath)?.asImageBitmap()
-            } catch (e: Exception) {
-                null
-            }
-        } else {
-            null
-        }
-    }
 
     LaunchedEffect(cropState) {
         when (cropState) {
@@ -182,7 +169,8 @@ fun UserProfileScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Beautiful Material 3 Profile Picture with Edit Button
             ProfileAvatarBox(
@@ -194,7 +182,7 @@ fun UserProfileScreen(
 
             // User Info Card
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
@@ -252,7 +240,7 @@ fun UserProfileScreen(
 
             // Tox Status Selection Card
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
@@ -316,11 +304,15 @@ fun UserProfileScreen(
                     }
                     context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.tox_id_share)))
                 },
-                onQrClick = { showQrDialog = true }
+                onQrClick = { showQrDialog = true },
+                modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
             )
 
             // Logout Card
-            ProfileLogoutCard(onLogoutClick = { showLogoutConfirmDialog = true })
+            ProfileLogoutCard(
+                onLogoutClick = { showLogoutConfirmDialog = true },
+                modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
+            )
 
             val extraBottomSpacer = 32.dp
             Spacer(modifier = Modifier.height(extraBottomSpacer + bottomPadding))
@@ -351,14 +343,9 @@ fun UserProfileScreen(
     }
 
     if (showLogoutConfirmDialog) {
-        AtoxConfirmDialog(
+        ToxLogoutConfirmDialog(
             onDismiss = { showLogoutConfirmDialog = false },
-            onConfirm = onLogout,
-            title = stringResource(R.string.profile_logout_confirm_title),
-            text = stringResource(R.string.profile_logout_confirm),
-            confirmText = stringResource(R.string.profile_logout_confirm_button),
-            dismissText = stringResource(R.string.profile_logout_cancel_button),
-            isDangerous = true
+            onConfirm = onLogout
         )
     }
 
@@ -398,32 +385,4 @@ fun UserProfileScreen(
     }
 }
 
-@Preview(name = "User Profile Screen Preview", showBackground = true)
-@Composable
-fun UserProfileScreenPreview() {
-    val mockUser = User(
-        publicKey = "1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF",
-        name = "Sergey Ivanov",
-        statusMessage = "Coding aTox with pure architectures",
-        status = UserStatus.None,
-        connectionStatus = ConnectionStatus.TCP
-    )
 
-    AToxTheme {
-        UserProfileScreen(
-            user = mockUser,
-            toxId = "1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890AB",
-            avatarFile = null,
-            selectedImageUri = null,
-            onSelectedImageUriChanged = {},
-            onLaunchCamera = {},
-            onLaunchGallery = {},
-            onSetName = {},
-            onSetStatusMessage = {},
-            onSetStatus = {},
-            onLogout = {},
-            onAvatarChanged = {},
-            onCropAndSaveAvatar = { _, _, _, _, _, _ -> }
-        )
-    }
-}

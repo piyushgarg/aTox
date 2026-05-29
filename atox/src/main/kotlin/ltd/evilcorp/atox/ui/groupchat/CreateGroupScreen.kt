@@ -33,6 +33,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.atox.R
 import androidx.compose.ui.focus.FocusRequester
@@ -40,6 +41,8 @@ import androidx.compose.ui.focus.focusRequester
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import ltd.evilcorp.domain.features.group.model.GroupPrivacyState
+
+private const val FOCUS_REQUEST_DELAY_MS = 100L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,8 +63,21 @@ fun CreateGroupScreen(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
+        delay(FOCUS_REQUEST_DELAY_MS)
         focusRequester.requestFocus()
     }
+
+    val isScrolled by remember { derivedStateOf { scrollState.value > 0 } }
+    val transitionAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isScrolled) 0.85f else 0.0f,
+        animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessLow),
+        label = "topBarAlpha"
+    )
+    val transitionElevation by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (isScrolled) 4.dp else 0.dp,
+        animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessLow),
+        label = "topBarElevation"
+    )
 
     val performHaptic = {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -70,22 +86,28 @@ fun CreateGroupScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.create_group),
-                        fontWeight = FontWeight.Bold
+            Surface(
+                tonalElevation = transitionElevation,
+                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = transitionAlpha),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(R.string.create_group),
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack, enabled = !isCreating) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isCreating) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
-            )
+            }
         }
     ) { paddingValues ->
         Surface(
@@ -107,14 +129,13 @@ fun CreateGroupScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                 ) {
                     Column(
                         modifier = Modifier
-                            .padding(16.dp)
-                            .animateContentSize(),
+                            .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(

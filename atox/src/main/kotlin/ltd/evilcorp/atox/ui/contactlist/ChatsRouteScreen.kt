@@ -89,12 +89,9 @@ import androidx.compose.animation.core.Spring
 fun ChatsRouteScreen(
     connectionStatus: ConnectionStatus,
     contacts: List<Contact>,
-    filteredContacts: List<Contact>,
     friendRequests: List<FriendRequest>,
     groupInvite: GroupInvite?,
     groupInviteFriendName: String,
-    searchQuery: String,
-    onSearchQueryChanged: (String) -> Unit,
     dateFormatPreference: DateFormatPreference,
     timeFormatPreference: TimeFormatPreference,
     onContactClick: (Contact) -> Unit,
@@ -105,8 +102,7 @@ fun ChatsRouteScreen(
     onRejectGroupInvite: () -> Unit,
     onAddContactClick: () -> Unit,
     onContactInteraction: () -> Unit,
-    isSearching: Boolean = false,
-    onSearchingChanged: (Boolean) -> Unit = {},
+    onSearchClick: () -> Unit,
 ) {
     var contactToDelete by remember { mutableStateOf<Contact?>(null) }
     val listState = rememberSaveable(saver = LazyListState.Saver) {
@@ -133,41 +129,39 @@ fun ChatsRouteScreen(
 
     Scaffold(
         topBar = {
-            if (!isSearching) {
-                Surface(
-                    tonalElevation = transitionElevation,
-                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = transitionAlpha),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TopAppBar(
-                        navigationIcon = {
-                            IconButton(onClick = { onSearchingChanged(true) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Search"
-                                )
-                            }
-                        },
-                        title = {
-                            Column {
+            Surface(
+                tonalElevation = transitionElevation,
+                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = transitionAlpha),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TopAppBar(
+                    navigationIcon = {
+                        IconButton(onClick = onSearchClick) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search"
+                            )
+                        }
+                    },
+                    title = {
+                        Column {
+                            Text(
+                                text = appNameString,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (connectionStatus == ConnectionStatus.None) {
                                 Text(
-                                    text = appNameString,
-                                    fontWeight = FontWeight.Bold
+                                    text = connectingString,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
-                                if (connectionStatus == ConnectionStatus.None) {
-                                    Text(
-                                        text = connectingString,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
-                                }
                             }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color.Transparent
-                        )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
                     )
-                }
+                )
             }
         }
     ) { paddingValues ->
@@ -176,89 +170,29 @@ fun ChatsRouteScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (isSearching) {
-                ltd.evilcorp.atox.ui.common.AtoxSearchBar(
-                    query = searchQuery,
-                    onQueryChange = onSearchQueryChanged,
-                    onSearch = {},
-                    active = true,
-                    onActiveChange = onSearchingChanged,
-                    placeholder = stringResource(R.string.contact_list_search_placeholder),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    
-                    
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(
-                            items = filteredContacts,
-                            key = { contact -> contact.publicKey }
-                        ) { contact ->
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        text = contact.publicKey,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                leadingContent = {
-                                    ContactAvatar(
-                                        name = contact.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        publicKey = contact.publicKey,
-                                        avatarUri = contact.avatarUri,
-                                        size = 40.dp,
-                                        fontSize = 16.sp
-                                    )
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onSearchingChanged(false)
-                                        onSearchQueryChanged("")
-                                        onContactClick(contact)
-                                    }
-                            )
-                        }
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f)
-                        .background(MaterialTheme.colorScheme.background)
-                ) {
-                    ChatListTab(
-                        contacts = contacts,
-                        friendRequests = friendRequests,
-                        groupInvite = groupInvite,
-                        groupInviteFriendName = groupInviteFriendName,
-                        listState = listState,
-                        searchQuery = searchQuery,
-                        dateFormatPreference = dateFormatPreference,
-                        timeFormatPreference = timeFormatPreference,
-                        onContactClick = onContactClick,
-                        onDeleteContact = { contactToDelete = it },
-                        onAcceptFriendRequest = onAcceptFriendRequest,
-                        onRejectFriendRequest = onRejectFriendRequest,
-                        onAcceptGroupInvite = onAcceptGroupInvite,
-                        onRejectGroupInvite = onRejectGroupInvite,
-                        onAddContactClick = onAddContactClick,
-                        onContactInteraction = onContactInteraction,
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                ChatListTab(
+                    contacts = contacts,
+                    friendRequests = friendRequests,
+                    groupInvite = groupInvite,
+                    groupInviteFriendName = groupInviteFriendName,
+                    listState = listState,
+                    dateFormatPreference = dateFormatPreference,
+                    timeFormatPreference = timeFormatPreference,
+                    onContactClick = onContactClick,
+                    onDeleteContact = { contactToDelete = it },
+                    onAcceptFriendRequest = onAcceptFriendRequest,
+                    onRejectFriendRequest = onRejectFriendRequest,
+                    onAcceptGroupInvite = onAcceptGroupInvite,
+                    onRejectGroupInvite = onRejectGroupInvite,
+                    onAddContactClick = onAddContactClick,
+                    onContactInteraction = onContactInteraction,
+                )
             }
         }
 

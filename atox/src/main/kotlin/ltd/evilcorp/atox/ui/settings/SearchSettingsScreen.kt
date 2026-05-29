@@ -25,7 +25,7 @@ import ltd.evilcorp.atox.ui.settings.common.SearchableSetting
 import ltd.evilcorp.atox.ui.settings.common.SettingsSearchPopup
 import ltd.evilcorp.atox.ui.settings.common.SettingsSearchIndex
 
-@Suppress("FunctionNaming", "LongMethod")
+@Suppress("FunctionNaming")
 @Composable
 internal fun SearchSettingsScreen(
     settings: Settings,

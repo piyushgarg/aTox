@@ -80,6 +80,10 @@ class ToxGroupBridge(
         nativeTox.toxGroupReconnect(toxPtrProvider(), groupNumber)
     }
 
+    fun groupGetChatlist(): IntArray = synchronized(lock) {
+        nativeTox.toxGroupGetChatlist(toxPtrProvider())
+    }
+
     fun groupavAdd(): Int = synchronized(lock) {
         nativeToxAv.toxavAddAvGroupchat(toxPtrProvider())
     }

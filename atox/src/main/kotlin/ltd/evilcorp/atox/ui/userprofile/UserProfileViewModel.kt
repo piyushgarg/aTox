@@ -22,14 +22,17 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import ltd.evilcorp.domain.features.auth.model.User
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
-import ltd.evilcorp.domain.features.auth.UserManager
-import ltd.evilcorp.domain.core.network.ITox
-import ltd.evilcorp.domain.features.transfer.FileTransferManager
-import ltd.evilcorp.domain.features.transfer.broadcastAvatar
-import ltd.evilcorp.domain.features.auth.repository.IAvatarRepository
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
+import ltd.evilcorp.domain.features.auth.usecase.UpdateUserProfileUseCase
+import ltd.evilcorp.domain.features.auth.usecase.ProfileAction
+import ltd.evilcorp.domain.features.auth.usecase.BroadcastAvatarUseCase
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfAvatarUseCase
 import ltd.evilcorp.domain.features.auth.usecase.SaveAvatarUseCase
 import ltd.evilcorp.domain.features.auth.usecase.DeleteProfileUseCase
 import java.io.File
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import android.graphics.BitmapFactory
 
 private const val DEBOUNCE_DELAY_MS = 800L
 
@@ -42,10 +45,10 @@ sealed interface AvatarCropUiState {
 
 @HiltViewModel
 class UserProfileViewModel @Inject constructor(
-    private val userManager: UserManager,
-    private val tox: ITox,
-    private val fileTransferManager: FileTransferManager,
-    private val avatarRepository: IAvatarRepository,
+    private val getSelfUserUseCase: GetSelfUserUseCase,
+    private val updateUserProfileUseCase: UpdateUserProfileUseCase,
+    private val broadcastAvatarUseCase: BroadcastAvatarUseCase,
+    private val getSelfAvatarUseCase: GetSelfAvatarUseCase,
     private val saveAvatarUseCase: SaveAvatarUseCase,
     private val deleteProfileUseCase: DeleteProfileUseCase,
 ) : ViewModel() {
@@ -56,9 +59,9 @@ class UserProfileViewModel @Inject constructor(
         }
     }
 
-    val publicKey by lazy { tox.publicKey }
-    val toxId by lazy { tox.toxId }
-    val user: StateFlow<User?> = userManager.get(publicKey)
+    val publicKey by lazy { getSelfUserUseCase.publicKey }
+    val toxId by lazy { getSelfUserUseCase.toxId }
+    val user: StateFlow<User?> = getSelfUserUseCase.execute()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -67,6 +70,9 @@ class UserProfileViewModel @Inject constructor(
 
     private val _avatarFile = MutableStateFlow<File?>(null)
     val avatarFile: StateFlow<File?> = _avatarFile.asStateFlow()
+
+    private val _avatarBitmap = MutableStateFlow<ImageBitmap?>(null)
+    val avatarBitmap: StateFlow<ImageBitmap?> = _avatarBitmap.asStateFlow()
 
     private val nameUpdates = MutableSharedFlow<String>()
     private val statusUpdates = MutableSharedFlow<String>()
@@ -81,7 +87,7 @@ class UserProfileViewModel @Inject constructor(
         viewModelScope.launch {
             nameUpdates.debounce(DEBOUNCE_DELAY_MS).collectLatest { name ->
                 withContext(Dispatchers.IO) {
-                    userManager.setName(name)
+                    updateUserProfileUseCase.execute(ProfileAction.Name(name))
                 }
             }
         }
@@ -90,7 +96,7 @@ class UserProfileViewModel @Inject constructor(
         viewModelScope.launch {
             statusUpdates.debounce(DEBOUNCE_DELAY_MS).collectLatest { status ->
                 withContext(Dispatchers.IO) {
-                    userManager.setStatusMessage(status)
+                    updateUserProfileUseCase.execute(ProfileAction.StatusMessage(status))
                 }
             }
         }
@@ -98,11 +104,18 @@ class UserProfileViewModel @Inject constructor(
 
     fun loadAvatar() {
         viewModelScope.launch {
-            val file = withContext(Dispatchers.IO) {
-                val f = avatarRepository.getSelfAvatarFile()
-                if (f.exists() && f.length() > 0L) f else null
+            val result = withContext(Dispatchers.IO) {
+                val f = getSelfAvatarUseCase.execute()
+                if (f.exists() && f.length() > 0L) {
+                    try {
+                        BitmapFactory.decodeFile(f.absolutePath)?.asImageBitmap()
+                    } catch (e: Exception) {
+                        null
+                    }
+                } else null
             }
-            _avatarFile.value = file
+            _avatarBitmap.value = result
+            _avatarFile.value = if (result != null) getSelfAvatarUseCase.execute() else null
         }
     }
 
@@ -120,13 +133,13 @@ class UserProfileViewModel @Inject constructor(
 
     fun setStatus(status: UserStatus) {
         viewModelScope.launch {
-            userManager.setStatus(status)
+            updateUserProfileUseCase.execute(ProfileAction.Status(status))
         }
     }
 
     fun broadcastAvatar() {
         viewModelScope.launch {
-            fileTransferManager.broadcastAvatar()
+            broadcastAvatarUseCase.execute()
         }
     }
 

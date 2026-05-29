@@ -1,6 +1,5 @@
 package ltd.evilcorp.domain.features.contacts
 
-import java.util.Date
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,7 +20,7 @@ class ContactManager @Inject constructor(
         val publicKeyTxt = toxID.toPublicKey().string()
         tox.addContact(toxID, message)
         contactRepository.add(Contact(publicKeyTxt))
-        contactRepository.setLastMessage(publicKeyTxt, Date().time)
+        contactRepository.setLastMessage(publicKeyTxt, System.currentTimeMillis())
     }
 
     suspend fun delete(publicKey: PublicKey) = withContext(Dispatchers.IO) {

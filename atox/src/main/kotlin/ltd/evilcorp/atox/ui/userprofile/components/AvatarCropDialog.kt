@@ -22,9 +22,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,12 +52,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -120,9 +120,9 @@ fun AvatarEditDialog(
                 .background(
                     androidx.compose.ui.graphics.Brush.verticalGradient(
                         colors = listOf(
-                            Color(COLOR_PREMIUM_VIOLET), // Premium deep violet
-                            Color(COLOR_DEEP_INDIGO), // Deep indigo
-                            Color(COLOR_MIDNIGHT_BLACK)  // Pure midnight black
+                            Color(COLOR_PREMIUM_VIOLET),
+                            Color(COLOR_DEEP_INDIGO),
+                            Color(COLOR_MIDNIGHT_BLACK)
                         )
                     )
                 )
@@ -185,7 +185,7 @@ fun AvatarEditDialog(
                         Canvas(modifier = Modifier.fillMaxSize()) {
                             val canvasWidth = size.width
                             val canvasHeight = size.height
-                            val circleRadius = 125.dp.toPx() // viewport width is ~250.dp, radius is 125.dp
+                            val circleRadius = 125.dp.toPx()
 
                             val androidCanvas = drawContext.canvas.nativeCanvas
                             androidCanvas.saveLayer(0f, 0f, canvasWidth, canvasHeight, null)
@@ -306,4 +306,18 @@ fun AvatarEditDialog(
             }
         }
     }
+}
+
+@Composable
+fun AvatarProcessingDialog() {
+    AlertDialog(
+        onDismissRequest = {},
+        confirmButton = {},
+        title = { Text(stringResource(R.string.settings_cache_calculating)) },
+        text = {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+    )
 }

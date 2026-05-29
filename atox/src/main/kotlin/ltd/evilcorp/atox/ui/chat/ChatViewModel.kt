@@ -24,25 +24,25 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.transform
-import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.domain.features.chat.model.Message
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.core.model.PublicKey
-import ltd.evilcorp.domain.features.chat.ChatManager
-import ltd.evilcorp.domain.features.contacts.ContactManager
 import ltd.evilcorp.domain.core.network.INotificationHelper
 import ltd.evilcorp.domain.features.chat.usecase.SendChatMessageUseCase
+import ltd.evilcorp.domain.features.chat.usecase.ClearChatHistoryUseCase
+import ltd.evilcorp.domain.features.chat.usecase.SetTypingStatusUseCase
+import ltd.evilcorp.domain.features.chat.usecase.DeleteChatMessageUseCase
+import ltd.evilcorp.domain.features.chat.usecase.GetChatMessagesUseCase
+import ltd.evilcorp.domain.features.chat.usecase.SetActiveChatUseCase
+import ltd.evilcorp.domain.features.chat.usecase.SetChatDraftUseCase
+import ltd.evilcorp.domain.features.contacts.usecase.GetContactUseCase
+import ltd.evilcorp.domain.features.settings.usecase.GetUserSettingsUseCase
 import ltd.evilcorp.atox.ui.common.debounceOffline
 
 private const val TAG = "ChatViewModel"
@@ -64,11 +64,16 @@ private const val CLEAR_ACTIVE_CHAT_DELAY_MS = 450L
 class ChatViewModel @Inject constructor(
     private val chatCallDelegate: ChatCallDelegate,
     private val chatFileTransferDelegate: ChatFileTransferDelegate,
-    private val chatManager: ChatManager,
-    private val contactManager: ContactManager,
+    private val getContactUseCase: GetContactUseCase,
+    private val getChatMessagesUseCase: GetChatMessagesUseCase,
+    private val getUserSettingsUseCase: GetUserSettingsUseCase,
+    private val setActiveChatUseCase: SetActiveChatUseCase,
+    private val setChatDraftUseCase: SetChatDraftUseCase,
     private val notificationHelper: INotificationHelper,
-    private val settings: Settings,
     private val sendChatMessageUseCase: SendChatMessageUseCase,
+    private val clearChatHistoryUseCase: ClearChatHistoryUseCase,
+    private val setTypingStatusUseCase: SetTypingStatusUseCase,
+    private val deleteChatMessageUseCase: DeleteChatMessageUseCase,
     val voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 ) : ViewModel(), IChatController {
     private var publicKey = PublicKey("")
@@ -93,7 +98,7 @@ class ChatViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     val contact: StateFlow<Contact?> = activePublicKey
         .filterNotNull()
-        .flatMapLatest { pk -> contactManager.get(pk).debounceOffline() }
+        .flatMapLatest { pk -> getContactUseCase.execute(pk).debounceOffline() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -116,7 +121,7 @@ class ChatViewModel @Inject constructor(
             if (pk == null || pk.string().isEmpty()) {
                 flowOf(emptyList())
             } else {
-                chatManager.messagesFor(pk)
+                getChatMessagesUseCase.execute(pk)
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -125,10 +130,10 @@ class ChatViewModel @Inject constructor(
     val fileTransfers: StateFlow<List<FileTransfer>> = chatFileTransferDelegate.transfersFor(activePublicKey)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun callingNeedsConfirmation(): Boolean = settings.confirmCalling
+    fun callingNeedsConfirmation(): Boolean = getUserSettingsUseCase.settings.value.confirmCalling
     val ongoingCall = chatCallDelegate.ongoingCall
 
-    val uiConfig: StateFlow<ChatUiConfig> = settings.state
+    val uiConfig: StateFlow<ChatUiConfig> = getUserSettingsUseCase.settings
         .map { userSettings ->
             ChatUiConfig(
                 hapticEnabled = userSettings.hapticEnabled,
@@ -143,12 +148,12 @@ class ChatViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = ChatUiConfig(
-                hapticEnabled = settings.hapticEnabled,
-                dateFormatPreference = settings.dateFormatPreference,
-                timeFormatPreference = settings.timeFormatPreference,
-                sentMessageSoundUri = settings.sentMessageSoundUri,
-                sentMessageSoundVolume = settings.sentMessageSoundVolume,
-                enableReplies = settings.enableReplies,
+                hapticEnabled = getUserSettingsUseCase.settings.value.hapticEnabled,
+                dateFormatPreference = getUserSettingsUseCase.settings.value.dateFormatPreference,
+                timeFormatPreference = getUserSettingsUseCase.settings.value.timeFormatPreference,
+                sentMessageSoundUri = getUserSettingsUseCase.settings.value.sentMessageSoundUri,
+                sentMessageSoundVolume = getUserSettingsUseCase.settings.value.sentMessageSoundVolume,
+                enableReplies = getUserSettingsUseCase.settings.value.enableReplies,
             )
         )
 
@@ -189,14 +194,14 @@ class ChatViewModel @Inject constructor(
 
     fun send(message: String, type: MessageType) {
         val replyMsg = replyingToMessage.value
-        val textToSend = if (replyMsg != null && settings.enableReplies) {
-            "[reply:${replyMsg.message.hashCode()}] $message"
+        val replyToMessageId = if (replyMsg != null && getUserSettingsUseCase.settings.value.enableReplies) {
+            replyMsg.message.hashCode()
         } else {
-            message
+            null
         }
         replyingToMessage.value = null
         viewModelScope.launch {
-            sendChatMessageUseCase.execute(publicKey, textToSend, type)
+            sendChatMessageUseCase.execute(publicKey, message, type, replyToMessageId)
         }
     }
 
@@ -205,7 +210,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun clearHistory() = viewModelScope.launch {
-        chatManager.clearHistory(publicKey)
+        clearChatHistoryUseCase.execute(publicKey)
         chatFileTransferDelegate.clearTransfers(publicKey)
     }
 
@@ -228,7 +233,7 @@ class ChatViewModel @Inject constructor(
 
     private fun applyActiveChatSideEffects(pk: PublicKey) {
         notificationHelper.dismissNotifications(pk)
-        chatManager.activeChat = pk.string()
+        setActiveChatUseCase.execute(pk)
     }
 
     fun clearActiveChat(expectedPublicKey: PublicKey) {
@@ -246,7 +251,7 @@ class ChatViewModel @Inject constructor(
         if (publicKey.string().isEmpty()) return
         if (sentTyping != typing) {
             viewModelScope.launch {
-                chatManager.setTyping(publicKey, typing)
+                setTypingStatusUseCase.execute(publicKey, typing)
             }
             sentTyping = typing
         }
@@ -268,7 +273,7 @@ class ChatViewModel @Inject constructor(
         if (msg.type == MessageType.FileTransfer) {
             chatFileTransferDelegate.deleteFt(msg.correlationId)
         }
-        chatManager.deleteMessage(msg.id)
+        deleteChatMessageUseCase.execute(msg.id)
     }
 
     fun exportFt(id: Int, dest: Uri) = viewModelScope.launch {
@@ -292,7 +297,7 @@ class ChatViewModel @Inject constructor(
 
     fun setDraft(draft: String) {
         viewModelScope.launch {
-            contactManager.setDraft(publicKey, draft)
+            setChatDraftUseCase.execute(publicKey, draft)
         }
     }
 

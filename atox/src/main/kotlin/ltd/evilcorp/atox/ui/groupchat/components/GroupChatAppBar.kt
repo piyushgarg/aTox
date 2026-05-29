@@ -63,6 +63,7 @@ fun GroupChatAppBar(
     onPeersClick: () -> Unit,
     onLeaveClick: () -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+    isExpanded: Boolean = false,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -152,16 +153,18 @@ fun GroupChatAppBar(
                 }
             },
             navigationIcon = {
-                Box(modifier = Modifier.padding(start = 4.dp)) {
-                    ltd.evilcorp.atox.ui.common.MorphingNavigationIcon(
-                        isBack = true,
-                        onClick = {
-                            if (uiConfig.hapticEnabled) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (!isExpanded) {
+                    Box(modifier = Modifier.padding(start = 4.dp)) {
+                        ltd.evilcorp.atox.ui.common.MorphingNavigationIcon(
+                            isBack = true,
+                            onClick = {
+                                if (uiConfig.hapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
+                                onBack()
                             }
-                            onBack()
-                        }
-                    )
+                        )
+                    }
                 }
             },
             actions = {

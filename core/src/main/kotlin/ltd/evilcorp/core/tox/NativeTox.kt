@@ -112,6 +112,7 @@ class NativeTox {
     external fun toxGroupInviteSend(tox: Long, groupNumber: Int, friendNumber: Int): Boolean
     external fun toxGroupJoinDirect(tox: Long, chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int
     external fun toxGroupReconnect(tox: Long, groupNumber: Int): Boolean
+    external fun toxGroupGetChatlist(tox: Long): IntArray
 
     // Encryption & decryption profiles
     external fun getSalt(data: ByteArray): ByteArray?

@@ -15,7 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import java.io.File
+import ltd.evilcorp.atox.ui.common.LocalFileStorageProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.clickable
@@ -78,6 +78,7 @@ fun FileTransferCard(
     onSaveAsClick: (Int, String) -> Unit,
     onOpenFile: (FileTransfer) -> Unit
 ) {
+    val fileStorageProvider = LocalFileStorageProvider.current
     val isComplete = ft.isComplete()
     val isLocalReady = ft.isComplete() || ft.outgoing
     val isStarted = ft.isStarted()
@@ -92,17 +93,7 @@ fun FileTransferCard(
 
     val lastModified = remember(ft.destination, isComplete) {
         if (isComplete && ft.destination.isNotEmpty()) {
-            runCatching {
-                val uri = Uri.parse(ft.destination)
-                if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
-                    0L
-                } else {
-                    val file = uri.path?.let(::File)
-                    if (file != null && file.exists()) {
-                        file.lastModified()
-                    } else 0L
-                }
-            }.getOrDefault(0L)
+            fileStorageProvider.lastModified(ft.destination)
         } else 0L
     }
 
@@ -116,9 +107,9 @@ fun FileTransferCard(
                     val inputStream = if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
                         context.contentResolver.openInputStream(uri)
                     } else {
-                        val path = uri.path
-                        if (path != null && File(path).exists()) {
-                            java.io.FileInputStream(File(path))
+                        val path = fileStorageProvider.getAbsolutePath(ft.destination)
+                        if (path != null && fileStorageProvider.exists(ft.destination)) {
+                            java.io.FileInputStream(path)
                         } else null
                     }
                     inputStream?.use { stream ->

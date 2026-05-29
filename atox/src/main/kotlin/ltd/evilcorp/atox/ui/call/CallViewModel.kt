@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -23,11 +22,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.core.model.PublicKey
-import ltd.evilcorp.domain.features.call.CallManager
 import ltd.evilcorp.domain.features.call.CallState
-import ltd.evilcorp.domain.features.contacts.ContactManager
-import ltd.evilcorp.domain.core.network.INotificationManager
-import ltd.evilcorp.domain.features.call.IProximityManager
+import ltd.evilcorp.domain.features.contacts.usecase.GetContactUseCase
+import ltd.evilcorp.domain.features.call.usecase.GetCallStateUseCase
+import ltd.evilcorp.domain.features.call.usecase.GetSpeakerphoneStateUseCase
+import ltd.evilcorp.domain.features.call.usecase.GetMicrophoneStateUseCase
+import ltd.evilcorp.domain.features.call.usecase.ManageCallUseCase
+import ltd.evilcorp.domain.features.call.usecase.CallAction
 import dagger.hilt.android.lifecycle.HiltViewModel
 
 private const val MILLIS_IN_SECOND = 1000L
@@ -36,10 +37,11 @@ private const val UPDATE_DELAY_MS = 1000L
 
 @HiltViewModel
 class CallViewModel @Inject constructor(
-    private val callManager: CallManager,
-    private val notificationManager: INotificationManager,
-    private val contactManager: ContactManager,
-    private val proximityManager: IProximityManager,
+    private val getContactUseCase: GetContactUseCase,
+    private val getCallStateUseCase: GetCallStateUseCase,
+    private val getSpeakerphoneStateUseCase: GetSpeakerphoneStateUseCase,
+    private val getMicrophoneStateUseCase: GetMicrophoneStateUseCase,
+    private val manageCallUseCase: ManageCallUseCase,
 ) : ViewModel() {
     private var publicKey = PublicKey("")
     private val activePublicKey = MutableStateFlow<PublicKey?>(null)
@@ -52,7 +54,7 @@ class CallViewModel @Inject constructor(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val contact: StateFlow<Contact?> = activePublicKey
         .filterNotNull()
-        .flatMapLatest { pk -> contactManager.get(pk) }
+        .flatMapLatest { pk -> getContactUseCase.execute(pk) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -61,7 +63,7 @@ class CallViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            callManager.inCall.collect { state ->
+            getCallStateUseCase.inCall.collect { state ->
                 durationJob?.cancel()
                 if (state is CallState.Active) {
                     val startTime = state.connectedAt
@@ -89,46 +91,35 @@ class CallViewModel @Inject constructor(
 
     fun startCall() {
         viewModelScope.launch {
-            val state = callManager.inCall.value
-            val started = when (state) {
-                CallState.Idle -> callManager.startOutgoingCall(publicKey)
-                is CallState.OutgoingRequesting -> state.publicKey == publicKey
-                is CallState.OutgoingWaiting -> state.publicKey == publicKey
-                is CallState.OutgoingRinging -> state.publicKey == publicKey
-                is CallState.Connecting -> state.publicKey == publicKey
-                is CallState.Active -> state.publicKey == publicKey
-                is CallState.IncomingRinging -> false
-            }
-
-            if (!started) {
-                return@launch
-            }
-
-            callManager.startSendingAudio()
-            notificationManager.showOngoingCallNotification(contactManager.get(publicKey).first() ?: Contact(publicKey.string()))
+            val contactValue = getContactUseCase.execute(publicKey).first() ?: Contact(publicKey.string())
+            manageCallUseCase.execute(CallAction.StartOutgoingCall(publicKey, contactValue))
         }
     }
 
     fun endCall() = viewModelScope.launch {
-        callManager.endCall(publicKey)
-        notificationManager.dismissCallNotification(publicKey)
+        manageCallUseCase.execute(CallAction.EndCall(publicKey))
     }
 
-    fun startSendingAudio() = callManager.startSendingAudio()
-    fun stopSendingAudio() = callManager.stopSendingAudio()
-
-    val speakerphoneState = callManager.speakerphoneOnState
-
-    fun toggleSpeakerphone() {
-        callManager.toggleSpeakerphone()
-        if (speakerphoneState.value) {
-            proximityManager.release()
-        } else {
-            proximityManager.acquire()
+    fun startSendingAudio() {
+        viewModelScope.launch {
+            manageCallUseCase.execute(CallAction.StartSendingAudio)
+        }
+    }
+    fun stopSendingAudio() {
+        viewModelScope.launch {
+            manageCallUseCase.execute(CallAction.StopSendingAudio)
         }
     }
 
-    val inCall = callManager.inCall
-    val sendingAudio = callManager.microphoneEnabled
-    val connectedAt = callManager.inCall.map { (it as? CallState.Active)?.connectedAt ?: -1L }
+    val speakerphoneState = getSpeakerphoneStateUseCase.speakerphoneOnState
+
+    fun toggleSpeakerphone() {
+        viewModelScope.launch {
+            manageCallUseCase.execute(CallAction.ToggleSpeakerphone)
+        }
+    }
+
+    val inCall = getCallStateUseCase.inCall
+    val sendingAudio = getMicrophoneStateUseCase.microphoneEnabled
+    val connectedAt = getCallStateUseCase.inCall.map { (it as? CallState.Active)?.connectedAt ?: -1L }
 }

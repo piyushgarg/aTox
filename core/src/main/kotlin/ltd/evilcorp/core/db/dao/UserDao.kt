@@ -13,25 +13,25 @@ import ltd.evilcorp.domain.features.contacts.model.UserStatus
 @Dao
 interface UserDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
-    fun save(user: UserEntity)
+    suspend fun save(user: UserEntity)
 
     @Update
-    fun update(user: UserEntity)
+    suspend fun update(user: UserEntity)
 
     @Query("UPDATE users SET name = :name WHERE public_key == :publicKey")
-    fun updateName(publicKey: String, name: String)
+    suspend fun updateName(publicKey: String, name: String)
 
     @Query("UPDATE users SET status_message = :statusMessage WHERE public_key == :publicKey")
-    fun updateStatusMessage(publicKey: String, statusMessage: String)
+    suspend fun updateStatusMessage(publicKey: String, statusMessage: String)
 
     @Query("UPDATE users SET connection_status = :connectionStatus WHERE public_key == :publicKey")
-    fun updateConnection(publicKey: String, connectionStatus: ConnectionStatus)
+    suspend fun updateConnection(publicKey: String, connectionStatus: ConnectionStatus)
 
     @Query("UPDATE users SET status = :status WHERE public_key == :publicKey")
-    fun updateStatus(publicKey: String, status: UserStatus)
+    suspend fun updateStatus(publicKey: String, status: UserStatus)
 
     @Query("SELECT COUNT(*) FROM users WHERE public_key = :publicKey")
-    fun exists(publicKey: String): Boolean
+    suspend fun exists(publicKey: String): Boolean
 
     @Query("SELECT * FROM users WHERE public_key = :publicKey")
     fun load(publicKey: String): Flow<UserEntity?>

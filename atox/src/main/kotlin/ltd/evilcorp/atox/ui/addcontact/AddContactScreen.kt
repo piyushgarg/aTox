@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -55,12 +56,6 @@ import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 
 private const val PADDING_STANDARD = 16
-private const val HEX_RADIX = 16
-private const val TOX_ID_HEX_LENGTH = 76
-private const val TOX_ID_BYTES_LENGTH = 38
-private const val TOX_ID_PUBLIC_KEY_LENGTH = 36
-private const val TOX_ID_CHECKSUM_OFFSET_0 = 36
-private const val TOX_ID_CHECKSUM_OFFSET_1 = 37
 
 @Composable
 fun AddContactScreen(
@@ -137,10 +132,11 @@ fun AddContactContent(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
                 .padding(PADDING_STANDARD.dp),
-            verticalArrangement = Arrangement.spacedBy(PADDING_STANDARD.dp)
+            verticalArrangement = Arrangement.spacedBy(PADDING_STANDARD.dp),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
@@ -152,7 +148,7 @@ fun AddContactContent(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    val isToxIdValid = remember(toxIdInput) { isValidToxId(toxIdInput) }
+                    val isToxIdValid = remember(toxIdInput) { ToxID.isValid(toxIdInput) }
 
                     OutlinedTextField(
                         value = toxIdInput,
@@ -278,17 +274,3 @@ fun AddContactLoadingPreview() {
     }
 }
 
-private fun isValidToxId(toxId: String): Boolean {
-    val clean = toxId.trim()
-    if (clean.length != TOX_ID_HEX_LENGTH) return false
-    if (!clean.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) return false
-    return try {
-        val bytes = clean.chunked(2).map { it.toInt(HEX_RADIX).toByte() }.toByteArray()
-        if (bytes.size != TOX_ID_BYTES_LENGTH) return false
-        val message = bytes.copyOfRange(0, TOX_ID_PUBLIC_KEY_LENGTH)
-        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(message)
-        bytes[TOX_ID_CHECKSUM_OFFSET_0] == digest[0] && bytes[TOX_ID_CHECKSUM_OFFSET_1] == digest[1]
-    } catch (e: Exception) {
-        false
-    }
-}

@@ -49,7 +49,9 @@ import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
+import ltd.evilcorp.atox.infrastructure.media.VoiceMessagePlayer
 import ltd.evilcorp.atox.ui.common.formatChatTime
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.domain.features.transfer.model.isComplete
@@ -61,7 +63,6 @@ private const val PLAYBACK_DELAY_MS = 100L
 private const val MILLIS_IN_SECOND = 1000
 private const val SECONDS_IN_MINUTE = 60
 
-@Suppress("CyclomaticComplexMethod")
 @Composable
 fun VoiceMessageCard(
     ft: FileTransfer,
@@ -75,7 +76,6 @@ fun VoiceMessageCard(
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
     var playbackProgress by remember { mutableFloatStateOf(0f) }
-    var mediaPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
     var currentPosition by remember { mutableIntStateOf(0) }
     var duration by remember { mutableIntStateOf(0) }
 
@@ -84,7 +84,10 @@ fun VoiceMessageCard(
 
     DisposableEffect(Unit) {
         onDispose {
-            mediaPlayer?.release()
+            val audioPath = if (ft.destination.isNotEmpty()) ft.destination else ft.fileName
+            if (VoiceMessagePlayer.isPlayingUri(audioPath)) {
+                // Keep playing globally on scroll
+            }
         }
     }
 
@@ -134,10 +137,11 @@ fun VoiceMessageCard(
 
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
-            while (isPlaying && mediaPlayer != null) {
+            val audioPath = if (ft.destination.isNotEmpty()) ft.destination else ft.fileName
+            while (isPlaying && VoiceMessagePlayer.isPlayingUri(audioPath)) {
                 try {
-                    val pos = mediaPlayer?.currentPosition ?: 0
-                    val dur = mediaPlayer?.duration ?: 1
+                    val pos = VoiceMessagePlayer.getCurrentPosition()
+                    val dur = VoiceMessagePlayer.getDuration().coerceAtLeast(1)
                     playbackProgress = pos.toFloat() / dur.toFloat()
                     currentPosition = pos
                     delay(PLAYBACK_DELAY_MS)
@@ -149,11 +153,11 @@ fun VoiceMessageCard(
     }
 
     val playPauseAudio = {
+        val audioPath = if (ft.destination.isNotEmpty()) ft.destination else ft.fileName
         if (isPlaying) {
-            mediaPlayer?.pause()
+            VoiceMessagePlayer.pause()
             isPlaying = false
         } else {
-            val audioPath = if (ft.destination.isNotEmpty()) ft.destination else ft.fileName
             val uri = android.net.Uri.parse(audioPath)
             val exists = try {
                 when (uri.scheme) {
@@ -173,42 +177,36 @@ fun VoiceMessageCard(
                 false
             }
             if (exists) {
-                if (mediaPlayer == null) {
-                    try {
-                        val mp = android.media.MediaPlayer().apply {
-                            if (uri.scheme == "content" || uri.scheme == "file") {
-                                setDataSource(context, uri)
-                            } else {
-                                val file = java.io.File(audioPath)
-                                setDataSource(context, android.net.Uri.fromFile(file))
-                            }
-                            prepare()
-                        }
-                        duration = mp.duration
-                        mp.setOnCompletionListener {
-                            isPlaying = false
-                            playbackProgress = 0f
-                            currentPosition = 0
-                            mp.seekTo(0)
-                        }
-                        mediaPlayer = mp
-                    } catch (e: Exception) {
-                        android.util.Log.e(TAG, "Failed to play voice message", e)
-                        Toast.makeText(context, "Не удалось воспроизвести аудиофайл", Toast.LENGTH_SHORT).show()
-                        mediaPlayer?.release()
-                        mediaPlayer = null
+                VoiceMessagePlayer.play(
+                    context = context,
+                    uriString = audioPath,
+                    onComplete = {
                         isPlaying = false
+                        playbackProgress = 0f
+                        currentPosition = 0
+                    },
+                    onError = {
+                        isPlaying = false
+                        Toast.makeText(context, context.getString(R.string.voice_message_play_error), Toast.LENGTH_SHORT).show()
                     }
-                }
-                
-                if (mediaPlayer != null) {
-                    mediaPlayer?.start()
-                    isPlaying = true
-                }
+                )
+                duration = VoiceMessagePlayer.getDuration()
+                isPlaying = true
             } else {
-                Toast.makeText(context, "Аудиофайл еще загружается или не доступен", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.voice_message_not_ready), Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    val progress = if (ft.fileSize > 0) ft.progress.toFloat() / ft.fileSize.toFloat() else 0f
+    val timerText = if (isPlaying) {
+        formatDuration(currentPosition)
+    } else {
+        if (duration > 0) formatDuration(duration) else "Voice"
+    }
+    val timeString = remember(msg.timestamp, uiConfig.timeFormatPreference) {
+        val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
+        formatChatTime(context, time, uiConfig.timeFormatPreference)
     }
 
     Row(
@@ -217,140 +215,173 @@ fun VoiceMessageCard(
             .width(220.dp)
             .padding(horizontal = 2.dp, vertical = 2.dp)
     ) {
-        Box(
-            modifier = Modifier.size(36.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (!isComplete) {
-                if (!isStarted) {
-                    IconButton(
-                        onClick = { onAcceptFt(ft.id) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FileDownload,
-                            contentDescription = "Download audio",
-                            tint = contentColor,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                } else {
-                    val progress = if (ft.fileSize > 0) ft.progress.toFloat() / ft.fileSize.toFloat() else 0f
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            progress = { progress },
-                            color = contentColor,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        IconButton(
-                            onClick = { onRejectFt(ft.id) },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cancel download",
-                                tint = contentColor,
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                    }
-                }
-            } else {
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = contentColor.copy(alpha = 0.12f),
+        PlaybackControl(
+            isComplete = isComplete,
+            isStarted = isStarted,
+            isPlaying = isPlaying,
+            progress = progress,
+            contentColor = contentColor,
+            onAcceptFt = { onAcceptFt(ft.id) },
+            onRejectFt = { onRejectFt(ft.id) },
+            onPlayPause = playPauseAudio
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        VoiceMessageProgressColumn(
+            playbackProgress = playbackProgress,
+            timerText = timerText,
+            timeString = timeString,
+            isOutgoing = isOutgoing,
+            isTimestampZero = msg.timestamp == 0L,
+            contentColor = contentColor,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun PlaybackControl(
+    isComplete: Boolean,
+    isStarted: Boolean,
+    isPlaying: Boolean,
+    progress: Float,
+    contentColor: Color,
+    onAcceptFt: () -> Unit,
+    onRejectFt: () -> Unit,
+    onPlayPause: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.size(36.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!isComplete) {
+            if (!isStarted) {
+                IconButton(
+                    onClick = onAcceptFt,
                     modifier = Modifier.size(36.dp)
                 ) {
-                    IconButton(
-                        onClick = { playPauseAudio() },
+                    Icon(
+                        imageVector = Icons.Default.FileDownload,
+                        contentDescription = "Download audio",
+                        tint = contentColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            } else {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    CircularProgressIndicator(
+                        progress = { progress },
+                        color = contentColor,
+                        strokeWidth = 2.dp,
                         modifier = Modifier.fillMaxSize()
+                    )
+                    IconButton(
+                        onClick = onRejectFt,
+                        modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cancel download",
                             tint = contentColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                     }
                 }
             }
+        } else {
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = contentColor.copy(alpha = 0.12f),
+                modifier = Modifier.size(36.dp)
+            ) {
+                IconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = contentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.width(8.dp))
+@Composable
+private fun VoiceMessageProgressColumn(
+    playbackProgress: Float,
+    timerText: String,
+    timeString: String,
+    isOutgoing: Boolean,
+    isTimestampZero: Boolean,
+    contentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center
+    ) {
+        LinearProgressIndicator(
+            progress = { playbackProgress },
+            modifier = Modifier.fillMaxWidth().height(4.dp),
+            color = contentColor,
+            trackColor = contentColor.copy(alpha = 0.2f),
+            strokeCap = StrokeCap.Round
+        )
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            LinearProgressIndicator(
-                progress = { playbackProgress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp),
-                color = contentColor,
-                trackColor = contentColor.copy(alpha = 0.2f),
-                strokeCap = StrokeCap.Round
+            Text(
+                text = timerText,
+                fontSize = 11.sp,
+                color = contentColor.copy(alpha = 0.8f)
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
             ) {
-                val timerText = if (isPlaying) {
-                    formatDuration(currentPosition)
-                } else {
-                    if (duration > 0) formatDuration(duration) else "Voice"
-                }
                 Text(
-                    text = timerText,
-                    fontSize = 11.sp,
-                    color = contentColor.copy(alpha = 0.8f)
+                    text = timeString,
+                    fontSize = 10.sp,
+                    color = contentColor.copy(alpha = 0.7f)
                 )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    val timeString = remember(msg.timestamp, uiConfig.timeFormatPreference) {
-                        val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
-                        formatChatTime(context, time, uiConfig.timeFormatPreference)
-                    }
-                    Text(
-                        text = timeString,
-                        fontSize = 10.sp,
-                        color = contentColor.copy(alpha = 0.7f)
-                    )
-                    if (isOutgoing) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        if (msg.timestamp == 0L) {
+                if (isOutgoing) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    if (isTimestampZero) {
+                        Icon(
+                            imageVector = Icons.Default.AccessTime,
+                            contentDescription = "Sending",
+                            tint = contentColor.copy(alpha = 0.7f),
+                            modifier = Modifier.size(11.dp)
+                        )
+                    } else {
+                        Box(modifier = Modifier.size(width = 16.dp, height = 11.dp)) {
                             Icon(
-                                imageVector = Icons.Default.AccessTime,
-                                contentDescription = "Sending",
+                                imageVector = Icons.Default.Done,
+                                contentDescription = "Delivered",
                                 tint = contentColor.copy(alpha = 0.7f),
-                                modifier = Modifier.size(11.dp)
+                                modifier = Modifier.size(11.dp).align(Alignment.CenterStart)
                             )
-                        } else {
-                            Box(modifier = Modifier.size(width = 16.dp, height = 11.dp)) {
-                                Icon(
-                                    imageVector = Icons.Default.Done,
-                                    contentDescription = "Delivered",
-                                    tint = contentColor.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(11.dp).align(Alignment.CenterStart)
-                                )
-                                Icon(
-                                    imageVector = Icons.Default.Done,
-                                    contentDescription = "Read",
-                                    tint = contentColor.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(11.dp).align(Alignment.CenterEnd)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Done,
+                                contentDescription = "Read",
+                                tint = contentColor.copy(alpha = 0.7f),
+                                modifier = Modifier.size(11.dp).align(Alignment.CenterEnd)
+                            )
                         }
                     }
                 }
@@ -361,7 +392,5 @@ fun VoiceMessageCard(
 
 private fun formatDuration(ms: Int): String {
     val totalSecs = ms / MILLIS_IN_SECOND
-    val mins = totalSecs / SECONDS_IN_MINUTE
-    val secs = totalSecs % SECONDS_IN_MINUTE
-    return String.format(java.util.Locale.US, "%d:%02d", mins, secs)
+    return String.format(java.util.Locale.US, "%d:%02d", totalSecs / SECONDS_IN_MINUTE, totalSecs % SECONDS_IN_MINUTE)
 }

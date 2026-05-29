@@ -46,4 +46,66 @@ class CoreArchitectureTest {
                 packageFqName.startsWith("ltd.evilcorp.core.tox")
             }
     }
+
+    @Test
+    fun `repositories must not depend on other repositories to enforce clean isolation`() {
+        Konsist
+            .scopeFromProduction("core")
+            .classes()
+            .filter { it.name.endsWith("RepositoryImpl") }
+            .assertTrue { repository ->
+                val repositoryInterface = repository.interfaces().firstOrNull()
+                repository.constructors.all { constructor ->
+                    constructor.parameters.none { param ->
+                        // Only own repository interface injection is allowed (if applicable)
+                        param.type.name.endsWith("Repository") && param.type.name != repositoryInterface?.name
+                    }
+                }
+            }
+    }
+
+    @Test
+    fun `repository implementations must reside in core repository package and end with RepositoryImpl`() {
+        Konsist.scopeFromProduction("core")
+            .classes()
+            .filter { clazz -> clazz.interfaces().any { it.name.endsWith("Repository") } }
+            .assertTrue { clazz ->
+                clazz.resideInPackage("ltd.evilcorp.core.repository..") &&
+                clazz.name.endsWith("RepositoryImpl")
+            }
+    }
+
+    @Test
+    fun `DAO write operations must be suspend functions`() {
+        Konsist.scopeFromProduction("core")
+            .interfaces()
+            .filter { it.hasAnnotation { annotation -> annotation.name == "Dao" } }
+            // Validate ALL DAOs without exclusions!
+            .flatMap { it.functions() }
+            .filter { func ->
+                func.hasAnnotation { annotation ->
+                    annotation.name == "Insert" ||
+                    annotation.name == "Update" ||
+                    annotation.name == "Delete" ||
+                    (annotation.name == "Query" && (
+                        annotation.text.contains("UPDATE", ignoreCase = true) ||
+                        annotation.text.contains("DELETE", ignoreCase = true) ||
+                        annotation.text.contains("INSERT", ignoreCase = true)
+                    ))
+                }
+            }
+            .assertTrue { func ->
+                func.hasSuspendModifier
+            }
+    }
+
+    @Test
+    fun `all Room database DAOs must be interfaces`() {
+        Konsist.scopeFromProduction("core")
+            .classes()
+            .assertTrue { clazz ->
+                !clazz.hasAnnotation { annotation -> annotation.name == "Dao" }
+            }
+    }
 }
+

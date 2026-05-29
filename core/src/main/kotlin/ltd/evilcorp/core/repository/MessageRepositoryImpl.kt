@@ -10,19 +10,17 @@ import ltd.evilcorp.core.db.Database
 import ltd.evilcorp.core.db.dao.MessageDao
 import ltd.evilcorp.core.db.entity.MessageEntity
 import ltd.evilcorp.domain.features.chat.model.Message
-import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
 import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
 
 @Singleton
 class MessageRepositoryImpl @Inject internal constructor(
     private val database: Database,
     private val messageDao: MessageDao,
-    private val contactRepository: IContactRepository,
 ) : IMessageRepository {
     override suspend fun add(message: Message) {
         database.withTransaction {
             messageDao.save(MessageEntity.fromDomain(message))
-            contactRepository.setLastMessage(message.publicKey, Date().time)
+            database.contactDao().setLastMessage(message.publicKey, Date().time)
         }
     }
 

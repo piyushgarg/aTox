@@ -35,16 +35,22 @@ import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.chat.model.ReplyParser
 
+@Stable
+data class StableMessageList(val list: List<Message>)
+
+@Stable
+data class StableFileTransferList(val list: List<FileTransfer>)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
     msg: Message,
-    messages: List<Message>,
+    messages: StableMessageList,
     uiConfig: ChatUiConfig,
     contactName: String,
     onHaptic: () -> Unit,
     onCallHistoryClick: () -> Unit = {},
-    fileTransfers: List<FileTransfer>,
+    fileTransfers: StableFileTransferList,
     onAcceptFt: (Int) -> Unit,
     onRejectFt: (Int) -> Unit,
     onCancelFt: (Message) -> Unit,
@@ -119,7 +125,7 @@ fun MessageBubble(
 
     val ft = remember(msg.correlationId, fileTransfers) {
         if (msg.type == MessageType.FileTransfer) {
-            fileTransfers.find { it.id == msg.correlationId || it.fileNumber == msg.correlationId }
+            fileTransfers.list.find { it.id == msg.correlationId || it.fileNumber == msg.correlationId }
         } else {
             null
         }
@@ -230,7 +236,7 @@ fun MessageBubble(
                                 TextMessageBubble(
                                     msg = msg,
                                     replyInfo = replyInfo,
-                                    messages = messages,
+                                    messages = messages.list,
                                     contactName = contactName,
                                     contentColor = contentColor,
                                     isOutgoing = isOutgoing,

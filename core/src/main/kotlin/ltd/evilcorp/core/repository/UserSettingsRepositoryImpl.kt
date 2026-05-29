@@ -63,87 +63,85 @@ class UserSettingsRepositoryImpl @Inject constructor(
             initialValue = UserSettings(),
         )
 
-    override fun updateThemeMode(themeMode: Int) = update(Keys.themeMode, themeMode)
+    override suspend fun updateThemeMode(themeMode: Int) = update(Keys.themeMode, themeMode)
 
-    override fun updateDynamicColorEnabled(enabled: Boolean) = update(Keys.dynamicColorEnabled, enabled)
+    override suspend fun updateDynamicColorEnabled(enabled: Boolean) = update(Keys.dynamicColorEnabled, enabled)
 
-    override fun updateAccentColorSeed(accentColorSeed: Int) = update(Keys.accentColorSeed, accentColorSeed)
+    override suspend fun updateAccentColorSeed(accentColorSeed: Int) = update(Keys.accentColorSeed, accentColorSeed)
 
-    override fun updateLocaleTag(localeTag: String) = update(Keys.localeTag, localeTag)
+    override suspend fun updateLocaleTag(localeTag: String) = update(Keys.localeTag, localeTag)
 
-    override fun updateDateFormatPreference(preference: DateFormatPreference) =
+    override suspend fun updateDateFormatPreference(preference: DateFormatPreference) =
         update(Keys.dateFormatPreferenceOrdinal, preference.ordinal)
 
-    override fun updateTimeFormatPreference(preference: TimeFormatPreference) =
+    override suspend fun updateTimeFormatPreference(preference: TimeFormatPreference) =
         update(Keys.timeFormatPreferenceOrdinal, preference.ordinal)
 
-    override fun updateUdpEnabled(enabled: Boolean) = update(Keys.udpEnabled, enabled)
+    override suspend fun updateUdpEnabled(enabled: Boolean) = update(Keys.udpEnabled, enabled)
 
-    override fun updateRunAtStartup(enabled: Boolean) = update(Keys.runAtStartup, enabled)
+    override suspend fun updateRunAtStartup(enabled: Boolean) = update(Keys.runAtStartup, enabled)
 
-    override fun updateAutoAwayEnabled(enabled: Boolean) = update(Keys.autoAwayEnabled, enabled)
+    override suspend fun updateAutoAwayEnabled(enabled: Boolean) = update(Keys.autoAwayEnabled, enabled)
 
-    override fun updateAutoAwaySeconds(seconds: Long) = update(Keys.autoAwaySeconds, seconds)
+    override suspend fun updateAutoAwaySeconds(seconds: Long) = update(Keys.autoAwaySeconds, seconds)
 
-    override fun updateProxyType(type: ProxyType) = update(Keys.proxyTypeOrdinal, type.ordinal)
+    override suspend fun updateProxyType(type: ProxyType) = update(Keys.proxyTypeOrdinal, type.ordinal)
 
-    override fun updateProxyAddress(address: String) = update(Keys.proxyAddress, address)
+    override suspend fun updateProxyAddress(address: String) = update(Keys.proxyAddress, address)
 
-    override fun updateProxyPort(port: Int) = update(Keys.proxyPort, port)
+    override suspend fun updateProxyPort(port: Int) = update(Keys.proxyPort, port)
 
-    override fun updateFtAutoAccept(value: FtAutoAccept) = update(Keys.ftAutoAcceptOrdinal, value.ordinal)
+    override suspend fun updateFtAutoAccept(value: FtAutoAccept) = update(Keys.ftAutoAcceptOrdinal, value.ordinal)
 
-    override fun updateBootstrapNodeSource(value: BootstrapNodeSource) = update(Keys.bootstrapNodeSourceOrdinal, value.ordinal)
+    override suspend fun updateBootstrapNodeSource(value: BootstrapNodeSource) = update(Keys.bootstrapNodeSourceOrdinal, value.ordinal)
 
-    override fun updateDisableScreenshots(disable: Boolean) = update(Keys.disableScreenshots, disable)
+    override suspend fun updateDisableScreenshots(disable: Boolean) = update(Keys.disableScreenshots, disable)
 
-    override fun updateConfirmQuitting(confirm: Boolean) = update(Keys.confirmQuitting, confirm)
+    override suspend fun updateConfirmQuitting(confirm: Boolean) = update(Keys.confirmQuitting, confirm)
 
-    override fun updateConfirmCalling(confirm: Boolean) = update(Keys.confirmCalling, confirm)
-    override fun updateEnableReplies(enabled: Boolean) = update(Keys.enableReplies, enabled)
+    override suspend fun updateConfirmCalling(confirm: Boolean) = update(Keys.confirmCalling, confirm)
+    override suspend fun updateEnableReplies(enabled: Boolean) = update(Keys.enableReplies, enabled)
 
-    override fun updateSentMessageSoundVolume(volume: Int) = update(Keys.sentMessageSoundVolume, volume.coerceIn(0, MAX_VOLUME))
-    override fun updateSentMessageSoundUri(uri: String) = update(Keys.sentMessageSoundUri, uri)
+    override suspend fun updateSentMessageSoundVolume(volume: Int) = update(Keys.sentMessageSoundVolume, volume.coerceIn(0, MAX_VOLUME))
+    override suspend fun updateSentMessageSoundUri(uri: String) = update(Keys.sentMessageSoundUri, uri)
 
-    override fun updateCallSound(sound: AppSound) = update(Keys.callSoundOrdinal, sound.ordinal)
+    override suspend fun updateCallSound(sound: AppSound) = update(Keys.callSoundOrdinal, sound.ordinal)
 
-    override fun updateCallSoundVolume(volume: Int) = update(Keys.callSoundVolume, volume.coerceIn(0, MAX_VOLUME))
+    override suspend fun updateCallSoundVolume(volume: Int) = update(Keys.callSoundVolume, volume.coerceIn(0, MAX_VOLUME))
 
-    override fun updateCallRingtoneUri(uri: String) = update(Keys.callRingtoneUri, uri)
+    override suspend fun updateCallRingtoneUri(uri: String) = update(Keys.callRingtoneUri, uri)
 
-    override fun updateNotificationSoundVolume(volume: Int) = update(Keys.notificationSoundVolume, volume.coerceIn(0, MAX_VOLUME))
-    override fun updateNotificationSoundUri(uri: String) = update(Keys.notificationSoundUri, uri)
+    override suspend fun updateNotificationSoundVolume(volume: Int) = update(Keys.notificationSoundVolume, volume.coerceIn(0, MAX_VOLUME))
+    override suspend fun updateNotificationSoundUri(uri: String) = update(Keys.notificationSoundUri, uri)
 
-    override fun updateActiveChatSoundVolume(volume: Int) = update(Keys.activeChatSoundVolume, volume.coerceIn(0, MAX_VOLUME))
-    override fun updateActiveChatSoundUri(uri: String) = update(Keys.activeChatSoundUri, uri)
+    override suspend fun updateActiveChatSoundVolume(volume: Int) = update(Keys.activeChatSoundVolume, volume.coerceIn(0, MAX_VOLUME))
+    override suspend fun updateActiveChatSoundUri(uri: String) = update(Keys.activeChatSoundUri, uri)
 
-    override fun updateHapticEnabled(enabled: Boolean) = update(Keys.hapticEnabled, enabled)
+    override suspend fun updateHapticEnabled(enabled: Boolean) = update(Keys.hapticEnabled, enabled)
 
-    override fun updateAutoSaveToDownloads(enabled: Boolean) = update(Keys.autoSaveToDownloads, enabled)
+    override suspend fun updateAutoSaveToDownloads(enabled: Boolean) = update(Keys.autoSaveToDownloads, enabled)
 
-    override fun updateAutoSaveDirectoryUri(uri: String) = update(Keys.autoSaveDirectoryUri, uri)
+    override suspend fun updateAutoSaveDirectoryUri(uri: String) = update(Keys.autoSaveDirectoryUri, uri)
 
-    override fun updateBackupEncryptionEnabled(enabled: Boolean) = update(Keys.backupEncryptionEnabled, enabled)
+    override suspend fun updateBackupEncryptionEnabled(enabled: Boolean) = update(Keys.backupEncryptionEnabled, enabled)
 
-    override fun updateBackupEndToEndEncryptionEnabled(enabled: Boolean) = update(Keys.backupEndToEndEncryptionEnabled, enabled)
+    override suspend fun updateBackupEndToEndEncryptionEnabled(enabled: Boolean) = update(Keys.backupEndToEndEncryptionEnabled, enabled)
 
-    override fun updateAutomaticBackupEnabled(enabled: Boolean) = update(Keys.automaticBackupEnabled, enabled)
+    override suspend fun updateAutomaticBackupEnabled(enabled: Boolean) = update(Keys.automaticBackupEnabled, enabled)
 
-    override fun updateBackupFrequency(frequency: BackupFrequency) = update(Keys.backupFrequencyOrdinal, frequency.ordinal)
+    override suspend fun updateBackupFrequency(frequency: BackupFrequency) = update(Keys.backupFrequencyOrdinal, frequency.ordinal)
 
-    override fun updateBackupGoogleAccount(account: String) = update(Keys.backupGoogleAccount, account)
+    override suspend fun updateBackupGoogleAccount(account: String) = update(Keys.backupGoogleAccount, account)
 
-    override fun updateBackupUseCellular(enabled: Boolean) = update(Keys.backupUseCellular, enabled)
+    override suspend fun updateBackupUseCellular(enabled: Boolean) = update(Keys.backupUseCellular, enabled)
 
-    override fun updateBackupDestinationOrdinals(ordinals: Set<Int>) {
+    override suspend fun updateBackupDestinationOrdinals(ordinals: Set<Int>) {
         update(Keys.backupDestinationOrdinals, ordinals.map(Int::toString).toSet())
     }
 
-    private fun <T> update(key: Preferences.Key<T>, value: T) {
-        scope.launch {
-            context.userSettingsDataStore.edit { preferences ->
-                preferences[key] = value
-            }
+    private suspend fun <T> update(key: Preferences.Key<T>, value: T) {
+        context.userSettingsDataStore.edit { preferences ->
+            preferences[key] = value
         }
     }
 

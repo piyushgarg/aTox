@@ -10,7 +10,17 @@ import javax.inject.Inject
 class SendChatMessageUseCase @Inject constructor(
     private val chatManager: ChatManager
 ) {
-    suspend fun execute(publicKey: PublicKey, message: String, type: MessageType) = withContext(Dispatchers.IO) {
-        chatManager.sendMessage(publicKey, message, type)
+    suspend fun execute(
+        publicKey: PublicKey,
+        message: String,
+        type: MessageType,
+        replyToMessageId: Int? = null
+    ) = withContext(Dispatchers.IO) {
+        val finalMessage = if (replyToMessageId != null) {
+            "[reply:$replyToMessageId] $message"
+        } else {
+            message
+        }
+        chatManager.sendMessage(publicKey, finalMessage, type)
     }
 }

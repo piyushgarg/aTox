@@ -116,7 +116,7 @@ fun GroupInviteItemCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Группа: ${invite.groupName}",
+                text = stringResource(R.string.group_invite_label, invite.groupName),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )

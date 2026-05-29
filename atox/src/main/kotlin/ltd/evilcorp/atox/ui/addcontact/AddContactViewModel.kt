@@ -6,7 +6,6 @@ package ltd.evilcorp.atox.ui.addcontact
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import java.util.Date
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,22 +14,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.infrastructure.tox.ToxStarter
 import ltd.evilcorp.domain.features.contacts.model.Contact
-import ltd.evilcorp.domain.features.chat.model.Message
-import ltd.evilcorp.domain.features.chat.model.MessageType
-import ltd.evilcorp.domain.features.chat.model.Sender
-import ltd.evilcorp.domain.features.contacts.ContactManager
-import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.core.network.ToxID
-import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
-
 import ltd.evilcorp.domain.features.contacts.usecase.AddContactUseCase
-import ltd.evilcorp.domain.features.auth.UserManager
+import ltd.evilcorp.domain.features.contacts.usecase.GetContactsUseCase
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
+import ltd.evilcorp.domain.features.settings.usecase.ManageToxLifecycleUseCase
 import ltd.evilcorp.domain.features.auth.model.User
 
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,22 +32,20 @@ private const val MIN_TOX_ID_LENGTH = 64
 @HiltViewModel
 class AddContactViewModel @Inject constructor(
     private val addContactUseCase: AddContactUseCase,
-    private val contactManager: ContactManager,
-    private val tox: ITox,
-    private val toxStarter: ToxStarter,
-    private val userManager: UserManager,
+    private val getContactsUseCase: GetContactsUseCase,
+    private val getSelfUserUseCase: GetSelfUserUseCase,
+    private val manageToxLifecycleUseCase: ManageToxLifecycleUseCase,
 ) : ViewModel() {
-    val publicKey by lazy { tox.publicKey }
-    val user: StateFlow<User?> = userManager.get(publicKey)
+    val publicKey by lazy { getSelfUserUseCase.publicKey }
+    val user: StateFlow<User?> = getSelfUserUseCase.execute()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
 
-    val toxId by lazy { tox.toxId }
-    val contacts: StateFlow<List<Contact>> = contactManager.getAll()
-        .map { list -> list }
+    val toxId by lazy { getSelfUserUseCase.toxId }
+    val contacts: StateFlow<List<Contact>> = getContactsUseCase.execute()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -76,8 +66,14 @@ class AddContactViewModel @Inject constructor(
         data class ShowError(val errorResId: Int) : AddContactUiEvent
     }
 
-    fun isToxRunning() = tox.started
-    fun tryLoadTox(): Boolean = toxStarter.tryLoadTox(null) == ToxSaveStatus.Ok
+    fun isToxRunning() = manageToxLifecycleUseCase.started
+
+    fun tryLoadTox(): Boolean {
+        viewModelScope.launch {
+            manageToxLifecycleUseCase.execute(ltd.evilcorp.domain.features.settings.usecase.ToxLifecycleAction.TryLoad(null))
+        }
+        return true
+    }
 
     fun addContact(toxIdStr: String, message: String) {
         val trimmedToxId = toxIdStr.trim()

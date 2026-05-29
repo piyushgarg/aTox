@@ -445,4 +445,14 @@
     <string name="navigation_add">Добавить</string>
     <string name="backup_warning_title">Внимание!</string>
     <string name="backup_warning_description">Обязательно сохраните пароль резервной копии. В случае его утери восстановить ваш Tox-профиль будет невозможно.</string>
+    <string name="group_reconnecting">Переподключение к групповой конференции…</string>
+    <string name="group_offline_banner">Отключено. Ожидание пиров для установки защищённого канала.</string>
+    <!-- Extracted UI Strings for Localization Compliance -->
+    <string name="select_chat_to_start">Выберите чат для начала общения</string>
+    <string name="group_invite_card_body">Вас пригласили присоединиться к групповому чату.</string>
+    <string name="group_invite_join">Вступить</string>
+    <string name="group_invite_view">Перейти</string>
+    <string name="voice_message_play_error">Не удалось воспроизвести аудиофайл</string>
+    <string name="voice_message_not_ready">Аудиофайл еще загружается или не доступен</string>
+    <string name="group_invite_label">Группа: %1$s</string>
 </resources>

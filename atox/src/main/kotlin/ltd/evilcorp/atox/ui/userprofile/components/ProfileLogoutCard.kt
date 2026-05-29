@@ -22,10 +22,11 @@ import ltd.evilcorp.atox.R
 
 @Composable
 fun ProfileLogoutCard(
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)

@@ -27,4 +27,5 @@ interface IToxGroupManager {
     fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean
     fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int
     fun groupReconnect(groupNumber: Int): Boolean
+    fun groupGetChatlist(): IntArray
 }
