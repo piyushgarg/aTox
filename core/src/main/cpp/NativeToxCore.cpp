@@ -1352,6 +1352,26 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGroupReconnect(JNIEnv *env, jobject thiz
     return res;
 }
 
+// Перечисление всех активных NGC групп в текущей сессии Tox.
+// Возвращает массив groupNumber всех групп, которые toxcore знает на данный момент.
+JNIEXPORT jintArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxGroupGetChatlist(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint32_t> groups;
+    // Сканируем все возможные groupNumber (от 0 до 65535).
+    // tox_group_get_chat_id вернёт false для невалидных номеров.
+    for (uint32_t i = 0; i <= 65535; i++) {
+        uint8_t chat_id[TOX_GROUP_CHAT_ID_SIZE];
+        Tox_Err_Group_State_Query err;
+        if (tox_group_get_chat_id(tox, i, chat_id, &err)) {
+            groups.push_back(i);
+        }
+    }
+    jintArray res = env->NewIntArray(groups.size());
+    env->SetIntArrayRegion(res, 0, groups.size(), reinterpret_cast<const jint*>(groups.data()));
+    return res;
+}
+
 // Инициализация JNI-библиотеки при ее загрузке в JVM (кэширование Method ID событий)
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     g_vm = vm;

@@ -260,8 +260,8 @@ class GroupEventHandler @Inject constructor(
                 if (exitType != ToxGroupExitType.QUIT && exitType != ToxGroupExitType.KICK) {
                     groupRepository.setConnected(chatId, false)
                     groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
-                    Log.i(TAG, "Self technical disconnect ($exitType) from group $chatId, scheduling auto reconnect")
-                    groupManager.scheduleAutoReconnect(chatId, group.groupNumber)
+                    Log.i(TAG, "Self technical disconnect ($exitType) from group $chatId, starting persistent reconnect")
+                    groupManager.startPersistentReconnect(chatId, group.groupNumber)
                 } else {
                     groupRepository.setConnected(chatId, false)
                     groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
@@ -399,7 +399,7 @@ class GroupEventHandler @Inject constructor(
             groupRepository.setConnected(chatId, true)
             groupRepository.setGroupNumber(chatId, groupNo)
             groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Connected)
-            groupManager.cancelReconnect(chatId)
+            groupManager.stopReconnect(chatId)
 
             checkAndUpdateGroupMetadata(groupNo, chatId)
 

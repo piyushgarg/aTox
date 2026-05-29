@@ -62,6 +62,12 @@ class GroupRepository @Inject constructor(
     fun existsByCorrelationId(groupChatId: String, correlationId: Int): Boolean =
         groupMessageDao.existsByCorrelationId(groupChatId, correlationId) > 0
 
+    fun getMessageIds(groupChatId: String): List<Int> =
+        groupMessageDao.getMessageIds(groupChatId)
+
+    fun getMessagesByIds(groupChatId: String, ids: Set<Int>): List<GroupMessage> =
+        groupMessageDao.getMessagesByIds(groupChatId, ids)
+
     fun addPeer(peer: GroupPeer) = groupPeerDao.save(peer)
     fun updatePeer(peer: GroupPeer) = groupPeerDao.update(peer)
     fun deletePeer(peer: GroupPeer) = groupPeerDao.delete(peer)

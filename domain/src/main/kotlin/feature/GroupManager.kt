@@ -101,9 +101,96 @@ class GroupManager @Inject constructor(
 
     private val reconnectJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
 
+    // Отслеживаем временных друзей добавленных для bootstrap-реконнекта
+    private val bootstrapFriends = java.util.concurrent.ConcurrentHashMap<String, MutableSet<String>>()
+
     fun cancelReconnect(chatId: String) {
         reconnectJobs.remove(chatId)?.cancel()
     }
+
+    fun stopReconnect(chatId: String) {
+        reconnectJobs[chatId]?.cancel()
+        reconnectJobs.remove(chatId)
+        cleanupBootstrapFriends(chatId)
+    }
+
+    private fun cleanupBootstrapFriends(chatId: String) {
+        val keys = bootstrapFriends.remove(chatId) ?: return
+        for (pk in keys) {
+            try {
+                // Не удаляем если это настоящий друг (есть в контакт-листе)
+                val contact = kotlinx.coroutines.runBlocking {
+                    contactRepository.get(pk).firstOrNull()
+                }
+                if (contact != null) continue
+
+                val friendNo = tox.getFriendNumber(PublicKey(pk))
+                if (friendNo >= 0) {
+                    tox.deleteContact(PublicKey(pk))
+                    Log.i("GroupManager", "Removed temporary bootstrap friend $pk for $chatId")
+                }
+            } catch (e: Exception) {
+                Log.w("GroupManager", "Failed to cleanup bootstrap friend $pk: $e")
+            }
+        }
+    }
+
+    private fun bootstrapFromKnownPeers(peers: List<GroupPeer>) {
+        for (peer in peers) {
+            try {
+                val pk = peer.publicKey.uppercase()
+                if (pk.isEmpty() || peer.isOurselves) continue
+                // Уже есть во friend list — не трогаем
+                val friendNo = tox.getFriendNumber(PublicKey(pk))
+                if (friendNo >= 0) continue
+
+                val added = tox.addFriendNoRequest(PublicKey(pk))
+                if (added >= 0) {
+                    val chatId = peer.groupChatId
+                    bootstrapFriends.getOrPut(chatId) { mutableSetOf() }.add(pk)
+                    Log.i("GroupManager", "Added temporary bootstrap friend $pk for group $chatId")
+                }
+            } catch (e: Exception) {
+                Log.w("GroupManager", "Failed to bootstrap peer $peer: $e")
+            }
+        }
+    }
+
+    fun startPersistentReconnect(chatId: String, groupNumber: Int) {
+        reconnectJobs[chatId]?.cancel()
+        reconnectJobs[chatId] = scope.launch {
+            val delays = listOf(1L, 2L, 3L, 5L)
+            var attempt = 0
+
+            // Bootstrap только один раз при старте реконнекта
+            val peers = groupRepository.getPeers(chatId).firstOrNull() ?: emptyList()
+            withContext(Dispatchers.IO) {
+                bootstrapFromKnownPeers(peers)
+            }
+
+            while (true) {
+                try {
+                    val g = groupRepository.get(chatId).firstOrNull()
+                    if (g == null || g.connected) break
+
+                    // Только реконнект — без bootstrap в каждой итерации
+                    val ok = tox.groupReconnect(groupNumber)
+                    if (ok) setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+
+                } catch (e: Exception) {
+                    Log.w("GroupManager", "Reconnect attempt $attempt failed for $chatId: $e")
+                }
+
+                val delaySeconds = delays.getOrElse(attempt) { 5L }
+                Log.i("GroupManager", "Reconnect attempt $attempt for $chatId, retry in ${delaySeconds}s")
+                delay(delaySeconds * 1000L)
+                attempt++
+            }
+        }
+    }
+
+    fun isBootstrapFriend(pk: String): Boolean =
+        bootstrapFriends.values.any { it.contains(pk.uppercase()) }
 
     fun notifyGroupMigrated(oldChatId: String, newChatId: String) {
         scope.launch {
@@ -141,49 +228,35 @@ class GroupManager @Inject constructor(
         }
     }
 
-    private suspend fun reconnectWithRetry(chatId: String, groupNumber: Int, maxRetries: Int = 999999) {
-        for (attempt in 0 until maxRetries) {
-            val currentStatus = connectionStatus(chatId)
-            // Stop retrying if the group has successfully connected, or reconnect was aborted (e.g. user left the group)
-            if (currentStatus == GroupConnectionStatus.Connected || (currentStatus == GroupConnectionStatus.Disconnected && attempt > 0)) {
-                Log.d("GroupManager", "reconnectWithRetry for group $chatId stopped: status is $currentStatus")
-                return
+    private suspend fun syncGroupNumbers() {
+        try {
+            val toxGroupNumbers = tox.groupGetChatlist()
+            Log.d("GroupManager", "syncGroupNumbers: toxcore has ${toxGroupNumbers.size} active groups")
+            for (gn in toxGroupNumbers) {
+                val chatIdBytes = tox.groupGetChatId(gn) ?: continue
+                val groupChatId = chatIdBytes.toHexString()
+                val dbGroup = groupRepository.getDirect(groupChatId)
+                if (dbGroup != null && dbGroup.groupNumber != gn) {
+                    Log.i("GroupManager", "syncGroupNumbers: updating groupNumber for $groupChatId: ${dbGroup.groupNumber} -> $gn")
+                    groupRepository.setGroupNumber(groupChatId, gn)
+                }
             }
-
-            val ok = tox.groupReconnect(groupNumber)
-            Log.d("GroupManager", "Reconnect attempt $attempt for group $chatId returned: $ok")
-            if (ok) {
-                setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
-            }
-            
-            // Адаптивная задержка (Exponential Back-off) для экономии батареи и сети:
-            // - первые 10 попыток: каждые 5 секунд (быстрое переподключение)
-            // - следующие 20 попыток: каждые 15 секунд
-            // - все последующие попытки: каждые 30 секунд
-            val delayMs = when {
-                attempt < 10 -> 5000L
-                attempt < 30 -> 15000L
-                else -> 30000L
-            }
-            delay(delayMs)
-        }
-        
-        val finalStatus = connectionStatus(chatId)
-        if (finalStatus == GroupConnectionStatus.Reconnecting || finalStatus == GroupConnectionStatus.Connecting) {
-            Log.e("GroupManager", "All $maxRetries reconnect attempts failed for group $chatId")
-            setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+        } catch (e: Exception) {
+            Log.e("GroupManager", "syncGroupNumbers failed: $e")
         }
     }
 
     fun reconnectAll() {
         scope.launch {
+            syncGroupNumbers()
             val groups = groupRepository.getAll().firstOrNull() ?: return@launch
             Log.d("GroupManager", "reconnectAll found ${groups.size} groups in database")
             for (group in groups) {
                 val currentStatus = connectionStatus(group.chatId)
                 Log.d("GroupManager", "Group ${group.chatId} database status connected: ${group.connected}, current status state: $currentStatus, groupNumber: ${group.groupNumber}")
                 
-                if (currentStatus == GroupConnectionStatus.Connected) {
+                if (currentStatus == GroupConnectionStatus.Connected ||
+                    currentStatus == GroupConnectionStatus.Connecting) {
                     continue
                 }
                 
@@ -192,11 +265,8 @@ class GroupManager @Inject constructor(
                 groupRepository.setConnected(group.chatId, false)
                 setConnectionStatus(group.chatId, GroupConnectionStatus.Reconnecting)
                 if (group.groupNumber >= 0) {
-                    Log.d("GroupManager", "Launching reconnectWithRetry for group ${group.chatId}")
-                    val job = scope.launch {
-                        reconnectWithRetry(group.chatId, group.groupNumber)
-                    }
-                    reconnectJobs[group.chatId] = job
+                    Log.d("GroupManager", "Launching startPersistentReconnect for group ${group.chatId}")
+                    startPersistentReconnect(group.chatId, group.groupNumber)
                 } else {
                     Log.w("GroupManager", "Group ${group.chatId} has invalid groupNumber ${group.groupNumber}, setting Disconnected")
                     setConnectionStatus(group.chatId, GroupConnectionStatus.Disconnected)
@@ -207,14 +277,8 @@ class GroupManager @Inject constructor(
 
     fun scheduleAutoReconnect(chatId: String, groupNumber: Int) {
         reconnectJobs[chatId]?.cancel()
-        val job = scope.launch {
-            delay(3000)
-            val g = groupRepository.get(chatId).firstOrNull()
-            if (g == null || g.connected) return@launch
-            setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
-            reconnectWithRetry(chatId, groupNumber)
-        }
-        reconnectJobs[chatId] = job
+        setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
+        startPersistentReconnect(chatId, groupNumber)
     }
 
     fun resendPendingMessages(chatId: String) {
@@ -395,7 +459,7 @@ class GroupManager @Inject constructor(
     }
 
     fun leaveGroup(chatId: String) = scope.launch {
-        cancelReconnect(chatId)
+        stopReconnect(chatId)
         val g = groupRepository.get(chatId).firstOrNull()
         g?.let {
             if (it.groupNumber >= 0) {

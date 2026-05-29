@@ -33,6 +33,12 @@ interface GroupMessageDao {
     @Query("SELECT COUNT(*) FROM group_messages WHERE group_chat_id = :groupChatId AND correlation_id = :correlationId")
     fun existsByCorrelationId(groupChatId: String, correlationId: Int): Int
 
+    @Query("SELECT correlation_id FROM group_messages WHERE group_chat_id = :groupChatId")
+    fun getMessageIds(groupChatId: String): List<Int>
+
+    @Query("SELECT * FROM group_messages WHERE group_chat_id = :groupChatId AND correlation_id IN (:ids)")
+    fun getMessagesByIds(groupChatId: String, ids: Set<Int>): List<GroupMessage>
+
     @Query("DELETE FROM group_messages WHERE id = :id")
     fun deleteMessage(id: Long)
 }

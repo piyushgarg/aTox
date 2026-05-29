@@ -525,6 +525,9 @@ fun GroupChatScreen(
         )
     }
 
+    val isOffline = connStatus != GroupConnectionStatus.Connected
+    val isReconnecting = connStatus == GroupConnectionStatus.Reconnecting
+
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {},
@@ -542,6 +545,51 @@ fun GroupChatScreen(
                 .navigationBarsPadding()
                 .imePadding()
         ) {
+            if (isOffline) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = if (isReconnecting) {
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.errorContainer
+                    },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (isReconnecting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.group_reconnecting),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.CloudOff,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.group_offline_banner),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                        }
+                    }
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .weight(1f)

@@ -34,6 +34,7 @@ import ltd.evilcorp.core.repository.GroupRepository
 import ltd.evilcorp.core.repository.FileTransferRepository
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.domain.feature.GroupManager
+import kotlinx.coroutines.flow.combine
 import java.io.File
 import java.util.Date
 
@@ -75,11 +76,35 @@ class GroupChatViewModel @Inject constructor(
         .map { statuses -> statuses[chatId] ?: GroupConnectionStatus.Disconnected }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GroupConnectionStatus.Disconnected)
 
+    data class GroupChatUiState(
+        val messages: List<GroupMessage> = emptyList(),
+        val isOffline: Boolean = false,
+        val isReconnecting: Boolean = false,
+    )
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val messages: StateFlow<List<GroupMessage>> = activeGroupChatId
         .filterNotNull()
         .flatMapLatest { cid -> groupManager.messagesFor(cid) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<GroupChatUiState> = activeGroupChatId
+        .filterNotNull()
+        .flatMapLatest { cid ->
+            combine(
+                groupManager.messagesFor(cid),
+                groupManager.connectionStatuses,
+            ) { msgs, statuses ->
+                val status = statuses[cid] ?: GroupConnectionStatus.Disconnected
+                GroupChatUiState(
+                    messages = msgs,
+                    isOffline = status != GroupConnectionStatus.Connected,
+                    isReconnecting = status == GroupConnectionStatus.Reconnecting,
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GroupChatUiState())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val peers: StateFlow<List<GroupPeer>> = activeGroupChatId

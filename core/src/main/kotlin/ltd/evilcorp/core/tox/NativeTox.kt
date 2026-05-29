@@ -625,6 +625,15 @@ class NativeTox {
      */
     external fun toxGroupReconnect(tox: Long, groupNumber: Int): Boolean
 
+    /**
+     * Возвращает массив groupNumber всех активных NGC-групп в текущей сессии Tox.
+     * Используется для пересинхронизации groupNumber после загрузки профиля,
+     * т.к. toxcore переназначает номера групп между сессиями.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @return Массив groupNumber всех активных NGC-групп.
+     */
+    external fun toxGroupGetChatlist(tox: Long): IntArray
+
     // Раздел шифрования профилей Tox (Tox Encrypt / Decrypt API)
 
     /**

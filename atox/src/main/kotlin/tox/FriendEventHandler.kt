@@ -23,6 +23,7 @@ import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.domain.feature.ChatManager
 import ltd.evilcorp.domain.feature.FileTransferManager
 import ltd.evilcorp.domain.feature.GroupManager
+import ltd.evilcorp.domain.feature.GroupSyncManager
 import ltd.evilcorp.domain.tox.Tox
 
 private const val MAX_ACTIVE_FRIEND_REQUESTS = 32
@@ -41,6 +42,7 @@ class FriendEventHandler @Inject constructor(
     private val notificationHelper: NotificationHelper,
     private val systemSoundPlayer: SystemSoundPlayer,
     private val groupManager: GroupManager,
+    private val groupSyncManager: GroupSyncManager,
     private val tox: Tox,
     @Suppress("UNUSED_PARAMETER") private val settings: Settings,
 ) {
@@ -71,7 +73,7 @@ class FriendEventHandler @Inject constructor(
     fun onFriendConnectionStatus(publicKey: String, status: ConnectionStatus) {
         contactRepository.setConnectionStatus(publicKey, status)
         if (status != ConnectionStatus.None) {
-            groupManager.reconnectAll()
+            groupSyncManager.onGroupPeerOnline(publicKey)
             scope.launch {
                 fileTransferManager.sendAvatar(publicKey)
             }
