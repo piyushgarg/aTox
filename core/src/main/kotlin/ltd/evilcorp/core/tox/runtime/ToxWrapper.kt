@@ -286,10 +286,7 @@ class ToxWrapper(
         groupBridge.groupInviteSend(groupNumber, friendNumber)
     fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
         groupBridge.groupJoinDirect(chatId, selfName, password)
-    fun groupReconnect(groupNumber: Int): Boolean = groupBridge.groupReconnect(groupNumber)
-    fun groupGetChatlist(): IntArray = groupBridge.groupGetChatlist()
-
-    // Legacy conference/groupav delegation methods
+      // Legacy conference/groupav delegation methods
     fun groupavAdd(): Int = groupBridge.groupavAdd()
     fun groupavJoin(groupNumber: Int): Int = groupBridge.groupavJoin(groupNumber)
     fun groupavSendAudio(groupNumber: Int, pcm: ShortArray, channels: Int, samplingRate: Int): Int =

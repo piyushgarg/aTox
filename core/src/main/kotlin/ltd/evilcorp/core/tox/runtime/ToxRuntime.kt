@@ -162,6 +162,7 @@ class ToxRuntime @Inject constructor(
         save()
     }
 
+
     fun deleteContact(publicKey: PublicKey) {
         toxWrapper.deleteContact(publicKey)
         save()
@@ -289,7 +290,6 @@ class ToxRuntime @Inject constructor(
 
     fun groupGetChatlist(): IntArray =
         toxWrapper.groupGetChatlist()
-
     fun groupavAdd(): Int =
         toxWrapper.groupavAdd()
 

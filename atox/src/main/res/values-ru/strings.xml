@@ -313,6 +313,7 @@
     <string name="exit">Выход</string>
 
     <!-- Group Chats (NGC) -->
+
     <string name="groups">Группы</string>
     <string name="create_group">Создать группу</string>
     <string name="join_group">Вступить в группу</string>
@@ -347,6 +348,8 @@
     <string name="group_connected">Подключено</string>
     <string name="group_connecting">Подключение…</string>
     <string name="group_offline">Не подключено</string>
+    <string name="group_reconnecting">Восстанавливаем соединение…</string>
+    <string name="group_offline_banner">Нет соединения — сообщения будут отправлены при появлении сети</string>
     <string name="group_role_owner">Владелец</string>
     <string name="group_role_moderator">Модератор</string>
     <string name="group_role_user">Участник</string>
@@ -365,6 +368,9 @@
     <string name="group_password_save_confirm">Сохранить пароль</string>
     <string name="group_password_dismiss">Не сейчас</string>
     <string name="group_password_copied">Пароль скопирован в буфер обмена</string>
+
+    <!-- Backups & Storage -->
+
     <string name="backup_title">Резервное копирование</string>
     <string name="backup_settings_subtitle">Селективный локальный бэкап данных профиля</string>
     <string name="backup_modules_group">Модули резервного копирования</string>

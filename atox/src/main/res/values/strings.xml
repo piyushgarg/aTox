@@ -384,6 +384,8 @@
     <string name="group_connected">Connected</string>
     <string name="group_connecting">Connecting…</string>
     <string name="group_offline">Offline</string>
+    <string name="group_reconnecting">Restoring connection…</string>
+    <string name="group_offline_banner">No connection — messages will be sent when online</string>
     <string name="group_role_owner">Owner</string>
     <string name="group_role_moderator">Moderator</string>
     <string name="group_role_user">User</string>
@@ -402,6 +404,9 @@
     <string name="group_password_save_confirm">Save password</string>
     <string name="group_password_dismiss">Not now</string>
     <string name="group_password_copied">Password copied to clipboard</string>
+
+    <!-- Backups & Storage -->
+
     <string name="backup_title">Backup</string>
     <string name="backup_settings_subtitle">Selective local backup for profile data</string>
     <string name="backup_modules_group">Backup modules</string>
