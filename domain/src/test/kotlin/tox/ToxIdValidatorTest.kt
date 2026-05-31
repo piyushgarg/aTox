@@ -6,8 +6,6 @@ package ltd.evilcorp.domain.core.network
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import ltd.evilcorp.domain.core.network.ToxID
-import ltd.evilcorp.domain.core.network.ToxIdValidator
 
 class ToxIdValidatorTest {
     @Test

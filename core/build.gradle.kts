@@ -34,6 +34,11 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
     externalNativeBuild {
         cmake {
             path("src/main/cpp/CMakeLists.txt")
@@ -175,9 +180,13 @@ dependencies {
 
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.konsist.junit5)
+    testImplementation(libs.kotlinx.coroutines.test) {
+        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-debug")
+    }
 
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.test.runner)
+    androidTestImplementation(libs.test.rules)
     androidTestImplementation(libs.test.junit.ext)
     androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.kotlinx.coroutines.test) {

@@ -1,7 +1,6 @@
 package ltd.evilcorp.domain.features.settings.usecase
 
 import ltd.evilcorp.domain.core.network.bootstrap.IBootstrapNodeRegistry
-import ltd.evilcorp.domain.features.settings.model.BackupDestination
 import ltd.evilcorp.domain.features.settings.model.BackupFrequency
 import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
 import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository

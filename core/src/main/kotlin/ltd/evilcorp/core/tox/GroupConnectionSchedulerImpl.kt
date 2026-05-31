@@ -76,7 +76,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
 
             val added = tox.addFriendNoRequest(PublicKey(pk))
             if (added >= 0) {
-                bootstrapFriends.getOrPut(chatId) { ConcurrentHashMap.newKeySet() }.add(pk)
+                bootstrapFriends.getOrPut(chatId) { java.util.Collections.newSetFromMap(ConcurrentHashMap()) }.add(pk)
                 Log.i(TAG, "Added temporary bootstrap friend $pk for group $chatId")
             }
         } catch (e: Exception) {

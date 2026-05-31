@@ -11,6 +11,8 @@ empty-blocks:
     ignoreOverridden: true
 
 style:
+  UnusedImports:
+    active: true
   ReturnCount:
     active: false
   MagicNumber:

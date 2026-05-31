@@ -9,7 +9,6 @@ import ltd.evilcorp.domain.features.settings.model.FtAutoAccept
 import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
 import ltd.evilcorp.domain.features.settings.model.AppSound
 import ltd.evilcorp.domain.features.settings.model.BackupFrequency
-import ltd.evilcorp.domain.features.settings.model.BackupDestination
 
 @Suppress("ComplexInterface")
 interface IUserSettingsRepository {

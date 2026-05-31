@@ -16,10 +16,6 @@ import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.transfer.model.FileKind
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
-import ltd.evilcorp.domain.core.network.hexToBytes
-import ltd.evilcorp.domain.core.network.bytesToHex
-import ltd.evilcorp.domain.core.network.toToxType
-import ltd.evilcorp.domain.core.network.toToxtype
 
 private fun byteArrayOf(vararg bytes: Int) = ByteArray(bytes.size) { bytes[it].toByte() }
 

@@ -57,12 +57,10 @@ class CallSignalPlayerImpl @Inject constructor(
                         val volume = settings.callSoundVolume.coerceIn(0, MAX_VOLUME_PERCENT) / MAX_VOLUME_PERCENT_FLOAT
                         it.volume = volume
                     }
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                        it.audioAttributes = android.media.AudioAttributes.Builder()
-                            .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    }
+                    it.audioAttributes = android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
                     it.play()
                     synchronized(this@CallSignalPlayerImpl) {
                         ringtone = it

@@ -4,7 +4,6 @@
 
 package ltd.evilcorp.domain.features.group
 
-import ltd.evilcorp.domain.core.network.Log
 import ltd.evilcorp.domain.features.chat.ChatManager
 
 import javax.inject.Inject
@@ -14,11 +13,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import ltd.evilcorp.domain.features.group.model.Group
-import ltd.evilcorp.domain.features.group.model.GroupPeer
-import ltd.evilcorp.domain.core.network.bytesToHex
 
 private const val GROUP_MIGRATION_FLOW_CAPACITY = 10
 

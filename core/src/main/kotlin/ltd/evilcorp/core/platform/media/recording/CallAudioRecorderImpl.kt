@@ -6,7 +6,6 @@ package ltd.evilcorp.core.platform.media.recording
 
 import ltd.evilcorp.domain.features.call.service.IAudioRecorder
 
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

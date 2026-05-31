@@ -10,7 +10,6 @@ import ltd.evilcorp.domain.features.transfer.model.FT_REJECTED
 import ltd.evilcorp.domain.features.transfer.model.FileKind
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.domain.core.model.PublicKey
-import ltd.evilcorp.domain.core.network.MAX_AVATAR_SIZE
 
 private const val TAG = "FileTransferManager"
 

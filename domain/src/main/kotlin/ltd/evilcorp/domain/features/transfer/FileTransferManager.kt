@@ -4,9 +4,7 @@
 
 package ltd.evilcorp.domain.features.transfer
 
-import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
 import ltd.evilcorp.domain.core.network.enums.ToxFileControl
-import ltd.evilcorp.domain.core.io.IInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -14,9 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
-import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
-import ltd.evilcorp.domain.features.transfer.repository.IFileTransferRepository
-import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
 import ltd.evilcorp.domain.features.transfer.model.FT_NOT_STARTED
 import ltd.evilcorp.domain.features.transfer.model.FT_REJECTED
 import ltd.evilcorp.domain.features.transfer.model.FT_STARTED

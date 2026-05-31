@@ -4,11 +4,9 @@
 
 package ltd.evilcorp.domain.core.network
 
-import ltd.evilcorp.domain.core.network.enums.ToxConnection
 import ltd.evilcorp.domain.core.network.enums.ToxFileKind
 import ltd.evilcorp.domain.core.network.enums.ToxMessageType
 import ltd.evilcorp.domain.core.network.enums.ToxUserStatus
-import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.transfer.model.FileKind
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.contacts.model.UserStatus

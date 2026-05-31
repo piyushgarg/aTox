@@ -2,7 +2,6 @@ package ltd.evilcorp.core.tox.runtime
 
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -40,10 +39,7 @@ class ToxEngine @Inject constructor(
 
     var isBootstrapNeeded = true
 
-    fun start(toxWrapper: ToxWrapper, onStopped: () -> Unit) {
-        running = true
-        isBootstrapNeeded = true
-
+    private fun ensureExecutorsActive() {
         if (toxExecutor.isShutdown) {
             toxExecutor = Executors.newSingleThreadExecutor { runnable ->
                 Thread(runnable, "ToxJniThread")
@@ -56,54 +52,78 @@ class ToxEngine @Inject constructor(
             }
             toxAvDispatcher = toxAvExecutor.asCoroutineDispatcher()
         }
+    }
+
+    fun start(toxWrapper: ToxWrapper, onStopped: () -> Unit) {
+        running = true
+        isBootstrapNeeded = true
+
+        ensureExecutorsActive()
 
         iterateJob = scope.launch(toxDispatcher) {
-            while (running || toxAvRunning) {
-                try {
-                    if (isBootstrapNeeded) {
-                        try {
-                            bootstrap(toxWrapper)
-                            isBootstrapNeeded = false
-                        } catch (e: Exception) {
-                            Log.e(TAG, e.toString())
+            try {
+                while (running || toxAvRunning) {
+                    try {
+                        if (isBootstrapNeeded) {
+                            try {
+                                bootstrap(toxWrapper)
+                                isBootstrapNeeded = false
+                            } catch (e: Exception) {
+                                Log.e(TAG, e.toString())
+                            }
                         }
-                    }
 
-                    val before = System.currentTimeMillis()
-                    toxWrapper.iterate()
-                    val timeTaken = System.currentTimeMillis() - before
-                    val iterationInterval = toxWrapper.iterationInterval()
-                    if (timeTaken > SLOW_ITERATION_LIMIT_MS && timeTaken > iterationInterval) {
-                        Log.w(TAG, "Tox thread overran: $timeTaken/$iterationInterval.")
+                        val before = System.currentTimeMillis()
+                        toxWrapper.iterate()
+                        val timeTaken = System.currentTimeMillis() - before
+                        val iterationInterval = toxWrapper.iterationInterval()
+                        if (timeTaken > SLOW_ITERATION_LIMIT_MS && timeTaken > iterationInterval) {
+                            Log.w(TAG, "Tox thread overran: $timeTaken/$iterationInterval.")
+                        }
+                        delay((iterationInterval - timeTaken).coerceAtLeast(0L))
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in Tox iteration loop: $e")
+                        delay(RECOVERY_DELAY_MS)
                     }
-                    delay((iterationInterval - timeTaken).coerceAtLeast(0L))
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in Tox iteration loop: $e")
-                    delay(RECOVERY_DELAY_MS)
                 }
+            } finally {
+                onStopped()
             }
-            onStopped()
         }
 
         iterateAvJob = scope.launch(toxAvDispatcher) {
             toxAvRunning = true
-            while (running) {
-                try {
-                    toxWrapper.iterateAv()
-                    delay(toxWrapper.iterationIntervalAv().coerceAtLeast(0L))
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in ToxAv iteration loop: $e")
-                    delay(RECOVERY_DELAY_MS)
+            try {
+                while (running) {
+                    try {
+                        toxWrapper.iterateAv()
+                        delay(toxWrapper.iterationIntervalAv().coerceAtLeast(0L))
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in ToxAv iteration loop: $e")
+                        delay(RECOVERY_DELAY_MS)
+                    }
                 }
+            } finally {
+                toxAvRunning = false
             }
-            toxAvRunning = false
         }
     }
 
     fun stop() {
         running = false
-        toxExecutor.shutdown()
-        toxAvExecutor.shutdown()
+        val job1 = iterateJob
+        val job2 = iterateAvJob
+        job1?.cancel()
+        job2?.cancel()
+        scope.launch {
+            try {
+                job1?.join()
+                job2?.join()
+            } finally {
+                toxExecutor.shutdown()
+                toxAvExecutor.shutdown()
+            }
+        }
     }
 
     fun isRunning(): Boolean = running || toxAvRunning

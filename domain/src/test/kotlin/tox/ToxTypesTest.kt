@@ -7,7 +7,6 @@ package ltd.evilcorp.domain.core.network
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import ltd.evilcorp.domain.core.model.PublicKey
-import ltd.evilcorp.domain.core.network.ToxID
 
 class ToxTypesTest {
     @Test
