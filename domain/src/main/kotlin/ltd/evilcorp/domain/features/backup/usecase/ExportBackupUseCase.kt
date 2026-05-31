@@ -17,16 +17,28 @@ open class ExportBackupUseCase @Inject constructor(
     private val platformServices: IPlatformServices
 ) {
     open suspend fun execute(selectedIds: Set<String>, password: String? = null): ByteArray {
-        val files = mutableMapOf<String, ByteArray>()
-        files[MANIFEST_ENTRY] = "aTox selective backup\n".encodeToByteArray()
+        val bos = java.io.ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(bos).use { zip ->
+            val manifestEntry = java.util.zip.ZipEntry(MANIFEST_ENTRY)
+            zip.putNextEntry(manifestEntry)
+            zip.write("aTox selective backup\n".encodeToByteArray())
+            zip.closeEntry()
 
-        providers
-            .filter { it.id in selectedIds }
-            .forEach { provider ->
-                files["${provider.id}.bin"] = provider.serialize()
-            }
-
-        val zipBytes = platformServices.zip(files)
+            providers
+                .filter { it.id in selectedIds }
+                .forEach { provider ->
+                    val entry = java.util.zip.ZipEntry("${provider.id}.bin")
+                    zip.putNextEntry(entry)
+                    val nonClosing = object : java.io.FilterOutputStream(zip) {
+                        override fun close() {
+                            flush()
+                        }
+                    }
+                    provider.serialize(nonClosing)
+                    zip.closeEntry()
+                }
+        }
+        val zipBytes = bos.toByteArray()
 
         return password?.takeIf(String::isNotBlank)?.let { BackupCryptoHelper.encrypt(zipBytes, it, platformServices) } ?: zipBytes
     }

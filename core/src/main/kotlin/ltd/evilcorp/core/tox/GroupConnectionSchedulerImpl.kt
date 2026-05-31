@@ -38,6 +38,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
         private const val FAST_RECONNECT_DELAY_MS = 5000L
         private const val ADAPTIVE_RECONNECT_DELAY_MS = 15000L
         private const val SLOW_RECONNECT_DELAY_MS = 30000L
+        private const val ROOM_TRANSACTION_DELAY_MS = 200L
     }
 
     private val reconnectJobs = ConcurrentHashMap<String, Job>()
@@ -167,6 +168,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
     override fun reconnectAll() {
         scope.launch {
             syncGroupNumbers()
+            delay(ROOM_TRANSACTION_DELAY_MS) // Wait for Room to apply groupNumber transactions and update Flow
             
             // Get active group list from C core to see what needs registration
             val activeGroupNumbers = try {

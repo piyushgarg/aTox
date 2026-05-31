@@ -11,12 +11,17 @@ import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.domain.features.contacts.ContactManager
 import ltd.evilcorp.domain.core.network.ITimeProvider
 
+import ltd.evilcorp.domain.core.network.ToxIdValidator
+
 class AddContactUseCase @Inject constructor(
     private val contactManager: ContactManager,
     private val messageRepository: IMessageRepository,
     private val timeProvider: ITimeProvider,
 ) {
     suspend fun execute(toxId: ToxID, message: String) = withContext(Dispatchers.IO) {
+        require(ToxIdValidator.validate(toxId) == ToxIdValidator.Result.NO_ERROR) {
+            "Invalid Tox ID format"
+        }
         contactManager.add(toxId, message)
         messageRepository.add(
             Message(

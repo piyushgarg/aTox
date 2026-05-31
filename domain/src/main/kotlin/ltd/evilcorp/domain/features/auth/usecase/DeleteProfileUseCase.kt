@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import ltd.evilcorp.domain.core.network.IToxProfile
+import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
 
 class DeleteProfileUseCase @Inject constructor(
@@ -16,6 +17,7 @@ class DeleteProfileUseCase @Inject constructor(
 ) {
     suspend fun execute() = withContext(Dispatchers.IO) {
         val pk = tox.publicKey
+        (tox as? ITox)?.stop()
         profileDeleter.deleteProfile(pk)
     }
 }

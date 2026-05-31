@@ -16,7 +16,9 @@ class ChatHistoryBackupDataProvider @Inject constructor(
     override val displayNameRes: Int = R.string.backup_module_chat_history
     override val descriptionRes: Int = R.string.backup_module_chat_history_description
 
-    override suspend fun serialize(): ByteArray = serializeMessages(helper.serializeChatHistory())
+    override suspend fun serialize(outputStream: java.io.OutputStream) {
+        outputStream.write(serializeMessages(helper.serializeChatHistory()))
+    }
 
     override suspend fun deserialize(data: ByteArray) {
         helper.deserializeChatHistory(parseMessages(data))
@@ -30,9 +32,9 @@ class CallLogBackupDataProvider @Inject constructor(
     override val displayNameRes: Int = R.string.backup_module_call_log
     override val descriptionRes: Int = R.string.backup_module_call_log_description
 
-    override suspend fun serialize(): ByteArray {
+    override suspend fun serialize(outputStream: java.io.OutputStream) {
         val callMessages = helper.serializeCallLog()
-        return serializeMessages(callMessages)
+        outputStream.write(serializeMessages(callMessages))
     }
 
     override suspend fun deserialize(data: ByteArray) {

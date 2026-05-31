@@ -40,7 +40,7 @@ class LiveBackupStressTest {
         override val displayNameRes: Int = 0
         override val descriptionRes: Int = 0
 
-        override suspend fun serialize(): ByteArray {
+        override suspend fun serialize(outputStream: java.io.OutputStream) {
             val contacts = contactRepository.getAll().first()
             val sb = StringBuilder()
             contacts.forEach { c ->
@@ -48,7 +48,7 @@ class LiveBackupStressTest {
                     .append(c.name).append("|")
                     .append(c.connectionStatus.name).append("\n")
             }
-            return sb.toString().encodeToByteArray()
+            outputStream.write(sb.toString().encodeToByteArray())
         }
 
         override suspend fun deserialize(data: ByteArray) {
@@ -76,7 +76,7 @@ class LiveBackupStressTest {
         override val displayNameRes: Int = 0
         override val descriptionRes: Int = 0
 
-        override suspend fun serialize(): ByteArray {
+        override suspend fun serialize(outputStream: java.io.OutputStream) {
             // Collect all messages from DB (simulated via loading all messaging keys)
             // In test we know the public keys we populated
             val sb = StringBuilder()
@@ -91,7 +91,7 @@ class LiveBackupStressTest {
                         .append(m.timestamp).append("\n")
                 }
             }
-            return sb.toString().encodeToByteArray()
+            outputStream.write(sb.toString().encodeToByteArray())
         }
 
         override suspend fun deserialize(data: ByteArray) {

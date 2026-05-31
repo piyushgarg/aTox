@@ -14,7 +14,9 @@ class ToxCoreBackupDataProvider @Inject constructor(
     override val displayNameRes: Int = R.string.backup_module_tox_core
     override val descriptionRes: Int = R.string.backup_module_tox_core_description
 
-    override suspend fun serialize(): ByteArray = tox.getSaveData()
+    override suspend fun serialize(outputStream: java.io.OutputStream) {
+        outputStream.write(tox.getSaveData())
+    }
 
     override suspend fun deserialize(data: ByteArray) {
         saveManager.save(tox.publicKey, data)

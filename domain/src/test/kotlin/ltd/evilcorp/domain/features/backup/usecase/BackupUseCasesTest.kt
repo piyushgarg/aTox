@@ -72,7 +72,9 @@ class BackupUseCasesTest {
             override val id: String = "test_provider"
             override val displayNameRes: Int = 0
             override val descriptionRes: Int = 0
-            override suspend fun serialize(): ByteArray = "serialized_data".encodeToByteArray()
+            override suspend fun serialize(outputStream: java.io.OutputStream) {
+                outputStream.write("serialized_data".encodeToByteArray())
+            }
             override suspend fun deserialize(data: ByteArray) {}
         }
         val useCase = ExportBackupUseCase(listOf(provider), platformServices)
@@ -81,11 +83,27 @@ class BackupUseCasesTest {
         
         // Test raw backup export
         val rawResult = useCase.execute(selectedIds, password = null)
-        assertContentEquals(platformServices.zippedBytesToReturn, rawResult)
+        assertTrue(rawResult.isNotEmpty())
+
+        val entries = mutableMapOf<String, ByteArray>()
+        java.util.zip.ZipInputStream(java.io.ByteArrayInputStream(rawResult)).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                entries[entry.name] = zip.readBytes()
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+
+        assertEquals(2, entries.size)
+        assertTrue(entries.containsKey("manifest.txt"))
+        assertEquals("aTox selective backup\n", entries["manifest.txt"]?.decodeToString())
+        assertTrue(entries.containsKey("test_provider.bin"))
+        assertEquals("serialized_data", entries["test_provider.bin"]?.decodeToString())
 
         // Test encrypted backup export
         val encryptedResult = useCase.execute(selectedIds, password = "password")
-        assertTrue(encryptedResult.size > platformServices.zippedBytesToReturn.size)
+        assertTrue(encryptedResult.size > rawResult.size)
     }
 
     @Test
@@ -95,7 +113,7 @@ class BackupUseCasesTest {
             override val id: String = "test_provider"
             override val displayNameRes: Int = 0
             override val descriptionRes: Int = 0
-            override suspend fun serialize(): ByteArray = byteArrayOf()
+            override suspend fun serialize(outputStream: java.io.OutputStream) {}
             override suspend fun deserialize(data: ByteArray) {
                 deserializedBytes = data
             }
