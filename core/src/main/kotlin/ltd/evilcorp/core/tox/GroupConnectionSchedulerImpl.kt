@@ -111,6 +111,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
         val peers = groupRepository.getPeers(chatId).firstOrNull() ?: emptyList()
         bootstrapFromKnownPeers(chatId, peers)
 
+        var currentGroupNumber = groupNumber
         var attempt = 0
         while (true) {
             try {
@@ -120,8 +121,29 @@ class GroupConnectionSchedulerImpl @Inject constructor(
                     return
                 }
 
-                val ok = tox.groupReconnect(groupNumber)
-                Log.d(TAG, "Reconnect attempt $attempt for group $chatId returned: $ok")
+                var ok = false
+                if (currentGroupNumber >= 0) {
+                    ok = tox.groupReconnect(currentGroupNumber)
+                }
+
+                if (!ok) {
+                    // Fall back to direct join if regular C-core reconnect fails
+                    val selfName = manager.getDefaultSelfName()
+                    val chatIdBytes = chatId.hexToBytes()
+                    val newGn = tox.groupJoinDirect(chatIdBytes, selfName.toByteArray(), null)
+                    if (newGn >= 0) {
+                        Log.i(
+                            TAG,
+                            "startPersistentReconnect: groupJoinDirect succeeded for $chatId, " +
+                                "assigned new groupNumber: $newGn"
+                        )
+                        currentGroupNumber = newGn
+                        groupRepository.setGroupNumber(chatId, newGn)
+                        ok = tox.groupReconnect(newGn)
+                    }
+                }
+
+                Log.d(TAG, "Reconnect attempt $attempt for group $chatId (gn: $currentGroupNumber) returned: $ok")
                 if (ok) {
                     manager.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
                 }
