@@ -10,7 +10,6 @@ import ltd.evilcorp.core.tox.NativeToxAv
 import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
-import ltd.evilcorp.domain.core.network.enums.ToxFileControl
 import ltd.evilcorp.domain.core.network.enums.ToxMessageType
 import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
 import ltd.evilcorp.domain.core.network.enums.ToxGroupRole

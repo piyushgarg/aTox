@@ -1,13 +1,11 @@
 package ltd.evilcorp.core.tox.listener
 
-import ltd.evilcorp.domain.core.network.enums.ToxConnection
 import ltd.evilcorp.domain.core.network.enums.ToxFileControl
 import ltd.evilcorp.domain.core.network.enums.ToxMessageType
 import ltd.evilcorp.domain.core.network.enums.ToxUserStatus
 import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
 import ltd.evilcorp.domain.core.network.enums.ToxGroupTopicLock
 import ltd.evilcorp.domain.core.network.enums.ToxGroupVoiceState
-import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
 import ltd.evilcorp.domain.core.network.enums.ToxGroupExitType
 import ltd.evilcorp.domain.core.network.enums.ToxGroupJoinFail
 import ltd.evilcorp.domain.core.network.enums.ToxGroupModEvent
@@ -15,7 +13,6 @@ import javax.inject.Inject
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
-import ltd.evilcorp.domain.core.network.bytesToHex
 
 // Called when a custom lossless packet is received from a friend
 typealias FriendLosslessPacketHandler = (publicKey: String, data: ByteArray) -> Unit

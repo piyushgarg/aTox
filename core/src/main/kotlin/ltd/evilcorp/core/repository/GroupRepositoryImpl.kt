@@ -15,8 +15,6 @@ import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.domain.features.group.model.GroupMessage
 import ltd.evilcorp.domain.features.group.model.GroupPeer
 import ltd.evilcorp.domain.features.group.model.GroupPrivacyState
-import ltd.evilcorp.domain.features.chat.model.MessageType
-import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.domain.features.group.repository.IGroupRepository
 

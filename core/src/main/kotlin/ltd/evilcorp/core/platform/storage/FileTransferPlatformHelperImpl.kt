@@ -15,7 +15,6 @@ import ltd.evilcorp.core.platform.io.JvmInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
-import java.io.InputStream
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
