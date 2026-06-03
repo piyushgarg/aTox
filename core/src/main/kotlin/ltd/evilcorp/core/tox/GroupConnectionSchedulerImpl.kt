@@ -316,8 +316,14 @@ class GroupConnectionSchedulerImpl @Inject constructor(
     }
 
     override fun scheduleAutoReconnect(chatId: String, groupNumber: Int) {
-        reconnectJobs[chatId]?.cancel()
         val manager = groupManager()
+        val currentStatus = manager.connectionStatus(chatId)
+        if (currentStatus == GroupConnectionStatus.Connecting || currentStatus == GroupConnectionStatus.Reconnecting) {
+            Log.d(TAG, "scheduleAutoReconnect: Group $chatId is already $currentStatus, skipping to avoid interruption")
+            return
+        }
+
+        reconnectJobs[chatId]?.cancel()
         manager.setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
         val job = scope.launch {
             startPersistentReconnect(chatId, groupNumber)

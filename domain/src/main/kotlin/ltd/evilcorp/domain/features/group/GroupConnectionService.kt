@@ -265,17 +265,13 @@ class GroupConnectionService @Inject constructor(
             val chatId = chatIdBytes?.bytesToHex()?.lowercase()
             if (chatId != null) {
                 val existingGroup = groupRepository.getDirect(chatId)
-                val existingStatus = if (existingGroup != null) sessionRegistry.connectionStatuses.value[chatId] else null
 
-                if (existingGroup != null &&
-                    (existingStatus == GroupConnectionStatus.Connecting ||
-                     existingStatus == GroupConnectionStatus.Disconnected ||
-                     existingStatus == GroupConnectionStatus.Reconnecting)) {
-                    // It's a known group that needs reconnecting -> Auto-accept it!
+                if (existingGroup != null) {
+                    // It's a known group -> Auto-accept it, even if we think we're connected (heals splits)
                     processJoinedGroup(groupNumber, selfName)
                     PreJoinResult(true, true, chatId)
                 } else {
-                    // Unknown group, or we are already connected to it -> Keep pending
+                    // Unknown group -> Keep pending
                     val inviteHex = inviteData.bytesToHex().lowercase()
                     pendingInvites[inviteHex] = groupNumber
                     PreJoinResult(true, false, chatId)
