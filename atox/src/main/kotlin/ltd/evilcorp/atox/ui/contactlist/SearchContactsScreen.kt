@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.ContactAvatar
 import ltd.evilcorp.domain.features.contacts.model.Contact
-import androidx.compose.ui.graphics.toArgb
 
 @Suppress("FunctionNaming")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,30 +49,7 @@ fun SearchContactsScreen(
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val activity = remember(context) {
-        var ctx = context
-        while (ctx is android.content.ContextWrapper) {
-            if (ctx is android.app.Activity) {
-                return@remember ctx
-            }
-            ctx = ctx.baseContext
-        }
-        null
-    }
-    val statusBarColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val originalColor = remember(activity) { activity?.window?.statusBarColor ?: 0 }
 
-    androidx.compose.runtime.DisposableEffect(statusBarColor) {
-        activity?.window?.let { window ->
-            window.statusBarColor = statusBarColor.toArgb()
-        }
-        onDispose {
-            activity?.window?.let { window ->
-                window.statusBarColor = originalColor
-            }
-        }
-    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),

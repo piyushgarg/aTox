@@ -32,20 +32,21 @@ class FriendRequestManager @Inject constructor(
 
     fun accept(friendRequest: FriendRequest) = scope.launch {
         val acceptTime = System.currentTimeMillis()
-        tox.acceptFriendRequest(PublicKey(friendRequest.publicKey))
-        messageRepository.add(
-            Message(
-                friendRequest.publicKey,
-                friendRequest.message,
-                Sender.Received,
-                MessageType.Normal,
-                0,
-                acceptTime,
-            ),
-        )
-        contactRepository.add(Contact(friendRequest.publicKey))
-        contactRepository.setLastMessage(friendRequest.publicKey, acceptTime)
-        friendRequestRepository.delete(friendRequest)
+        tox.acceptFriendRequest(PublicKey(friendRequest.publicKey)).onSuccess {
+            messageRepository.add(
+                Message(
+                    friendRequest.publicKey,
+                    friendRequest.message,
+                    Sender.Received,
+                    MessageType.Normal,
+                    0,
+                    acceptTime,
+                ),
+            )
+            contactRepository.add(Contact(friendRequest.publicKey))
+            contactRepository.setLastMessage(friendRequest.publicKey, acceptTime)
+            friendRequestRepository.delete(friendRequest)
+        }
     }
 
     fun reject(friendRequest: FriendRequest) = scope.launch { friendRequestRepository.delete(friendRequest) }

@@ -29,6 +29,7 @@ class FriendEventHandler @Inject constructor(
     }
 
     fun onFriendConnectionStatus(publicKey: String, status: ConnectionStatus) {
+        android.util.Log.d("ToxFriendStatus", "Friend connection status changed: $publicKey -> $status")
         eventBus.tryEmit(ToxFriendEvent.FriendConnectionStatus(publicKey, status))
     }
 
@@ -45,6 +46,7 @@ class FriendEventHandler @Inject constructor(
     }
 
     fun onSelfConnectionStatus(status: ConnectionStatus) {
+        android.util.Log.i("ToxSelfStatus", "Self connection status changed to: $status")
         eventBus.tryEmit(ToxFriendEvent.SelfConnectionStatus(status))
     }
 

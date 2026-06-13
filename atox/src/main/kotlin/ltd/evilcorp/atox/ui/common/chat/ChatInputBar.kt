@@ -4,8 +4,6 @@
 
 package ltd.evilcorp.atox.ui.common.chat
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -13,37 +11,24 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.with
-import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Attachment
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -65,18 +50,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -88,12 +68,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.Lifecycle
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
-import ltd.evilcorp.atox.ui.stripReplyPrefix
-import ltd.evilcorp.atox.ui.theme.AToxMotion
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.chat.model.Message
-import ltd.evilcorp.domain.features.chat.model.Sender
 
 private const val VOICE_CANCEL_THRESHOLD_DP = 60
 private const val VOICE_STOPWATCH_INTERVAL_MS = 1000L
@@ -218,7 +195,7 @@ fun ChatInputBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.ime)
+            .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
     ) {
         // 1. Reply Preview Block above text field
         ReplyPreviewHeader(

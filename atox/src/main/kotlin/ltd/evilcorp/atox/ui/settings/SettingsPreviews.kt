@@ -6,7 +6,6 @@ package ltd.evilcorp.atox.ui.settings
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.ui.settings.common.SettingsRootContent
@@ -14,16 +13,9 @@ import ltd.evilcorp.atox.ui.settings.screens.BackupSettingsScreen
 import ltd.evilcorp.atox.ui.settings.screens.LanguageSettingsScreen
 import ltd.evilcorp.atox.ui.settings.screens.ThemeSettingsScreen
 import ltd.evilcorp.atox.ui.settings.screens.NotificationSettingsScreen
-import ltd.evilcorp.atox.ui.settings.screens.SoundPickerTarget
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 import ltd.evilcorp.domain.features.settings.model.BackupDestination
 import ltd.evilcorp.domain.features.settings.model.BackupFrequency
-import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
-import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
-import ltd.evilcorp.domain.features.settings.model.FtAutoAccept
-import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
-import ltd.evilcorp.domain.features.settings.model.ProxyType
-import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 
 @Preview(name = "Main Settings List Preview", showSystemUi = true)
 @Composable
@@ -72,28 +64,25 @@ fun BackupSettingsScreenPreview() {
             backupProviders = emptyList(),
             backupExporting = false,
             backupImporting = false,
-            backupPasswordEnabled = true,
-            backupPassword = "secure_password",
-            backupPasswordVisible = false,
             automaticBackupEnabled = true,
             backupFrequency = BackupFrequency.Weekly,
             backupUseCellular = false,
             backupDestinations = setOf(BackupDestination.Local),
-            backupEndToEndEncryptionEnabled = true,
-            backupGoogleAccount = "user@gmail.com",
-            selectedBackupIds = emptySet(),
+            backupGoogleAccount = "user@example.com",
+            lastLocalBackupTimeMs = System.currentTimeMillis() - 86400000,
+            lastLocalBackupSizeKb = 1024 * 5,
+            lastGoogleBackupTimeMs = System.currentTimeMillis() - 86400000 * 2,
+            lastGoogleBackupSizeKb = 1024 * 5,
+            selectedBackupIds = setOf("tox", "chat"),
             mandatoryBackupId = "profile",
-            onBackupPasswordEnabledChanged = {},
-            onBackupPasswordChanged = {},
-            onBackupPasswordVisibleChanged = {},
             onAutomaticBackupEnabledChanged = {},
             onBackupFrequencyChanged = {},
             onBackupUseCellularChanged = {},
             onBackupDestinationsChanged = {},
-            onBackupEndToEndEncryptionEnabledChanged = {},
             onGoogleAccountClick = {},
             onSelectedBackupIdsChanged = {},
             onCreateBackupClick = {},
+            onCreateGoogleBackupClick = {},
             onRestoreBackupClick = {},
             performHaptic = {}
         )

@@ -2,16 +2,12 @@ package ltd.evilcorp.atox.infrastructure.receiver
 
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
-import ltd.evilcorp.atox.App
 import ltd.evilcorp.atox.MainActivity
-import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.app.PendingIntent
 import android.util.Log
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat

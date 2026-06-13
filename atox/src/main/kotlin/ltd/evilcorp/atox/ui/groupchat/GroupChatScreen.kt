@@ -1,23 +1,13 @@
 package ltd.evilcorp.atox.ui.groupchat
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -26,38 +16,24 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
-import ltd.evilcorp.atox.ui.common.formatChatTime
-import ltd.evilcorp.atox.ui.common.ContactAvatar
 import ltd.evilcorp.atox.ui.common.chat.ChatScreenContent
 import ltd.evilcorp.atox.ui.common.chat.MessageBubbleConfig
-import android.widget.Toast
-import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 import ltd.evilcorp.atox.ui.groupchat.components.GroupChatAppBar
 import ltd.evilcorp.atox.ui.groupchat.components.GroupPeersSheet
 import ltd.evilcorp.atox.ui.groupchat.components.GroupInviteSheet
 import ltd.evilcorp.domain.features.contacts.model.Contact
-import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
 import ltd.evilcorp.domain.features.group.GroupConnectionStatus
 import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.domain.features.group.model.GroupPeer
 import ltd.evilcorp.domain.features.group.model.GroupMessage
 import ltd.evilcorp.domain.features.chat.model.Message
-import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import ltd.evilcorp.atox.ui.theme.getPeerColor
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.lazy.LazyListState
@@ -152,7 +128,9 @@ fun GroupChatScreen(
         null
     }
     val navBarColor = MaterialTheme.colorScheme.surfaceContainer
+    @Suppress("DEPRECATION")
     val originalNavBarColor = remember(activity) { activity?.window?.navigationBarColor ?: 0 }
+    @Suppress("DEPRECATION")
     androidx.compose.runtime.DisposableEffect(navBarColor) {
         activity?.window?.let { window ->
             window.navigationBarColor = navBarColor.toArgb()
@@ -327,8 +305,9 @@ fun GroupChatScreen(
                         sender = m.sender,
                         type = m.type,
                         correlationId = m.correlationId,
-                        timestamp = m.timestamp
-                    ).apply { this.id = m.id }
+                        timestamp = m.timestamp,
+                        id = m.id
+                    )
                 },
                 getBubbleConfig = { msg ->
                     val isOutgoing = msg.sender == Sender.Sent

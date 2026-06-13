@@ -23,6 +23,7 @@ import ltd.evilcorp.atox.R
 @Composable
 fun ProfileLogoutCard(
     onLogoutClick: () -> Unit,
+    onSwitchProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -52,6 +53,20 @@ fun ProfileLogoutCard(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onSwitchProfile,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(stringResource(R.string.profile_switch), fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = onLogoutClick,

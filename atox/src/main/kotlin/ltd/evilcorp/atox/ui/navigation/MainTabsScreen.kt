@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Settings
@@ -32,7 +31,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -45,13 +43,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.tween
 import ltd.evilcorp.atox.ui.theme.AToxMotion
 
@@ -112,7 +105,7 @@ fun MainTabsScreen(
 
             AToxFAB(
                 currentRoute = currentRoute,
-                visible = showBottomBar && (currentRoute.endsWith("Chats") || currentRoute.endsWith("Groups")),
+                visible = showBottomBar && currentRoute.endsWith("Chats"),
                 hapticEnabled = hapticEnabled,
                 onAddContactClick = onAddContactClick,
                 onCreateGroupClick = onCreateGroupClick,
@@ -178,7 +171,6 @@ fun AToxBottomBar(
                 windowInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
             ) {
                 val chatsRouteName = AppRoutes.Chats::class.qualifiedName!!
-                val groupsRouteName = AppRoutes.Groups::class.qualifiedName!!
                 val profileRouteName = AppRoutes.Profile::class.qualifiedName!!
                 val settingsRouteName = AppRoutes.Settings::class.qualifiedName!!
 
@@ -195,12 +187,6 @@ fun AToxBottomBar(
                         }
                     },
                     label = { Text(stringResource(R.string.chats)) }
-                )
-                NavigationBarItem(
-                    selected = currentRoute?.endsWith("Groups") == true,
-                    onClick = { selectTab(groupsRouteName) },
-                    icon = { Icon(Icons.Default.Group, contentDescription = "Groups") },
-                    label = { Text(stringResource(R.string.groups)) }
                 )
                 NavigationBarItem(
                     selected = currentRoute?.endsWith("Profile") == true,

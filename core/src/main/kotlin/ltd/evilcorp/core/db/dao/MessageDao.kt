@@ -1,5 +1,6 @@
 package ltd.evilcorp.core.db.dao
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -18,8 +19,20 @@ interface MessageDao {
     @Query("SELECT * FROM (SELECT * FROM messages WHERE conversation == :conversation ORDER BY id DESC LIMIT 150) ORDER BY id ASC")
     fun load(conversation: String): Flow<List<MessageEntity>>
 
+    @Query("SELECT * FROM messages WHERE conversation == :conversation ORDER BY id DESC")
+    fun loadConversationPagingSource(conversation: String): PagingSource<Int, MessageEntity>
+
     @Query("SELECT * FROM messages")
     suspend fun loadAllBlocking(): List<MessageEntity>
+
+    @Query("SELECT * FROM messages ORDER BY id LIMIT :limit OFFSET :offset")
+    suspend fun loadPaged(limit: Int, offset: Int): List<MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE conversation == :conversation ORDER BY id DESC LIMIT :limit OFFSET :offset")
+    suspend fun loadConversationPaged(conversation: String, limit: Int, offset: Int): List<MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE correlation_id == -2147483648 ORDER BY id LIMIT :limit OFFSET :offset")
+    suspend fun loadCallLogPaged(limit: Int, offset: Int): List<MessageEntity>
 
     @Query("SELECT * FROM messages WHERE conversation == :conversation AND timestamp == 0")
     suspend fun loadPending(conversation: String): List<MessageEntity>

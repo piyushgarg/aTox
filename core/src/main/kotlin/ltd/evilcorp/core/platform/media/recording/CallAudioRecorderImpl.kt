@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.core.network.ITox
+import kotlin.time.Duration.Companion.milliseconds
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -59,7 +60,7 @@ class CallAudioRecorderImpl @Inject constructor(
                     }
                     val elapsed = System.currentTimeMillis() - start
                     if (elapsed < AUDIO_SEND_INTERVAL_MS) {
-                        delay(AUDIO_SEND_INTERVAL_MS - elapsed)
+                        delay((AUDIO_SEND_INTERVAL_MS - elapsed).milliseconds)
                     }
                 }
             } finally {

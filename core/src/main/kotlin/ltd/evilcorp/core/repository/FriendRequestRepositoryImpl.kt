@@ -10,16 +10,21 @@ import ltd.evilcorp.domain.features.contacts.model.FriendRequest
 import ltd.evilcorp.domain.features.contacts.repository.IFriendRequestRepository
 
 @Singleton
-class FriendRequestRepositoryImpl @Inject internal constructor(private val friendRequestDao: FriendRequestDao) : IFriendRequestRepository {
-    override suspend fun add(friendRequest: FriendRequest) = friendRequestDao.save(FriendRequestEntity.fromDomain(friendRequest))
+class FriendRequestRepositoryImpl @Inject internal constructor(
+    private val friendRequestDao: FriendRequestDao,
+    private val dbProvider: javax.inject.Provider<ltd.evilcorp.core.db.Database>? = null
+) : IFriendRequestRepository {
+    private val activeDao: FriendRequestDao get() = dbProvider?.get()?.friendRequestDao() ?: friendRequestDao
 
-    override suspend fun delete(friendRequest: FriendRequest) = friendRequestDao.delete(FriendRequestEntity.fromDomain(friendRequest))
+    override suspend fun add(friendRequest: FriendRequest) = activeDao.save(FriendRequestEntity.fromDomain(friendRequest))
+
+    override suspend fun delete(friendRequest: FriendRequest) = activeDao.delete(FriendRequestEntity.fromDomain(friendRequest))
 
     override fun getAll(): Flow<List<FriendRequest>> =
-        friendRequestDao.loadAll().map { list -> list.map { it.toDomain() } }
+        activeDao.loadAll().map { list -> list.map { it.toDomain() } }
 
     override fun get(publicKey: String): Flow<FriendRequest?> =
-        friendRequestDao.load(publicKey).map { it?.toDomain() }
+        activeDao.load(publicKey).map { it?.toDomain() }
 
-    override suspend fun count(): Int = friendRequestDao.count()
+    override suspend fun count(): Int = activeDao.count()
 }

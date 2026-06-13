@@ -73,13 +73,15 @@ class CallSignalPlayerImplTest {
         override suspend fun updateHapticEnabled(enabled: Boolean) {}
         override suspend fun updateAutoSaveToDownloads(enabled: Boolean) {}
         override suspend fun updateAutoSaveDirectoryUri(uri: String) {}
-        override suspend fun updateBackupEncryptionEnabled(enabled: Boolean) {}
-        override suspend fun updateBackupEndToEndEncryptionEnabled(enabled: Boolean) {}
         override suspend fun updateAutomaticBackupEnabled(enabled: Boolean) {}
         override suspend fun updateBackupFrequency(frequency: BackupFrequency) {}
         override suspend fun updateBackupGoogleAccount(account: String) {}
         override suspend fun updateBackupUseCellular(enabled: Boolean) {}
         override suspend fun updateBackupDestinationOrdinals(ordinals: Set<Int>) {}
+        override suspend fun updateLastLocalBackupTimeMs(timeMs: Long) {}
+        override suspend fun updateLastLocalBackupSizeKb(sizeKb: Long) {}
+        override suspend fun updateLastGoogleBackupTimeMs(timeMs: Long) {}
+        override suspend fun updateLastGoogleBackupSizeKb(sizeKb: Long) {}
     }
 
     @BeforeTest

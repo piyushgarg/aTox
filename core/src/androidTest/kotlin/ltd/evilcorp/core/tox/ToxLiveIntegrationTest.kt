@@ -12,7 +12,6 @@ import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.runtime.ToxWrapper
-import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.core.network.save.SaveOptions
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.settings.model.ProxyType
@@ -91,13 +90,13 @@ class ToxLiveIntegrationTest {
             val isBConnected = AtomicBoolean(false)
 
             listenerA.friendConnectionStatusHandler = { pk, status ->
-                if (pk == pkB.string() && status != ConnectionStatus.None) {
+                if (pk.lowercase() == pkB.string().lowercase() && status != ConnectionStatus.None) {
                     isAConnected.set(true)
                 }
             }
 
             listenerB.friendConnectionStatusHandler = { pk, status ->
-                if (pk == pkA.string() && status != ConnectionStatus.None) {
+                if (pk.lowercase() == pkA.string().lowercase() && status != ConnectionStatus.None) {
                     isBConnected.set(true)
                 }
             }
@@ -126,8 +125,8 @@ class ToxLiveIntegrationTest {
             }
 
             // Bootstrap instances against each other over local loopback UDP port
-            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.getPublicKey().bytes())
-            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.getPublicKey().bytes())
+            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.selfGetDhtId())
+            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.selfGetDhtId())
 
             // Wait up to 5 seconds to establish local connection (DHT handshake over 127.0.0.1)
             val startTime = System.currentTimeMillis()

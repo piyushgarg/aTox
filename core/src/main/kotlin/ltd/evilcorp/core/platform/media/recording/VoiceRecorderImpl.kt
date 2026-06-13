@@ -13,6 +13,9 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import kotlinx.coroutines.CoroutineDispatcher
+import ltd.evilcorp.domain.core.di.IoDispatcher
+
 private const val TAG = "VoiceRecorderImpl"
 private const val SAMPLING_RATE = 48000
 private const val CHANNELS = 1
@@ -27,7 +30,8 @@ private const val JOIN_TIMEOUT_MS = 2000L
  */
 @Singleton
 class VoiceRecorderImpl @Inject constructor(
-    private val context: Context
+    private val context: Context,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : IVoiceRecorder {
     private var voiceFile: File? = null
     @Volatile
@@ -133,7 +137,7 @@ class VoiceRecorderImpl @Inject constructor(
         }
     }
 
-    override suspend fun stopRecording(): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    override suspend fun stopRecording(): String? = kotlinx.coroutines.withContext(ioDispatcher) {
         if (!isRecordingActive) return@withContext null
         isRecordingActive = false
         val file = voiceFile
@@ -150,7 +154,7 @@ class VoiceRecorderImpl @Inject constructor(
         file?.absolutePath
     }
 
-    override suspend fun cancelRecording() = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    override suspend fun cancelRecording() = kotlinx.coroutines.withContext(ioDispatcher) {
         if (!isRecordingActive) return@withContext
         isRecordingActive = false
         val file = voiceFile

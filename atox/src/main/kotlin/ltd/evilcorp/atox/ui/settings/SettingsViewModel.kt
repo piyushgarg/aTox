@@ -8,7 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -51,6 +52,7 @@ class SettingsViewModel @Inject constructor(
     private val setRunAtStartupUseCase: SetRunAtStartupUseCase,
     private val checkProxyUseCase: CheckProxyUseCase,
     private val getSelfUserUseCase: GetSelfUserUseCase,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
     val publicKey by lazy { getSelfUserUseCase.publicKey }
     val user: StateFlow<User?> = getSelfUserUseCase.execute()
@@ -100,6 +102,24 @@ class SettingsViewModel @Inject constructor(
         restartNeeded = true
     }
 
+    fun setProxyType(type: ProxyType) {
+        if (type == getUserSettingsUseCase.settings.value.proxyType) return
+        viewModelScope.launch {
+            updateUserSettingsUseCase.execute(UpdateAction.ProxyTypeAction(type))
+        }
+        restartNeeded = true
+    }
+
+    fun setProxyAddress(address: String) {
+        if (address == getUserSettingsUseCase.settings.value.proxyAddress) return
+        viewModelScope.launch {
+            updateUserSettingsUseCase.execute(UpdateAction.ProxyAddressAction(address))
+        }
+        if (getUserSettingsUseCase.settings.value.proxyType != ProxyType.None) {
+            restartNeeded = true
+        }
+    }
+
     fun setRunAtStartup(enabled: Boolean) {
         viewModelScope.launch {
             setRunAtStartupUseCase.execute(enabled)
@@ -136,7 +156,7 @@ class SettingsViewModel @Inject constructor(
     private var checkProxyJob: Job? = null
     fun checkProxy() {
         checkProxyJob?.cancel(null)
-        checkProxyJob = viewModelScope.launch(Dispatchers.IO) {
+        checkProxyJob = viewModelScope.launch(ioDispatcher) {
             val currentSettings = getUserSettingsUseCase.settings.value
             val proxyStatusResult = checkProxyUseCase.execute(
                 currentSettings.udpEnabled,
@@ -173,31 +193,31 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setSentMessageSoundUri(uri: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             updateUserSettingsUseCase.execute(UpdateAction.SentMessageSoundUri(uri))
         }
     }
 
     fun setCallRingtoneUri(uri: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             updateUserSettingsUseCase.execute(UpdateAction.CallRingtoneUri(uri))
         }
     }
 
     fun setNotificationSoundUri(uri: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             updateUserSettingsUseCase.execute(UpdateAction.NotificationSoundUri(uri))
         }
     }
 
     fun setActiveChatSoundUri(uri: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             updateUserSettingsUseCase.execute(UpdateAction.ActiveChatSoundUri(uri))
         }
     }
 
     fun setAutoSaveDirectoryUri(uri: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             updateUserSettingsUseCase.execute(UpdateAction.AutoSaveDirectoryUri(uri))
         }
     }

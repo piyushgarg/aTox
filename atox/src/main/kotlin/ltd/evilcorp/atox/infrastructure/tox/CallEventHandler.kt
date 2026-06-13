@@ -10,7 +10,6 @@ import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.core.model.PublicKey
-import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.domain.core.model.FINGERPRINT_LEN
 import ltd.evilcorp.domain.core.network.enums.ToxavFriendCallState
 import ltd.evilcorp.core.platform.media.playback.AudioPlayer

@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -31,7 +29,6 @@ import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
 import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
 import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
-import ltd.evilcorp.atox.ui.settings.common.SettingsErrorClickableRow
 import ltd.evilcorp.domain.features.settings.model.FtAutoAccept
 
 private val ContentPaddingTop = 16.dp

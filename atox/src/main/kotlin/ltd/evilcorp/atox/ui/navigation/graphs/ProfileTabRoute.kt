@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,7 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -33,6 +31,7 @@ import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
+import ltd.evilcorp.atox.ui.theme.AToxMotion
 
 private const val MAX_AVATAR_BYTES = 64 * 1024
 
@@ -41,7 +40,10 @@ fun NavGraphBuilder.profileTabRoute(
     navController: NavHostController,
     settings: Settings
 ) {
-    composable<AppRoutes.Profile> {
+    composable<AppRoutes.Profile>(
+        enterTransition = { AToxMotion.fadeThroughEnter() },
+        exitTransition = { AToxMotion.fadeThroughExit() }
+    ) {
         val context = LocalContext.current
         val profileViewModel: UserProfileViewModel = hiltViewModel()
         val user by profileViewModel.user.collectAsStateWithLifecycle()
@@ -128,14 +130,31 @@ fun NavGraphBuilder.profileTabRoute(
                     },
                     showBackButton = false,
                     bottomPadding = LocalTabPadding.current.calculateBottomPadding(),
-                    onSetName = profileViewModel::setName,
+                    onSetName = {
+                        profileViewModel.setName(it)
+                        val activeId = ltd.evilcorp.core.profile.ProfileManager.getActiveProfileId(context)
+                        val profile = ltd.evilcorp.core.profile.ProfileManager.getProfiles(context).find { p -> p.id == activeId }
+                        if (profile != null) {
+                            ltd.evilcorp.core.profile.ProfileManager.addOrUpdateProfile(context, profile.copy(name = it))
+                        }
+                    },
                     onSetStatusMessage = profileViewModel::setStatusMessage,
                     onSetStatus = profileViewModel::setStatus,
                     performHaptic = performHaptic,
+                    onSwitchProfile = {
+                        android.util.Log.d("AtoxNav", "onSwitchProfile called. Current destination: ${navController.currentDestination?.route}")
+                        ltd.evilcorp.core.profile.ProfileManager.setShowProfilePicker(context, true)
+                        navController.navigate(AppRoutes.ProfilePicker)
+                        android.util.Log.d(
+                            "AtoxNav",
+                            "navController.navigate(ProfilePicker) called. " +
+                                "New destination: ${navController.currentDestination?.route}"
+                        )
+                    },
                     onLogout = {
                         profileViewModel.deleteProfileAndData()
                         navController.navigate(AppRoutes.Launch) {
-                            popUpTo(0) { inclusive = true }
+                            popUpTo(AppRoutes.Chats) { inclusive = true }
                         }
                     },
                     onAvatarChanged = profileViewModel::broadcastAvatar,

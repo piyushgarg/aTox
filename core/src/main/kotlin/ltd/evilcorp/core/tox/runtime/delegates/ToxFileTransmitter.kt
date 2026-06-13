@@ -13,34 +13,34 @@ private const val FILE_ID_LENGTH = 32
 
 class ToxFileTransmitter(
     private val nativeTox: NativeTox,
-    private val lock: Any,
-    private val toxPtrProvider: () -> Long,
-) {
-    private fun contactByKey(pk: PublicKey): Int {
-        return nativeTox.toxFriendByPublicKey(toxPtrProvider(), pk.bytes())
+    lock: Any,
+    toxPtrProvider: () -> Long,
+) : BaseToxBridge(lock, toxPtrProvider) {
+    private fun contactByKey(ptr: Long, pk: PublicKey): Int {
+        return nativeTox.toxFriendByPublicKey(ptr, pk.bytes())
     }
 
-    fun startFileTransfer(pk: PublicKey, fileNumber: Int) = synchronized(lock) {
+    fun startFileTransfer(pk: PublicKey, fileNumber: Int) = withTox { ptr ->
         try {
-            nativeTox.toxFileControl(toxPtrProvider(), contactByKey(pk), fileNumber, ToxFileControl.RESUME.ordinal)
+            nativeTox.toxFileControl(ptr, contactByKey(ptr, pk), fileNumber, ToxFileControl.RESUME.ordinal)
         } catch (e: Exception) {
             Log.e(TAG, "Error starting ft ${pk.fingerprint()} $fileNumber\n$e")
         }
     }
 
-    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = synchronized(lock) {
+    fun stopFileTransfer(pk: PublicKey, fileNumber: Int) = withTox { ptr ->
         try {
-            nativeTox.toxFileControl(toxPtrProvider(), contactByKey(pk), fileNumber, ToxFileControl.CANCEL.ordinal)
+            nativeTox.toxFileControl(ptr, contactByKey(ptr, pk), fileNumber, ToxFileControl.CANCEL.ordinal)
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping ft ${pk.fingerprint()} $fileNumber\n$e")
         }
     }
 
-    fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String): Int = synchronized(lock) {
+    fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String): Int = withTox { ptr ->
         try {
             nativeTox.toxFileSend(
-                toxPtrProvider(),
-                contactByKey(pk),
+                ptr,
+                contactByKey(ptr, pk),
                 fileKind.toToxtype(),
                 fileSize,
                 Random.nextBytes(FILE_ID_LENGTH),
@@ -52,9 +52,9 @@ class ToxFileTransmitter(
         }
     }
 
-    fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> = synchronized(lock) {
+    fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> = withTox { ptr ->
         try {
-            nativeTox.toxFileSendChunk(toxPtrProvider(), contactByKey(pk), fileNo, pos, data)
+            nativeTox.toxFileSendChunk(ptr, contactByKey(ptr, pk), fileNo, pos, data)
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Error sending chunk $pos:${data.size} to ${pk.fingerprint()} $fileNo\n$e")

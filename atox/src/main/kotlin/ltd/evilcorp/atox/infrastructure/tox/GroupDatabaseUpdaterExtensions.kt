@@ -10,10 +10,6 @@ import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.domain.core.network.enums.ToxGroupExitType
-import ltd.evilcorp.domain.core.network.enums.ToxGroupModEvent
-import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
-import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
-import ltd.evilcorp.domain.core.network.enums.ToxUserStatus
 import ltd.evilcorp.domain.features.group.GroupConnectionStatus
 import ltd.evilcorp.domain.features.group.GroupInvite
 import ltd.evilcorp.domain.features.group.GroupDomainEvent
@@ -25,7 +21,7 @@ private const val TAG = "GroupDatabaseUpdater"
 
 internal suspend fun GroupDatabaseUpdater.checkAndMigrateTemporaryGroup(groupNo: Int, realChatId: String) {
     val existingChatId = groupRepository.findChatIdByGroupNumber(groupNo)
-    if (existingChatId != null && !existingChatId.equals(realChatId, ignoreCase = true)) {
+    if (existingChatId != null && existingChatId.startsWith("unknown_") && !existingChatId.equals(realChatId, ignoreCase = true)) {
         Log.i(TAG, "Migrating temporary group from $existingChatId to $realChatId")
         try {
             val tempGroup = groupRepository.getDirect(existingChatId)
@@ -111,10 +107,26 @@ internal suspend fun GroupDatabaseUpdater.handleGroupInvite(
     event: GroupDomainEvent.GroupInvite,
     messageRepository: IMessageRepository
 ) {
+    val friendPkObject = tox.getFriendPublicKey(event.friendNo)
+    val friendPk = friendPkObject?.string()?.lowercase() ?: ""
+
+    // Layer 3 (revised): Background speculative join
+    // We join the group in the background to get its chatId without irreparably breaking the invite.
+    // If it's a known group, preJoinInvite processes it completely and we can just return!
+    val preJoin = groupConnectionService.preJoinInvite(
+        event.friendNo,
+        friendPk,
+        event.inviteData,
+        groupManager.getDefaultSelfName()
+    )
+    if (preJoin.success && preJoin.isKnownGroup) {
+        Log.i(TAG, "Layer 3: Auto-accepted invite for KNOWN group ${preJoin.chatId}. Reconnected automatically!")
+        return
+    }
+
+    // Normal handling: show invite to user (for unknown groups, or if pre-join failed)
     try {
-        val friendPkObject = tox.getFriendPublicKey(event.friendNo)
-        if (friendPkObject != null) {
-            val friendPk = friendPkObject.string().lowercase()
+        if (friendPk.isNotEmpty()) {
             val inviteDataHex = event.inviteData.bytesToHex().lowercase()
             val inviteText = "[GROUP_INVITE:${event.groupName}|$inviteDataHex]"
             
@@ -286,6 +298,7 @@ internal suspend fun GroupDatabaseUpdater.handleGroupPeerJoin(event: GroupDomain
             peerId = event.peerId,
             name = peerName,
             publicKey = peerKey,
+            role = if (event.peerId == 0) "FOUNDER" else "USER"
         )
         groupRepository.addPeer(peer)
 
@@ -306,6 +319,13 @@ internal suspend fun GroupDatabaseUpdater.handleGroupPeerJoin(event: GroupDomain
 
     val count = groupRepository.peerCountDirect(chatId)
     groupRepository.setPeerCount(chatId, count)
+
+    // Flush any pending messages if a peer joins. 
+    // This is crucial for healing split-brain scenarios where we were online alone,
+    // queued a message, and never got a GroupConnected event when the other peer joined.
+    Log.i(TAG, "Calling groupManager.resendPendingMessages for $chatId")
+    groupManager.resendPendingMessages(chatId)
+
     Log.i(TAG, "Peer joined group: $peerName (${event.peerId}) in $chatId")
 }
 
@@ -333,10 +353,6 @@ internal suspend fun GroupDatabaseUpdater.handleGroupPeerExit(event: GroupDomain
             Log.i(TAG, "Self left or kicked (${event.exitType}) from group $chatId")
         }
         return
-    }
-
-    if (event.exitType == ToxGroupExitType.DISCONNECTED || event.exitType == ToxGroupExitType.TIMEOUT) {
-        groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
     }
 
     if (event.exitType == ToxGroupExitType.QUIT || event.exitType == ToxGroupExitType.KICK) {

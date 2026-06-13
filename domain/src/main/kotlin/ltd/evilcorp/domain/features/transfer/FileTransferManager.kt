@@ -7,8 +7,9 @@ package ltd.evilcorp.domain.features.transfer
 import ltd.evilcorp.domain.core.network.enums.ToxFileControl
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
@@ -40,6 +41,7 @@ class FileTransferManager @Inject constructor(
     internal val tox: IToxFileTransmitter,
     internal val toxProfile: IToxProfile,
     private val sessionRegistry: IFileTransferSessionRegistry,
+    @IoDispatcher internal val ioDispatcher: CoroutineDispatcher,
 ) {
     internal val platformHelper get() = storageCoordinator.platformHelper
     internal val fileStorageHelper get() = storageCoordinator.fileStorageHelper
@@ -58,7 +60,7 @@ class FileTransferManager @Inject constructor(
         if (existing != null) {
             println("$TAG: Found stale active transfer with fileNumber ${ft.fileNumber} for ${ft.publicKey.fingerprint()}, removing it")
             fileTransfers.remove(existing)
-            scope.launch(Dispatchers.IO) {
+            scope.launch(ioDispatcher) {
                 fileTransferRepository.updateProgress(existing.id, FT_REJECTED)
             }
         }
@@ -74,14 +76,14 @@ class FileTransferManager @Inject constructor(
             }
             FileKind.Avatar.ordinal -> {
                 if (ft.fileSize == 0L) {
-                    scope.launch(Dispatchers.IO) {
+                    scope.launch(ioDispatcher) {
                         contactRepository.setAvatarUri(ft.publicKey, "")
                     }
                     reject(ft)
                     return -1
                 } else if (ft.fileSize > MAX_AVATAR_SIZE) {
                     println("$TAG: Got trash avatar with size ${ft.fileSize} from ${ft.publicKey}")
-                    scope.launch(Dispatchers.IO) {
+                    scope.launch(ioDispatcher) {
                         contactRepository.setAvatarUri(ft.publicKey, "")
                     }
                     tox.stopFileTransfer(PublicKey(ft.publicKey), ft.fileNumber)
@@ -105,7 +107,7 @@ class FileTransferManager @Inject constructor(
 
     fun accept(ft: FileTransfer) {
         println("$TAG: Accept ${ft.fileNumber} for ${ft.publicKey.fingerprint()}")
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             val destUri = when (ft.fileKind) {
                 FileKind.Data.ordinal -> {
                     val destPath = fileStorageHelper.makeLocalDestinationPath(ft.publicKey.fingerprint(), ft.fileName)
@@ -142,7 +144,7 @@ class FileTransferManager @Inject constructor(
         println("$TAG: Reject ${ft.fileNumber} for ${ft.publicKey.fingerprint()}")
         fileTransfers.remove(ft)
         tox.stopFileTransfer(PublicKey(ft.publicKey), ft.fileNumber)
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             setProgress(ft, FT_REJECTED)
             if (ft.destination.isNotEmpty()) {
                 val uriStr = ft.destination
@@ -159,7 +161,7 @@ class FileTransferManager @Inject constructor(
     internal fun setDestination(ft: FileTransfer, destination: String) {
         ft.destination = destination
         if (ft.fileKind == FileKind.Data.ordinal) {
-            scope.launch(Dispatchers.IO) {
+            scope.launch(ioDispatcher) {
                 fileTransferRepository.setDestination(ft.id, destination)
             }
         }
@@ -168,7 +170,7 @@ class FileTransferManager @Inject constructor(
     internal fun setProgress(ft: FileTransfer, progress: Long) {
         ft.progress = progress
         if (ft.fileKind == FileKind.Data.ordinal) {
-            scope.launch(Dispatchers.IO) {
+            scope.launch(ioDispatcher) {
                 fileTransferRepository.updateProgress(ft.id, progress)
             }
         }
@@ -197,7 +199,7 @@ class FileTransferManager @Inject constructor(
                 val finalAvatarUri = fileStorageHelper.finalizeAvatar(ft.fileName, ft.fileName)
                 if (finalAvatarUri != null) {
                     val avatarUriWithTimestamp = "$finalAvatarUri?t=${System.currentTimeMillis()}"
-                    scope.launch(Dispatchers.IO) {
+                    scope.launch(ioDispatcher) {
                         contactRepository.setAvatarUri(ft.publicKey, avatarUriWithTimestamp)
                     }
                 }
@@ -210,7 +212,7 @@ class FileTransferManager @Inject constructor(
 
     fun transfersFor(publicKey: PublicKey) = fileTransferRepository.get(publicKey.string())
 
-    suspend fun create(pk: PublicKey, fileUriString: String) = withContext(Dispatchers.IO) {
+    suspend fun create(pk: PublicKey, fileUriString: String) = withContext(ioDispatcher) {
         val info = platformHelper.getFileSizeAndName(fileUriString) ?: return@withContext
         val name = info.first
         val size = info.second
@@ -309,7 +311,7 @@ class FileTransferManager @Inject constructor(
         }
     }
 
-    suspend fun delete(id: Int) = withContext(Dispatchers.IO) {
+    suspend fun delete(id: Int) = withContext(ioDispatcher) {
         fileTransfers.find { it.id == id }?.let {
             if (!it.isComplete() && !it.isRejected()) {
                 reject(it)

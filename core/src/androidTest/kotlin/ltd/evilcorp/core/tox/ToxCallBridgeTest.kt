@@ -1,7 +1,6 @@
 package ltd.evilcorp.core.tox
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.runtime.ToxCallBridge
@@ -24,7 +23,6 @@ class ToxCallBridgeTest {
 
     @Before
     fun setUp() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
         toxWrapper = ToxWrapper(
             ToxEventListener(),
             ToxAvEventListener(),

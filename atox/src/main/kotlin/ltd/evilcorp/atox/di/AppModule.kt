@@ -66,4 +66,9 @@ class AppModule {
         fileTransferHistory,
         transferredFiles,
     )
+
+    @Provides
+    fun provideCloudBackupRepository(
+        impl: ltd.evilcorp.atox.infrastructure.backup.google.GoogleDriveBackupHelper
+    ): ltd.evilcorp.domain.features.backup.repository.ICloudBackupRepository = impl
 }

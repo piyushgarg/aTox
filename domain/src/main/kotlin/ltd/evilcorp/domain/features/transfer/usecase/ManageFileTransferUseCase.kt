@@ -4,8 +4,9 @@
 
 package ltd.evilcorp.domain.features.transfer.usecase
 
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import ltd.evilcorp.domain.features.transfer.FileTransferManager
 import ltd.evilcorp.domain.core.model.PublicKey
 import javax.inject.Inject
@@ -18,9 +19,10 @@ sealed interface FileTransferAction {
 }
 
 class ManageFileTransferUseCase @Inject constructor(
-    private val fileTransferManager: FileTransferManager
+    private val fileTransferManager: FileTransferManager,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
-    suspend fun execute(action: FileTransferAction) = withContext(Dispatchers.IO) {
+    suspend fun execute(action: FileTransferAction) = withContext(ioDispatcher) {
         when (action) {
             is FileTransferAction.Accept -> fileTransferManager.accept(action.fileNumber)
             is FileTransferAction.Reject -> fileTransferManager.reject(action.fileNumber)
@@ -29,3 +31,4 @@ class ManageFileTransferUseCase @Inject constructor(
         }
     }
 }
+

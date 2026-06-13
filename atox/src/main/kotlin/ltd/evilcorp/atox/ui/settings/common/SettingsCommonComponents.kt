@@ -21,22 +21,29 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SettingsGroup(
     title: String,
+    flat: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-        )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-        ) {
+        if (title.isNotEmpty()) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = if (flat) 16.dp else 8.dp, bottom = 8.dp, top = if (flat) 12.dp else 0.dp)
+            )
+        }
+        if (flat) {
             Column(modifier = Modifier.fillMaxWidth(), content = content)
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth(), content = content)
+            }
         }
     }
 }
@@ -46,6 +53,7 @@ fun SettingsClickableRow(
     title: String,
     subtitle: String,
     marqueeSubtitle: Boolean = false,
+    showArrow: Boolean = true,
     onClick: () -> Unit
 ) {
     Row(
@@ -76,12 +84,14 @@ fun SettingsClickableRow(
                 )
             }
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = "Open",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.size(20.dp)
-        )
+        if (showArrow) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Open",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 

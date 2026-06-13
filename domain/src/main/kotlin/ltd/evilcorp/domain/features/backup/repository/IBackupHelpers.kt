@@ -6,8 +6,10 @@ import ltd.evilcorp.domain.features.chat.model.Message
 
 interface IChatHistoryBackupHelper {
     suspend fun serializeChatHistory(): List<Message>
+    suspend fun serializeChatHistoryPaged(limit: Int, offset: Int): List<Message>
     suspend fun deserializeChatHistory(messages: List<Message>)
     suspend fun serializeCallLog(): List<Message>
+    suspend fun serializeCallLogPaged(limit: Int, offset: Int): List<Message>
     suspend fun deserializeCallLog(messages: List<Message>)
 }
 

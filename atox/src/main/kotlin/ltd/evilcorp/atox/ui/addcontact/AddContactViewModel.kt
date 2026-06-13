@@ -81,6 +81,7 @@ class AddContactViewModel @Inject constructor(
             _errorResId.value = R.string.add_contact_error_invalid
             return
         }
+        if (_isLoading.value) return
 
         _errorResId.value = null
 

@@ -11,6 +11,7 @@ import javax.inject.Singleton
 private const val MAX_VOLUME = 100
 private const val MAX_VOLUME_FLOAT = 100f
 
+@Suppress("unused")
 @Singleton
 class SystemSoundPlayer @Inject constructor(
     private val context: Context,
@@ -49,12 +50,10 @@ class SystemSoundPlayer @Inject constructor(
                     rt.isLooping = true
                     rt.volume = safeVolume / MAX_VOLUME_FLOAT
                 }
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                    rt.audioAttributes = AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                }
+                rt.audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
                 rt.play()
                 activeRingtone = rt
             }

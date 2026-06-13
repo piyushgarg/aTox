@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
@@ -36,7 +37,7 @@ class FileTransferPlatformHelperImpl @Inject constructor(
     }
 
     override fun getFileSizeAndName(uriString: String): Pair<String, Long>? {
-        val uri = Uri.parse(uriString)
+        val uri = uriString.toUri()
         return if (uri.scheme == "file") {
             val f = File(uri.path ?: return null)
             Pair(f.name, f.length())
@@ -52,7 +53,7 @@ class FileTransferPlatformHelperImpl @Inject constructor(
     }
 
     override fun copyToOutgoingCache(uriString: String, name: String): String {
-        val uri = Uri.parse(uriString)
+        val uri = uriString.toUri()
         val cacheDir = File(context.cacheDir, "outgoing")
         cacheDir.mkdirs()
         val destFile = File(cacheDir, "${UUID.randomUUID()}_$name")
@@ -70,7 +71,7 @@ class FileTransferPlatformHelperImpl @Inject constructor(
     }
 
     override fun openInputStream(uriString: String): IInputStream? {
-        val uri = Uri.parse(uriString)
+        val uri = uriString.toUri()
         val stream = if (uri.scheme == "file") {
             FileInputStream(File(uri.path ?: return null))
         } else {
@@ -80,13 +81,13 @@ class FileTransferPlatformHelperImpl @Inject constructor(
     }
 
     override fun releaseFilePermission(uriString: String) {
-        val uri = Uri.parse(uriString)
+        val uri = uriString.toUri()
         if (uri.scheme != ContentResolver.SCHEME_CONTENT) {
             return
         }
         try {
             resolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } catch (e: SecurityException) {
+        } catch (_: SecurityException) {
             // Ignore
         }
     }
@@ -126,7 +127,7 @@ class FileTransferPlatformHelperImpl @Inject constructor(
         return publicUri.toString()
     }
 
-    private fun saveToDownloadsLegacy(fileName: String, sourceFile: File): String? {
+    private fun saveToDownloadsLegacy(fileName: String, sourceFile: File): String {
         @Suppress("DEPRECATION")
         val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
         val atoxDir = File(downloadDir, "aTox")
@@ -140,7 +141,7 @@ class FileTransferPlatformHelperImpl @Inject constructor(
         try {
             val sourceFile = File(sourceFilePath)
             if (!sourceFile.exists()) return null
-            val directoryUri = Uri.parse(directoryUriString)
+            val directoryUri = directoryUriString.toUri()
             val mimeType = MimeTypeMap.getSingleton()
                 .getMimeTypeFromExtension(sourceFile.extension.lowercase())
                 ?: "application/octet-stream"
@@ -162,7 +163,7 @@ class FileTransferPlatformHelperImpl @Inject constructor(
         return try {
             val sourceFile = File(sourceFilePath)
             if (!sourceFile.exists()) return false
-            val targetUri = Uri.parse(targetUriString)
+            val targetUri = targetUriString.toUri()
             resolver.openOutputStream(targetUri)?.use { out ->
                 sourceFile.inputStream().use { input ->
                     input.copyTo(out)

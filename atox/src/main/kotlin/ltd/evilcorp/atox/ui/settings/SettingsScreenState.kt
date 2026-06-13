@@ -12,38 +12,39 @@ import androidx.compose.runtime.setValue
 import ltd.evilcorp.atox.ui.settings.common.SettingsDestination
 import ltd.evilcorp.atox.ui.settings.screens.SoundPickerTarget
 
+enum class GoogleSignInPurpose {
+    Connect,
+    Restore
+}
+
 internal class SettingsScreenState(
     destination: SettingsDestination,
     searchQuery: String,
     proxyPortInput: String,
     pendingRestoreUri: String?,
     showRestoreConfirmDialog: Boolean,
-    showGoogleAccountDialog: Boolean,
-    googleAccountInput: String,
     showAccentColorDialog: Boolean,
     showDateFormatDialog: Boolean,
     showTimeFormatDialog: Boolean,
-    backupPasswordEnabled: Boolean,
-    backupPassword: String,
     selectedBackupIds: Set<String>,
     soundPickerTarget: SoundPickerTarget,
     cacheSizeText: String,
+    showGoogleDriveRestoreDialog: Boolean,
+    googleSignInPurpose: GoogleSignInPurpose,
 ) {
     var destination by mutableStateOf(destination)
     var searchQuery by mutableStateOf(searchQuery)
     var proxyPortInput by mutableStateOf(proxyPortInput)
     var pendingRestoreUri by mutableStateOf(pendingRestoreUri)
     var showRestoreConfirmDialog by mutableStateOf(showRestoreConfirmDialog)
-    var showGoogleAccountDialog by mutableStateOf(showGoogleAccountDialog)
-    var googleAccountInput by mutableStateOf(googleAccountInput)
     var showAccentColorDialog by mutableStateOf(showAccentColorDialog)
     var showDateFormatDialog by mutableStateOf(showDateFormatDialog)
     var showTimeFormatDialog by mutableStateOf(showTimeFormatDialog)
-    var backupPasswordEnabled by mutableStateOf(backupPasswordEnabled)
-    var backupPassword by mutableStateOf(backupPassword)
     var selectedBackupIds by mutableStateOf(selectedBackupIds)
     var soundPickerTarget by mutableStateOf(soundPickerTarget)
     var cacheSizeText by mutableStateOf(cacheSizeText)
+    var showGoogleDriveRestoreDialog by mutableStateOf(showGoogleDriveRestoreDialog)
+    var googleSignInPurpose by mutableStateOf(googleSignInPurpose)
 }
 
 @Suppress("UnstableCollections")
@@ -59,15 +60,13 @@ internal fun rememberSettingsScreenState(
         proxyPortInput = defaultProxyPort,
         pendingRestoreUri = null,
         showRestoreConfirmDialog = false,
-        showGoogleAccountDialog = false,
-        googleAccountInput = "",
         showAccentColorDialog = false,
         showDateFormatDialog = false,
         showTimeFormatDialog = false,
-        backupPasswordEnabled = false,
-        backupPassword = "",
         selectedBackupIds = defaultBackupIds,
         soundPickerTarget = SoundPickerTarget.Call,
         cacheSizeText = defaultCacheSize,
+        showGoogleDriveRestoreDialog = false,
+        googleSignInPurpose = GoogleSignInPurpose.Connect,
     )
 }

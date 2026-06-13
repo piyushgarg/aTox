@@ -1,13 +1,17 @@
 package ltd.evilcorp.atox.ui.settings
 
-import android.content.Intent
-import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusManager
 import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsViewModel
+import ltd.evilcorp.atox.ui.settings.backup.GoogleDriveRestoreDialog
+import ltd.evilcorp.atox.ui.settings.backup.RestoreBackupConfirmDialog
 import ltd.evilcorp.atox.ui.settings.dialogs.SettingsDialogs
 
 @Composable
@@ -19,20 +23,22 @@ internal fun SettingsScreenDialogs(
     appearance: AppAppearance,
     onAccentColorSeedChanged: (Int) -> Unit,
     performHaptic: () -> Unit,
-    focusManager: FocusManager,
-    launchers: SettingsLaunchers
+    focusManager: FocusManager
 ) {
     val storedSettings = settings.state.collectAsState().value
     val showProxyDialog = viewModel.showProxyDialog.collectAsState().value
     val showFtAcceptDialog = viewModel.showFtAcceptDialog.collectAsState().value
     val showBootstrapDialog = viewModel.showBootstrapDialog.collectAsState().value
 
+    var pendingGoogleRestoreFileId by remember { mutableStateOf<String?>(null) }
+    var showGoogleRestoreConfirmDialog by remember { mutableStateOf(false) }
+
     SettingsDialogs(
         showProxyDialog = showProxyDialog,
         onDismissProxyDialog = { viewModel.setShowProxyDialog(false) },
         proxyType = storedSettings.proxyType,
         onSelectProxyType = {
-            settings.proxyType = it
+            viewModel.setProxyType(it)
             viewModel.setShowProxyDialog(false)
         },
         showFtAcceptDialog = showFtAcceptDialog,
@@ -82,29 +88,38 @@ internal fun SettingsScreenDialogs(
             state.showRestoreConfirmDialog = false
             state.pendingRestoreUri = null
         },
-        showGoogleAccountDialog = state.showGoogleAccountDialog,
-        onDismissGoogleAccountDialog = { state.showGoogleAccountDialog = false },
-        googleAccountInput = state.googleAccountInput,
-        onGoogleAccountInputChange = { state.googleAccountInput = it },
-        onChooseGoogleAccount = {
-            try {
-                val intent = android.accounts.AccountManager.newChooseAccountIntent(
-                    null,
-                    null,
-                    arrayOf("com.google"),
-                    null,
-                    null,
-                    null,
-                    null
-                )
-                launchers.accountPickerLauncher.launch(intent)
-            } catch (e: Exception) { e.printStackTrace() }
-        },
-        onConfirmGoogleAccount = {
-            settings.backupGoogleAccount = state.googleAccountInput
-            state.showGoogleAccountDialog = false
-        },
         performHaptic = performHaptic,
         focusManager = focusManager
     )
+
+    if (state.showGoogleDriveRestoreDialog) {
+        val googleBackups by backupViewModel.googleBackups.collectAsState()
+        GoogleDriveRestoreDialog(
+            backups = googleBackups,
+            onBackupSelected = { backup ->
+                state.showGoogleDriveRestoreDialog = false
+                pendingGoogleRestoreFileId = backup.id
+                showGoogleRestoreConfirmDialog = true
+            },
+            onDismiss = {
+                state.showGoogleDriveRestoreDialog = false
+            }
+        )
+    }
+
+    if (showGoogleRestoreConfirmDialog && pendingGoogleRestoreFileId != null) {
+        RestoreBackupConfirmDialog(
+            isToxStarted = backupViewModel.isToxStarted(),
+            onConfirm = { password ->
+                backupViewModel.restoreGoogleDriveBackup(pendingGoogleRestoreFileId!!, password)
+                showGoogleRestoreConfirmDialog = false
+                pendingGoogleRestoreFileId = null
+            },
+            onDismiss = {
+                showGoogleRestoreConfirmDialog = false
+                pendingGoogleRestoreFileId = null
+            },
+            focusManager = focusManager
+        )
+    }
 }

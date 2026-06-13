@@ -7,11 +7,11 @@ import ltd.evilcorp.domain.core.model.Stable
 data class GroupPeer(
     val groupChatId: String,
     val peerId: Int,
-    var name: String = "",
-    var publicKey: String = "",
-    var role: String = "User",
-    var isOurselves: Boolean = false,
-    var status: UserStatus = UserStatus.None,
+    val name: String = "",
+    val publicKey: String = "",
+    val role: String = "User",
+    val isOurselves: Boolean = false,
+    val status: UserStatus = UserStatus.None,
 ) {
     val colorIndex: Int
         get() = (name.hashCode().let { if (it < 0) -it else it } % 8)

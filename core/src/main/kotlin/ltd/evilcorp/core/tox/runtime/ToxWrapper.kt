@@ -20,6 +20,7 @@ import ltd.evilcorp.core.tox.runtime.delegates.ToxAudioVideoBridge
 import ltd.evilcorp.core.tox.runtime.delegates.ToxGroupBridge
 
 private const val TAG = "ToxWrapper"
+private const val DEFAULT_AV_ITERATION_INTERVAL_MS = 50L
 
 /**
  * Thread-safe wrapper over native libraries NativeTox and NativeToxAv.
@@ -46,7 +47,7 @@ class ToxWrapper(
 
     init {
         val sd = options.saveData
-        toxPtr = nativeTox.toxNewWithOptions(
+        var ptr = nativeTox.toxNewWithOptions(
             savedata = sd,
             ipv6Enabled = true,
             udpEnabled = options.udpEnabled,
@@ -55,10 +56,27 @@ class ToxWrapper(
             proxyHost = options.proxyAddress.ifEmpty { null },
             proxyPort = options.proxyPort
         )
-        if (toxPtr != 0L) {
-            toxavPtr = nativeToxAv.toxavNew(toxPtr)
+        if (ptr == 0L) {
+            Log.w(TAG, "Failed to initialize Tox with IPv6 enabled. Retrying with IPv6 disabled.")
+            ptr = nativeTox.toxNewWithOptions(
+                savedata = sd,
+                ipv6Enabled = false,
+                udpEnabled = options.udpEnabled,
+                localDiscoveryEnabled = true,
+                proxyType = options.proxyType.ordinal,
+                proxyHost = options.proxyAddress.ifEmpty { null },
+                proxyPort = options.proxyPort
+            )
         }
+        check(ptr != 0L) { "Failed to initialize Tox Core: Native pointer is null." }
+        toxPtr = ptr
+        toxavPtr = nativeToxAv.toxavNew(toxPtr)
         updateContactMapping()
+    }
+
+    private inline fun <T> withTox(block: (Long) -> T): T = synchronized(jniLock) {
+        check(toxPtr != 0L) { "Tox native pointer is null. Tox session has been stopped." }
+        block(toxPtr)
     }
 
     private fun updateContactMapping() {
@@ -68,17 +86,21 @@ class ToxWrapper(
     }
 
     // Connects to a public DHT node and registers a TCP relay.
-    fun bootstrap(address: String, port: Int, publicKey: ByteArray) = synchronized(jniLock) {
-        nativeTox.toxBootstrap(toxPtr, address, port, publicKey)
-        nativeTox.toxAddTcpRelay(toxPtr, address, port, publicKey)
+    fun bootstrap(address: String, port: Int, publicKey: ByteArray) = withTox { ptr ->
+        nativeTox.toxBootstrap(ptr, address, port, publicKey)
+        nativeTox.toxAddTcpRelay(ptr, address, port, publicKey)
     }
 
     // Stops native core sessions and frees native memory.
     fun stop() = synchronized(jniLock) {
-        nativeToxAv.toxavKill(toxavPtr)
-        nativeTox.toxKill(toxPtr)
-        toxavPtr = 0
-        toxPtr = 0
+        if (toxavPtr != 0L) {
+            nativeToxAv.toxavKill(toxavPtr)
+            toxavPtr = 0
+        }
+        if (toxPtr != 0L) {
+            nativeTox.toxKill(toxPtr)
+            toxPtr = 0
+        }
         Log.i(TAG, "Killed Tox")
     }
 
@@ -98,40 +120,46 @@ class ToxWrapper(
         }
     }
 
-    fun iterate(): Unit = synchronized(jniLock) { nativeTox.toxIterate(toxPtr, eventListener) }
-    fun iterateAv(): Unit = synchronized(jniLock) { nativeToxAv.toxavIterate(toxavPtr, avEventListener) }
-
-    fun iterationInterval(): Long = synchronized(jniLock) { nativeTox.toxIterationInterval(toxPtr).toLong() }
-    fun iterationIntervalAv(): Long = synchronized(jniLock) { nativeToxAv.toxavIterationInterval(toxavPtr).toLong() }
-
-    fun getName(): String = synchronized(jniLock) { String(nativeTox.toxGetName(toxPtr)) }
-    fun setName(name: String) = synchronized(jniLock) { nativeTox.toxSetName(toxPtr, name.toByteArray()) }
-
-    fun getStatusMessage(): String = synchronized(jniLock) { String(nativeTox.toxGetStatusMessage(toxPtr)) }
-    fun setStatusMessage(statusMessage: String) = synchronized(jniLock) {
-        nativeTox.toxSetStatusMessage(toxPtr, statusMessage.toByteArray())
+    fun iterate(): Unit = withTox { ptr -> nativeTox.toxIterate(ptr, eventListener) }
+    fun iterateAv(): Unit = synchronized(jniLock) {
+        if (toxavPtr != 0L) {
+            nativeToxAv.toxavIterate(toxavPtr, avEventListener)
+        }
     }
 
-    fun getToxId() = synchronized(jniLock) { ToxID.fromBytes(nativeTox.toxGetAddress(toxPtr)) }
-    fun getPublicKey() = synchronized(jniLock) { PublicKey.fromBytes(nativeTox.toxGetPublicKey(toxPtr)) }
+    fun iterationInterval(): Long = withTox { ptr -> nativeTox.toxIterationInterval(ptr).toLong() }
+    fun iterationIntervalAv(): Long = synchronized(jniLock) {
+        if (toxavPtr != 0L) nativeToxAv.toxavIterationInterval(toxavPtr).toLong() else DEFAULT_AV_ITERATION_INTERVAL_MS
+    }
 
-    fun getNospam(): Int = synchronized(jniLock) { nativeTox.toxGetNospam(toxPtr) }
-    fun setNospam(value: Int) = synchronized(jniLock) { nativeTox.toxSetNospam(toxPtr, value) }
+    fun getName(): String = withTox { ptr -> String(nativeTox.toxGetName(ptr)) }
+    fun setName(name: String) = withTox { ptr -> nativeTox.toxSetName(ptr, name.toByteArray()) }
 
-    fun getSaveData() = synchronized(jniLock) { nativeTox.toxGetSavedata(toxPtr) }
+    fun getStatusMessage(): String = withTox { ptr -> String(nativeTox.toxGetStatusMessage(ptr)) }
+    fun setStatusMessage(statusMessage: String) = withTox { ptr ->
+        nativeTox.toxSetStatusMessage(ptr, statusMessage.toByteArray())
+    }
+
+    fun getToxId() = withTox { ptr -> ToxID.fromBytes(nativeTox.toxGetAddress(ptr)) }
+    fun getPublicKey() = withTox { ptr -> PublicKey.fromBytes(nativeTox.toxGetPublicKey(ptr)) }
+
+    fun getNospam(): Int = withTox { ptr -> nativeTox.toxGetNospam(ptr) }
+    fun setNospam(value: Int) = withTox { ptr -> nativeTox.toxSetNospam(ptr, value) }
+
+    fun getSaveData() = withTox { ptr -> nativeTox.toxGetSavedata(ptr) }
 
     // Adds a new contact by their full Tox ID and sends a friend request.
-    fun addContact(toxId: ToxID, message: String) = synchronized(jniLock) {
-        nativeTox.toxAddFriend(toxPtr, toxId.bytes(), message.toByteArray())
+    fun addContact(toxId: ToxID, message: String) = withTox { ptr ->
+        nativeTox.toxAddFriend(ptr, toxId.bytes(), message.toByteArray())
         updateContactMapping()
     }
 
     // Deletes a contact from the contact list by their public key.
-    fun deleteContact(pk: PublicKey) = synchronized(jniLock) {
+    fun deleteContact(pk: PublicKey) = withTox { ptr ->
         Log.i(TAG, "Deleting ${pk.fingerprint()}")
-        val friendNumber = nativeTox.toxFriendByPublicKey(toxPtr, pk.bytes())
+        val friendNumber = nativeTox.toxFriendByPublicKey(ptr, pk.bytes())
         if (friendNumber != -1) {
-            nativeTox.toxDeleteFriend(toxPtr, friendNumber)
+            nativeTox.toxDeleteFriend(ptr, friendNumber)
         } else {
             Log.e(TAG, "Tried to delete nonexistent contact")
         }
@@ -139,46 +167,48 @@ class ToxWrapper(
     }
 
     // Returns a list of all friends as pairs of (PublicKey, native ID).
-    fun getContacts(): List<Pair<PublicKey, Int>> = synchronized(jniLock) {
-        val friendNumbers = nativeTox.toxGetFriendList(toxPtr)
+    fun getContacts(): List<Pair<PublicKey, Int>> = withTox { ptr ->
+        val friendNumbers = nativeTox.toxGetFriendList(ptr)
         Log.i(TAG, "Loading ${friendNumbers.size} friends")
         List(friendNumbers.size) {
-            Pair(PublicKey.fromBytes(nativeTox.toxGetFriendPublicKey(toxPtr, friendNumbers[it])), friendNumbers[it])
+            Pair(PublicKey.fromBytes(nativeTox.toxGetFriendPublicKey(ptr, friendNumbers[it])), friendNumbers[it])
         }
     }
 
-    fun getFriendPublicKey(friendNumber: Int): ByteArray? = synchronized(jniLock) {
+    fun getFriendPublicKey(friendNumber: Int): ByteArray? = withTox { ptr ->
         try {
-            nativeTox.toxGetFriendPublicKey(toxPtr, friendNumber)
-        } catch (e: Exception) {
+            nativeTox.toxGetFriendPublicKey(ptr, friendNumber)
+        } catch (_: Exception) {
             null
         }
     }
 
     // Sends a private text or action message to a friend.
-    fun sendMessage(publicKey: PublicKey, message: String, type: MessageType): Int = synchronized(jniLock) {
+    fun sendMessage(publicKey: PublicKey, message: String, type: MessageType): Int = withTox { ptr ->
         nativeTox.toxFriendSendMessage(
-            toxPtr,
-            contactByKey(publicKey),
+            ptr,
+            contactByKey(ptr, publicKey),
             type.toToxType().ordinal,
             message.toByteArray(),
         )
     }
 
     // Accepts an incoming friend request and adds the contact to the list.
-    fun acceptFriendRequest(pk: PublicKey) = synchronized(jniLock) {
+    fun acceptFriendRequest(pk: PublicKey): Result<Unit> = withTox { ptr ->
         try {
-            nativeTox.toxAddFriendNorequest(toxPtr, pk.bytes())
+            nativeTox.toxAddFriendNorequest(ptr, pk.bytes())
             updateContactMapping()
+            Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Exception while accepting friend request $pk: $e")
+            Result.failure(e)
         }
     }
 
     // Adds a friend to the list without sending a request.
-    fun addFriendNoRequest(pk: PublicKey): Int = synchronized(jniLock) {
+    fun addFriendNoRequest(pk: PublicKey): Int = withTox { ptr ->
         try {
-            val result = nativeTox.toxAddFriendNorequest(toxPtr, pk.bytes())
+            val result = nativeTox.toxAddFriendNorequest(ptr, pk.bytes())
             if (result >= 0) {
                 updateContactMapping()
             }
@@ -198,19 +228,19 @@ class ToxWrapper(
         fileTransmitter.sendFileChunk(pk, fileNo, pos, data)
 
     // Sets friend typing notification status.
-    fun setTyping(publicKey: PublicKey, typing: Boolean) = synchronized(jniLock) {
-        nativeTox.toxSetTyping(toxPtr, contactByKey(publicKey), typing)
+    fun setTyping(publicKey: PublicKey, typing: Boolean) = withTox { ptr ->
+        nativeTox.toxSetTyping(ptr, contactByKey(ptr, publicKey), typing)
     }
 
-    fun getStatus() = synchronized(jniLock) { UserStatus.entries[nativeTox.toxGetSelfUserStatus(toxPtr)] }
-    fun setStatus(status: UserStatus) = synchronized(jniLock) {
-        nativeTox.toxSetSelfUserStatus(toxPtr, status.toToxType().ordinal)
+    fun getStatus() = withTox { ptr -> UserStatus.entries[nativeTox.toxGetSelfUserStatus(ptr)] }
+    fun setStatus(status: UserStatus) = withTox { ptr ->
+        nativeTox.toxSetSelfUserStatus(ptr, status.toToxType().ordinal)
     }
 
     // Sends a reliable lossless custom data packet to a friend.
-    fun sendLosslessPacket(pk: PublicKey, packet: ByteArray): CustomPacketError = synchronized(jniLock) {
+    fun sendLosslessPacket(pk: PublicKey, packet: ByteArray): CustomPacketError = withTox { ptr ->
         try {
-            nativeTox.toxFriendSendLosslessPacket(toxPtr, contactByKey(pk), packet)
+            nativeTox.toxFriendSendLosslessPacket(ptr, contactByKey(ptr, pk), packet)
             CustomPacketError.Success
         } catch (e: Exception) {
             Log.e(TAG, "Error sending lossless packet: $e")
@@ -219,9 +249,9 @@ class ToxWrapper(
     }
 
     // Sends an unreliable lossy custom data packet to a friend.
-    fun sendLossyPacket(pk: PublicKey, data: ByteArray): CustomPacketError = synchronized(jniLock) {
+    fun sendLossyPacket(pk: PublicKey, data: ByteArray): CustomPacketError = withTox { ptr ->
         try {
-            nativeTox.toxFriendSendLossyPacket(toxPtr, contactByKey(pk), data)
+            nativeTox.toxFriendSendLossyPacket(ptr, contactByKey(ptr, pk), data)
             CustomPacketError.Success
         } catch (e: Exception) {
             Log.e(TAG, "Error sending lossy packet: $e")
@@ -229,25 +259,25 @@ class ToxWrapper(
         }
     }
 
-    fun selfGetSecretKey(): ByteArray = synchronized(jniLock) { nativeTox.toxSelfGetSecretKey(toxPtr) }
-    fun selfGetUdpPort(): Int = synchronized(jniLock) { nativeTox.toxSelfGetUdpPort(toxPtr) }
-    fun selfGetTcpPort(): Int = synchronized(jniLock) { nativeTox.toxSelfGetTcpPort(toxPtr) }
-    fun selfGetDhtId(): ByteArray = synchronized(jniLock) { nativeTox.toxSelfGetDhtId(toxPtr) }
+    fun selfGetSecretKey(): ByteArray = withTox { ptr -> nativeTox.toxSelfGetSecretKey(ptr) }
+    fun selfGetUdpPort(): Int = withTox { ptr -> nativeTox.toxSelfGetUdpPort(ptr) }
+    fun selfGetTcpPort(): Int = withTox { ptr -> nativeTox.toxSelfGetTcpPort(ptr) }
+    fun selfGetDhtId(): ByteArray = withTox { ptr -> nativeTox.toxSelfGetDhtId(ptr) }
 
-    fun friendGetLastOnline(pk: PublicKey): Long = synchronized(jniLock) {
-        nativeTox.toxFriendGetLastOnline(toxPtr, contactByKey(pk))
+    fun friendGetLastOnline(pk: PublicKey): Long = withTox { ptr ->
+        nativeTox.toxFriendGetLastOnline(ptr, contactByKey(ptr, pk))
     }
 
-    fun friendGetTyping(pk: PublicKey): Boolean = synchronized(jniLock) {
-        nativeTox.toxFriendGetTyping(toxPtr, contactByKey(pk))
+    fun friendGetTyping(pk: PublicKey): Boolean = withTox { ptr ->
+        nativeTox.toxFriendGetTyping(ptr, contactByKey(ptr, pk))
     }
 
-    private fun contactByKey(pk: PublicKey): Int = synchronized(jniLock) {
-        nativeTox.toxFriendByPublicKey(toxPtr, pk.bytes())
+    private fun contactByKey(ptr: Long, pk: PublicKey): Int {
+        return nativeTox.toxFriendByPublicKey(ptr, pk.bytes())
     }
 
-    fun getFriendNumberByPublicKey(pk: PublicKey): Int = synchronized(jniLock) {
-        nativeTox.toxFriendByPublicKey(toxPtr, pk.bytes())
+    fun getFriendNumberByPublicKey(pk: PublicKey): Int = withTox { ptr ->
+        nativeTox.toxFriendByPublicKey(ptr, pk.bytes())
     }
 
     // Audio-Video call delegation methods
@@ -287,7 +317,7 @@ class ToxWrapper(
         groupBridge.groupJoinDirect(chatId, selfName, password)
     fun groupReconnect(groupNumber: Int): Boolean = groupBridge.groupReconnect(groupNumber)
     fun groupGetChatlist(): IntArray = groupBridge.groupGetChatlist()
-      // Legacy conference/groupav delegation methods
+    // Legacy conference/groupav delegation methods
     fun groupavAdd(): Int = groupBridge.groupavAdd()
     fun groupavJoin(groupNumber: Int): Int = groupBridge.groupavJoin(groupNumber)
     fun groupavSendAudio(groupNumber: Int, pcm: ShortArray, channels: Int, samplingRate: Int): Int =

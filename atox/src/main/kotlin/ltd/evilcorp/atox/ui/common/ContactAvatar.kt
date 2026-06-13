@@ -1,7 +1,6 @@
 package ltd.evilcorp.atox.ui.common
 
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -31,7 +30,6 @@ import ltd.evilcorp.atox.ui.theme.avatarContentColor
 import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import ltd.evilcorp.atox.ui.common.LocalFileStorageProvider
 
 private val avatarBitmapCache = LruCache<String, ImageBitmap>(64)
 

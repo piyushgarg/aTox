@@ -28,8 +28,7 @@ data class Message(
     val message: String,
     val sender: Sender,
     val type: MessageType,
-    var correlationId: Int,
-    var timestamp: Long = 0,
-) {
-    var id: Long = 0
-}
+    val correlationId: Int,
+    val timestamp: Long = 0,
+    val id: Long = 0,
+)

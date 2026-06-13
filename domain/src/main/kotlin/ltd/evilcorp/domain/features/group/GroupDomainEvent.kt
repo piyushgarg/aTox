@@ -47,4 +47,5 @@ sealed class GroupDomainEvent {
     data class GroupConnected(val groupNo: Int) : GroupDomainEvent()
     data class GroupJoinFail(val groupNo: Int, val joinFail: ToxGroupJoinFail) : GroupDomainEvent()
     data class GroupModeration(val groupNo: Int, val sourcePeerId: Int, val targetPeerId: Int, val modEvent: ToxGroupModEvent) : GroupDomainEvent()
+    data class LocalMessageSent(val chatId: String) : GroupDomainEvent()
 }

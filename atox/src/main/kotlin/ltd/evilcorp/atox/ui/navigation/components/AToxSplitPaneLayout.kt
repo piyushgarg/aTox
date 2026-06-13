@@ -10,7 +10,6 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -18,27 +17,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.infrastructure.settings.Settings
-import ltd.evilcorp.atox.infrastructure.util.PermissionManager
 import ltd.evilcorp.atox.ui.chat.ChatScreen
 import ltd.evilcorp.atox.ui.chat.ChatViewModel
 import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupChatScreen
 import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
-import ltd.evilcorp.domain.features.group.GroupConnectionStatus
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.navigation.*
 import ltd.evilcorp.atox.ui.navigation.graphs.*
-import ltd.evilcorp.atox.ui.theme.AToxMotion
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.domain.core.model.PublicKey
@@ -73,7 +67,6 @@ fun AToxSplitPaneLayout(
                         onTabSelected = { route ->
                             val targetRoute: Any = when (route) {
                                 AppRoutes.Chats::class.qualifiedName -> AppRoutes.Chats
-                                AppRoutes.Groups::class.qualifiedName -> AppRoutes.Groups
                                 AppRoutes.Profile::class.qualifiedName -> AppRoutes.Profile
                                 AppRoutes.Settings::class.qualifiedName -> AppRoutes.Settings
                                 else -> AppRoutes.Chats
@@ -91,7 +84,7 @@ fun AToxSplitPaneLayout(
                 floatingActionButton = {
                     AToxFAB(
                         currentRoute = currentRoute,
-                        visible = currentRoute?.endsWith("AppRoutes.Chats") == true || currentRoute?.endsWith("AppRoutes.Groups") == true,
+                        visible = currentRoute?.endsWith("AppRoutes.Chats") == true,
                         hapticEnabled = settings.hapticEnabled,
                         onAddContactClick = {
                             navController.navigate(AppRoutes.AddContactTab) {
@@ -148,6 +141,7 @@ fun AToxSplitPaneLayout(
                 ChatScreen(
                     uiState = finalUiState,
                     onBack = { contactListViewModel.clearSelectedChat() },
+                    messagesFlow = rightChatViewModel.pagedMessages,
                     onSendMessage = { content -> rightChatViewModel.send(content, ltd.evilcorp.domain.features.chat.model.MessageType.Normal) },
                     onTypingChanged = rightChatViewModel::setTyping,
                     onSendFile = rightChatViewModel::createFt,

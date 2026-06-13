@@ -9,14 +9,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
@@ -27,22 +23,14 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.atox.R
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import ltd.evilcorp.domain.features.group.model.GroupPrivacyState
 
-private const val FOCUS_REQUEST_DELAY_MS = 100L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,11 +48,10 @@ fun CreateGroupScreen(
     val haptic = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        delay(FOCUS_REQUEST_DELAY_MS)
-        focusRequester.requestFocus()
+        // delay(FOCUS_REQUEST_DELAY_MS)
+        // focusRequester.requestFocus()
     }
 
     val isScrolled by remember { derivedStateOf { scrollState.value > 0 } }
@@ -100,7 +87,7 @@ fun CreateGroupScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack, enabled = !isCreating) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -149,18 +136,13 @@ fun CreateGroupScreen(
                             value = groupName,
                             onValueChange = { groupName = it },
                             label = { Text(stringResource(R.string.group_name)) },
-                            placeholder = { Text(stringResource(R.string.group_name_placeholder)) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
+                            modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             enabled = !isCreating,
-                            shape = MaterialTheme.shapes.medium,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            )
+                            shape = MaterialTheme.shapes.medium
                         )
+
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Column(
                             modifier = Modifier.fillMaxWidth(),

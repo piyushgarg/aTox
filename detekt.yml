@@ -11,6 +11,9 @@ empty-blocks:
     ignoreOverridden: true
 
 style:
+  WildcardImport:
+    active: true
+    excludes: ['**/src/test/**', '**/src/androidTest/**', '**/src/commonTest/**', '**/src/jvmTest/**']
   UnusedImports:
     active: true
   ReturnCount:
@@ -87,3 +90,14 @@ exceptions:
     active: false
   SwallowedException:
     active: false
+
+coroutines:
+  active: true
+  InjectDispatcher:
+    active: true
+    excludes: ['**/*Test.kt', '**/fakes/**', '**/test/**', '**/androidTest/**']
+    dispatcherNames:
+      - 'IO'
+      - 'Default'
+      - 'Unconfined'
+

@@ -1,6 +1,5 @@
 package ltd.evilcorp.atox
 
-import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -23,10 +22,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import ltd.evilcorp.domain.features.call.CallState
-import ltd.evilcorp.domain.features.group.GroupInvite
-import ltd.evilcorp.domain.features.group.GroupManager
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import ltd.evilcorp.atox.appearance.AppearanceManager
@@ -39,17 +34,18 @@ import ltd.evilcorp.atox.ui.navigation.AToxNavGraph
 import ltd.evilcorp.atox.ui.navigation.ToxLinkManager
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
-import ltd.evilcorp.domain.core.model.FINGERPRINT_LEN
-import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.features.call.CallManager
 import ltd.evilcorp.domain.core.network.TOX_ID_LENGTH
 import java.io.File
 
 import ltd.evilcorp.atox.infrastructure.sharing.SharedContentRegistry
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.runtime.CompositionLocalProvider
 import ltd.evilcorp.domain.core.network.IFileStorageProvider
 import ltd.evilcorp.atox.ui.common.LocalFileStorageProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalHapticFeedback
+import ltd.evilcorp.atox.ui.common.LocalHapticEnabled
+import ltd.evilcorp.atox.ui.common.AtoxHapticFeedback
 
 private const val TAG = "MainActivity"
 private const val SCHEME = "tox:"
@@ -110,6 +106,12 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var localeInitializer: ltd.evilcorp.atox.appearance.LocaleInitializer
 
+    @Inject
+    lateinit var backupWorkScheduler: ltd.evilcorp.atox.infrastructure.backup.BackupWorkScheduler
+
+    @Inject
+    lateinit var userSettingsRepository: ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
+
     private var callScreenMinimized = mutableStateOf(false)
 
     @Suppress("LongMethod")
@@ -134,9 +136,16 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.CREATED) {
-                appearanceManager.appearance.collect { appearance ->
-                    localeInitializer.updateLocale(appearance.localeTag)
-                    isAppearanceLoaded = true
+                launch {
+                    appearanceManager.appearance.collect { appearance ->
+                        localeInitializer.updateLocale(appearance.localeTag)
+                        isAppearanceLoaded = true
+                    }
+                }
+                launch {
+                    userSettingsRepository.settings.collect { userSettings ->
+                        backupWorkScheduler.scheduleBackups(userSettings)
+                    }
                 }
             }
         }
@@ -154,7 +163,18 @@ class MainActivity : AppCompatActivity() {
                     android.content.res.Configuration.UI_MODE_NIGHT_YES
             }
 
-            CompositionLocalProvider(LocalFileStorageProvider provides fileStorageProvider) {
+            val userSettings by settings.state.collectAsState()
+            val hapticEnabled = userSettings.hapticEnabled
+            val systemHaptic = LocalHapticFeedback.current
+            val customHaptic = remember(systemHaptic, hapticEnabled) {
+                AtoxHapticFeedback(systemHaptic) { hapticEnabled }
+            }
+
+            CompositionLocalProvider(
+                LocalFileStorageProvider provides fileStorageProvider,
+                LocalHapticEnabled provides hapticEnabled,
+                LocalHapticFeedback provides customHaptic
+            ) {
                 AToxTheme(
                     darkTheme = isDarkTheme,
                     dynamicColor = appearance.dynamicColorEnabled,
@@ -162,8 +182,6 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     val surfaceContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
                     LaunchedEffect(isDarkTheme, surfaceContainerColor) {
-                        val navBarColor = surfaceContainerColor.toArgb()
-                        window.navigationBarColor = navBarColor
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                             window.isNavigationBarContrastEnforced = false
                         }
@@ -266,7 +284,7 @@ class MainActivity : AppCompatActivity() {
                     incomingShareProcessor.prepareShareUri(uri)
                 }
 
-                val mimeType = contentResolver.getType(shareUri) ?: android.webkit.MimeTypeMap.getSingleton()
+                val mimeType = contentResolver.getType(shareUri) ?: MimeTypeMap.getSingleton()
                     .getMimeTypeFromExtension(File(ft.fileName).extension.lowercase()) ?: "*/*"
 
                 val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -275,15 +293,15 @@ class MainActivity : AppCompatActivity() {
                 }
                 try {
                     startActivity(intent)
-                } catch (e: android.content.ActivityNotFoundException) {
+                } catch (_: android.content.ActivityNotFoundException) {
                     startActivity(Intent.createChooser(intent, getString(R.string.open_with)))
                 }
             } catch (e: SecurityException) {
                 Log.e(TAG, "Security failure while opening file ${ft.fileName}", e)
-                android.widget.Toast.makeText(this@MainActivity, R.string.open_file_security_failure, android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, R.string.open_file_security_failure, Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to open file ${ft.fileName}", e)
-                android.widget.Toast.makeText(this@MainActivity, R.string.open_file_failure, android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, R.string.open_file_failure, Toast.LENGTH_SHORT).show()
             }
         }
     }

@@ -65,6 +65,10 @@ open class ToxStarter @Inject constructor(
     }
 
     private fun tryLoadSave(): ByteArray? {
+        val activeProfileId = ltd.evilcorp.core.profile.ProfileManager.getActiveProfileId(context)
+        if (activeProfileId != ltd.evilcorp.core.profile.ProfileManager.DEFAULT_PROFILE_ID) {
+            return sessionManager.loadSave(PublicKey(activeProfileId))
+        }
         val firstSave = sessionManager.listSaves().firstOrNull() ?: return null
         return sessionManager.loadSave(PublicKey(firstSave))
     }

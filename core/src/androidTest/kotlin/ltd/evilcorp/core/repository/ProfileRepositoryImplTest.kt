@@ -67,7 +67,7 @@ class ProfileRepositoryImplTest {
         toxStarter = FakeToxStarter()
         saveManager = FakeSaveManager()
         
-        repository = ProfileRepositoryImpl(context, toxStarter, saveManager, db)
+        repository = ProfileRepositoryImpl(context, toxStarter, saveManager, javax.inject.Provider { db })
     }
 
     @After
@@ -137,7 +137,7 @@ class ProfileRepositoryImplTest {
             .allowMainThreadQueries()
             .build()
         // Repository needs to point to the new DB instance
-        repository = ProfileRepositoryImpl(context, toxStarter, saveManager, db)
+        repository = ProfileRepositoryImpl(context, toxStarter, saveManager, javax.inject.Provider { db })
         
         db.contactDao().save(ContactEntity("99999", "New Contact"))
         assertEquals(2, db.contactDao().loadAll().first().size)
@@ -157,7 +157,7 @@ class ProfileRepositoryImplTest {
         assertEquals("Checkpoint Contact", restoredContacts[0].name)
 
         // 6. Clear checkpoint
-        repository = ProfileRepositoryImpl(context, toxStarter, saveManager, db)
+        repository = ProfileRepositoryImpl(context, toxStarter, saveManager, javax.inject.Provider { db })
         repository.clearCheckpoint()
         assertFalse(checkpointDir.exists())
     }

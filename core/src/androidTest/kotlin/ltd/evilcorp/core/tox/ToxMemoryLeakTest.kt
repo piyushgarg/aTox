@@ -18,6 +18,7 @@ import kotlin.test.assertTrue
 @RunWith(AndroidJUnit4::class)
 class ToxMemoryLeakTest {
 
+    @Suppress("ExplicitGarbageCollectionCall")
     private fun getNativeMemory(): Long {
         Runtime.getRuntime().gc()
         System.runFinalization()

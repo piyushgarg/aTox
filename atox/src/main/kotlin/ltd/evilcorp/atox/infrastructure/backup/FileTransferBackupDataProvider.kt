@@ -4,7 +4,6 @@ import android.content.ContentResolver
 import android.content.Context
 import androidx.core.net.toUri
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -25,7 +24,9 @@ class FileTransferHistoryBackupDataProvider @Inject constructor(
     override val displayNameRes: Int = R.string.backup_module_file_transfer_history
     override val descriptionRes: Int = R.string.backup_module_file_transfer_history_description
 
-    override suspend fun serialize(): ByteArray = serializeFileTransfers(helper.serializeFileTransfers())
+    override suspend fun serialize(outputStream: java.io.OutputStream) {
+        outputStream.write(serializeFileTransfers(helper.serializeFileTransfers()))
+    }
 
     override suspend fun deserialize(data: ByteArray) {
         helper.deserializeFileTransfers(parseFileTransfers(data))
@@ -41,41 +42,45 @@ class TransferredFilesBackupDataProvider @Inject constructor(
     override val displayNameRes: Int = R.string.backup_module_transferred_files
     override val descriptionRes: Int = R.string.backup_module_transferred_files_description
 
-    override suspend fun serialize(): ByteArray {
+    override suspend fun serialize(outputStream: java.io.OutputStream) {
         val manifestItems = mutableListOf<TransferredFileManifestItem>()
         val transfers = helper.serializeFileTransfers()
             .filter { it.destination.isNotBlank() }
 
-        return ByteArrayOutputStream().use { bytes ->
-            ZipOutputStream(bytes).use { zip ->
-                transfers.forEach { transfer ->
-                    val entryName = "files/${transfer.id}-${transfer.fileName.sanitizeZipName()}"
-                    val copied = runCatching {
-                        resolver.openInputStream(transfer.destination.toUri())?.use { input ->
-                            zip.putNextEntry(ZipEntry(entryName))
-                            input.copyTo(zip)
-                            zip.closeEntry()
-                            true
-                        } ?: false
-                    }.getOrDefault(false)
-
-                    if (copied) {
-                        manifestItems.add(
-                            TransferredFileManifestItem(
-                                id = transfer.id,
-                                fileName = transfer.fileName,
-                                entryName = entryName
-                            )
-                        )
-                    }
-                }
-
-                zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
-                val manifest = TransferredFileManifest(files = manifestItems)
-                zip.write(Json.encodeToString(manifest).encodeToByteArray())
-                zip.closeEntry()
+        // Wrap in a non-closing stream to prevent closing the main backup stream
+        val nonClosing = object : java.io.FilterOutputStream(outputStream) {
+            override fun close() {
+                flush()
             }
-            bytes.toByteArray()
+        }
+
+        ZipOutputStream(nonClosing).use { zip ->
+            transfers.forEach { transfer ->
+                val entryName = "files/${transfer.id}-${transfer.fileName.sanitizeZipName()}"
+                val copied = runCatching {
+                    resolver.openInputStream(transfer.destination.toUri())?.use { input ->
+                        zip.putNextEntry(ZipEntry(entryName))
+                        input.copyTo(zip)
+                        zip.closeEntry()
+                        true
+                    } ?: false
+                }.getOrDefault(false)
+
+                if (copied) {
+                    manifestItems.add(
+                        TransferredFileManifestItem(
+                            id = transfer.id,
+                            fileName = transfer.fileName,
+                            entryName = entryName
+                        )
+                    )
+                }
+            }
+
+            zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
+            val manifest = TransferredFileManifest(files = manifestItems)
+            zip.write(Json.encodeToString(manifest).encodeToByteArray())
+            zip.closeEntry()
         }
     }
 

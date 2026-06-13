@@ -9,6 +9,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
@@ -31,7 +32,7 @@ class VoiceRecorderImplTest {
     @Test
     fun testStartStopRecording() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val recorder = VoiceRecorderImpl(context)
+        val recorder = VoiceRecorderImpl(context, Dispatchers.Unconfined)
 
         // Start voice message recording
         val startSuccess = recorder.startRecording()
@@ -60,7 +61,7 @@ class VoiceRecorderImplTest {
     @Test
     fun testCancelRecording() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val recorder = VoiceRecorderImpl(context)
+        val recorder = VoiceRecorderImpl(context, Dispatchers.Unconfined)
 
         // Start recording
         val startSuccess = recorder.startRecording()
@@ -83,7 +84,7 @@ class VoiceRecorderImplTest {
     @Test
     fun testDoubleStartFails() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val recorder = VoiceRecorderImpl(context)
+        val recorder = VoiceRecorderImpl(context, Dispatchers.Unconfined)
 
         val firstStart = recorder.startRecording()
         assertTrue(firstStart, "First start should succeed")

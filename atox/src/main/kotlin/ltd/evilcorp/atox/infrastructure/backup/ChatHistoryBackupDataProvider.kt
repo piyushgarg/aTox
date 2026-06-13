@@ -16,7 +16,34 @@ class ChatHistoryBackupDataProvider @Inject constructor(
     override val displayNameRes: Int = R.string.backup_module_chat_history
     override val descriptionRes: Int = R.string.backup_module_chat_history_description
 
-    override suspend fun serialize(): ByteArray = serializeMessages(helper.serializeChatHistory())
+    override suspend fun serialize(outputStream: java.io.OutputStream) {
+        val writer = java.io.OutputStreamWriter(outputStream, Charsets.UTF_8)
+        writer.write("{\"messages\":[")
+        var offset = 0
+        val limit = BACKUP_CHUNK_LIMIT
+        var first = true
+        while (true) {
+            val messages = helper.serializeChatHistoryPaged(limit, offset)
+            if (messages.isEmpty()) break
+            for (message in messages) {
+                if (!first) writer.write(",")
+                first = false
+                val payload = MessageBackupPayload(
+                    id = message.id,
+                    publicKey = message.publicKey,
+                    message = message.message,
+                    sender = message.sender.name,
+                    type = message.type.name,
+                    correlationId = message.correlationId,
+                    timestamp = message.timestamp
+                )
+                writer.write(Json.encodeToString(payload))
+            }
+            offset += limit
+        }
+        writer.write("]}")
+        writer.flush()
+    }
 
     override suspend fun deserialize(data: ByteArray) {
         helper.deserializeChatHistory(parseMessages(data))
@@ -30,9 +57,33 @@ class CallLogBackupDataProvider @Inject constructor(
     override val displayNameRes: Int = R.string.backup_module_call_log
     override val descriptionRes: Int = R.string.backup_module_call_log_description
 
-    override suspend fun serialize(): ByteArray {
-        val callMessages = helper.serializeCallLog()
-        return serializeMessages(callMessages)
+    override suspend fun serialize(outputStream: java.io.OutputStream) {
+        val writer = java.io.OutputStreamWriter(outputStream, Charsets.UTF_8)
+        writer.write("{\"messages\":[")
+        var offset = 0
+        val limit = BACKUP_CHUNK_LIMIT
+        var first = true
+        while (true) {
+            val messages = helper.serializeCallLogPaged(limit, offset)
+            if (messages.isEmpty()) break
+            for (message in messages) {
+                if (!first) writer.write(",")
+                first = false
+                val payload = MessageBackupPayload(
+                    id = message.id,
+                    publicKey = message.publicKey,
+                    message = message.message,
+                    sender = message.sender.name,
+                    type = message.type.name,
+                    correlationId = message.correlationId,
+                    timestamp = message.timestamp
+                )
+                writer.write(Json.encodeToString(payload))
+            }
+            offset += limit
+        }
+        writer.write("]}")
+        writer.flush()
     }
 
     override suspend fun deserialize(data: ByteArray) {
@@ -56,22 +107,7 @@ private data class MessagesBackupContainer(
     val messages: List<MessageBackupPayload>
 )
 
-private fun serializeMessages(messages: List<Message>): ByteArray {
-    val container = MessagesBackupContainer(
-        messages = messages.map { message ->
-            MessageBackupPayload(
-                id = message.id,
-                publicKey = message.publicKey,
-                message = message.message,
-                sender = message.sender.name,
-                type = message.type.name,
-                correlationId = message.correlationId,
-                timestamp = message.timestamp
-            )
-        }
-    )
-    return Json.encodeToString(container).encodeToByteArray()
-}
+private const val BACKUP_CHUNK_LIMIT = 1000
 
 private fun parseMessages(data: ByteArray): List<Message> {
     val container = Json.decodeFromString<MessagesBackupContainer>(data.decodeToString())
@@ -83,8 +119,7 @@ private fun parseMessages(data: ByteArray): List<Message> {
             type = enumValueOf(item.type),
             correlationId = item.correlationId,
             timestamp = item.timestamp,
-        ).apply {
             id = item.id
-        }
+        )
     }
 }

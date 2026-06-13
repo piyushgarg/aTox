@@ -3,8 +3,10 @@ package ltd.evilcorp.core.tox
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 
 class NativeToxAv {
-    init {
-        System.loadLibrary("nativetox")
+    companion object {
+        init {
+            System.loadLibrary("nativetox")
+        }
     }
 
     external fun toxavNew(tox: Long): Long

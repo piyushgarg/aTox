@@ -15,16 +15,18 @@ open class ImportBackupUseCase @Inject constructor(
     private val providers: List<@JvmSuppressWildcards IBackupDataProvider>,
     private val platformServices: IPlatformServices
 ) {
-    open suspend fun execute(data: ByteArray, password: String? = null, skipIds: Set<String> = emptySet()) {
-        val zipBytes = BackupCryptoHelper.decryptIfNeeded(data, password)
+    open suspend fun execute(data: ByteArray, skipIds: Set<String> = emptySet()) {
         val providerById = providers.associateBy { it.id }
-        val files = platformServices.unzip(zipBytes)
+        val files = platformServices.unzip(data)
 
-        files.forEach { (name, content) ->
+        for ((name, content) in files) {
             val id = name.removeSuffix(".bin")
-            if (id in skipIds) return@forEach
-            val provider = providerById[id] ?: return@forEach
-            provider.deserialize(content)
+            if (id !in skipIds) {
+                val provider = providerById[id]
+                if (provider != null) {
+                    provider.deserialize(content)
+                }
+            }
         }
     }
 }

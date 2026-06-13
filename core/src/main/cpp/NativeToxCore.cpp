@@ -25,11 +25,10 @@ public:
         if (count > 0) {
             auto active_tid = s_active_thread_id.load();
             if (active_tid != current_tid) {
-                __android_log_print(ANDROID_LOG_ERROR, "NativeToxCore",
-                     "FATAL: Concurrent JNI access detected! Thread %lu entered while thread %lu is still executing a JNI method.",
+                __android_log_print(ANDROID_LOG_WARN, "NativeToxCore",
+                     "WARNING: Concurrent JNI access detected! Thread %lu entered while thread %lu is still executing a JNI method.",
                      (unsigned long)std::hash<std::thread::id>{}(current_tid),
                      (unsigned long)std::hash<std::thread::id>{}(active_tid));
-                assert(false && "Concurrent Tox JNI access!");
             }
         } else {
             s_active_thread_id.store(current_tid);

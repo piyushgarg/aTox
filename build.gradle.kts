@@ -6,25 +6,27 @@ plugins {
     alias(libs.plugins.kotlinKsp) apply false
     alias(libs.plugins.kotlinCompose) apply false
     alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.kover) apply false
 }
 
-tasks.register("clean").configure {
-    delete("build")
+tasks.register<Delete>("clean") {
+    description = "Deletes the build directory."
+    delete(rootProject.layout.buildDirectory)
 }
 
 subprojects {
-    apply(plugin = "io.gitlab.arturbosch.detekt")
+    pluginManager.apply("io.gitlab.arturbosch.detekt")
 
-    val libs = rootProject.extensions.getByType<org.gradle.api.artifacts.VersionCatalogsExtension>().named("libs")
+    val libs = rootProject.extensions.getByType<org.gradle.accessors.dm.LibrariesForLibs>()
     dependencies {
-        add("detektPlugins", libs.findLibrary("detekt-compose").get())
+        add("detektPlugins", libs.detekt.compose)
     }
 
     detekt {
         buildUponDefaultConfig = true
         config.setFrom(rootProject.files("detekt.yml"))
         baseline = file("detekt-baseline.xml")
-        source.setFrom(files("src/main/kotlin", "src/test/kotlin"))
+        source.setFrom(files("src/main/kotlin", "src/test/kotlin", "src/androidTest/kotlin"))
         ignoreFailures = false
     }
 

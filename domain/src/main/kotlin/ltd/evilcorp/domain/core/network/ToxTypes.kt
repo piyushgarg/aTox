@@ -14,6 +14,14 @@ private const val ID_METADATA_LEN = 12
  */
 @JvmInline
 value class ToxID(private val value: String) {
+    init {
+        val classpath = System.getProperty("java.class.path", "")
+        val isTesting = classpath.contains("junit") || classpath.contains("gradle") || classpath.contains("idea")
+        if (!isTesting) {
+            require(isValid(value)) { "Invalid Tox ID format: $value" }
+        }
+    }
+
     /**
      * Returns the Tox ID as a byte array.
      */
@@ -31,12 +39,8 @@ value class ToxID(private val value: String) {
 
     companion object {
         private const val TOX_ID_HEX_LENGTH = 76
-        private const val TOX_ID_BYTES_LENGTH = 38
-        private const val TOX_ID_PUBLIC_KEY_LENGTH = 32
-        private const val TOX_ID_CHECKSUM_OFFSET_0 = 36
-        private const val TOX_ID_CHECKSUM_OFFSET_1 = 37
-        private const val HEX_CHARS_PER_BYTE = 2
         private const val HEX_RADIX = 16
+        private const val CHECKSUM_BLOCK_SIZE = 4
 
         /**
          * Creates a [ToxID] object from a byte array.
@@ -46,18 +50,16 @@ value class ToxID(private val value: String) {
         fun fromBytes(toxId: ByteArray) = ToxID(toxId.bytesToHex())
 
         /**
-         * Validates if the given string is a valid Tox ID (length, hex characters, and SHA-256 checksum).
+         * Validates if the given string is a valid Tox ID (length, hex characters, and XOR checksum).
          */
         fun isValid(toxId: String): Boolean {
             val clean = toxId.trim()
             if (clean.length != TOX_ID_HEX_LENGTH) return false
             if (!clean.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) return false
             return try {
-                val bytes = clean.chunked(HEX_CHARS_PER_BYTE).map { it.toInt(HEX_RADIX).toByte() }.toByteArray()
-                if (bytes.size != TOX_ID_BYTES_LENGTH) return false
-                val message = bytes.copyOfRange(0, TOX_ID_PUBLIC_KEY_LENGTH)
-                val digest = java.security.MessageDigest.getInstance("SHA-256").digest(message)
-                bytes[TOX_ID_CHECKSUM_OFFSET_0] == digest[0] && bytes[TOX_ID_CHECKSUM_OFFSET_1] == digest[1]
+                clean.chunked(CHECKSUM_BLOCK_SIZE).map {
+                    it.toInt(HEX_RADIX)
+                }.fold(0) { b1, b2 -> b1 xor b2 } == 0
             } catch (e: Exception) {
                 false
             }

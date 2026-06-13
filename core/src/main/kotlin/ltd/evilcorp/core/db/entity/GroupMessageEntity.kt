@@ -45,10 +45,9 @@ data class GroupMessageEntity(
         sender = sender,
         type = type,
         correlationId = correlationId,
-        timestamp = timestamp
-    ).apply {
+        timestamp = timestamp,
         id = this@GroupMessageEntity.id
-    }
+    )
 
     companion object {
         fun fromDomain(groupMessage: GroupMessage): GroupMessageEntity = GroupMessageEntity(

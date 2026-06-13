@@ -17,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
+import kotlin.time.Duration.Companion.milliseconds
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -100,7 +101,7 @@ class CallSignalPlayerImpl @Inject constructor(
                         toneGenerator?.startTone(ToneGenerator.TONE_SUP_RINGTONE, RINGBACK_TONE_DURATION_MS)
                     }
                 }
-                delay(RINGBACK_TONE_INTERVAL_MS)
+                delay(RINGBACK_TONE_INTERVAL_MS.milliseconds)
             }
         }
     }

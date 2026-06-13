@@ -10,4 +10,5 @@ interface IGroupSessionRegistry {
     fun setPendingInvite(invite: GroupInvite?)
     fun setConnectionStatus(chatId: String, status: GroupConnectionStatus)
     fun removeConnectionStatus(chatId: String)
+    fun clear()
 }

@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage", "CanConvertToMultiDollarString")
+
 import java.util.Properties
 import java.io.FileInputStream
 
@@ -11,21 +13,27 @@ kotlin {
     compilerOptions {
         apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2
         languageVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2
+        freeCompilerArgs.add("-Xannotation-default-target=param-property")
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 android {
     namespace = "ltd.evilcorp.core"
+    testFixtures {
+        enable = true
+    }
     compileSdk = libs.versions.sdk.target.get().toInt()
     ndkVersion = libs.versions.ndk.get()
     defaultConfig {
         minSdk = libs.versions.sdk.min.get().toInt()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        //noinspection ChromeOSAbiSupport
         ndk {
             abiFilters += listOf("arm64-v8a")
-        }
-        ksp {
-            arg("room.schemaLocation", "$projectDir/schemas")
         }
     }
     buildTypes {
@@ -93,26 +101,28 @@ tasks.register<Exec>("buildNativeDependencies") {
             ndkDir = if (expectedDir.exists()) {
                 expectedDir.absolutePath
             } else {
-                ndkBaseDir.listFiles()?.filter { it.isDirectory }?.firstOrNull()?.absolutePath ?: ""
+                ndkBaseDir.listFiles()?.firstOrNull { it.isDirectory }?.absolutePath ?: ""
             }
         }
     }
 
     val cmakeDir = "$sdkDir/cmake"
-    val cmakeExecutable = file(cmakeDir).listFiles()?.filter { it.isDirectory }?.firstOrNull()?.let {
+    val cmakeExecutable = file(cmakeDir).listFiles()?.firstOrNull { it.isDirectory }?.let {
         file(it.absolutePath + "/bin/cmake").absolutePath
     } ?: "cmake"
 
     workingDir = rootDir
 
+    val processors = Runtime.getRuntime().availableProcessors()
+
     if (isWindows) {
         executable(msysBash.absolutePath)
         args(
             "-c",
-            "export PATH=/usr/bin:\$PATH && make -f scripts/build-aarch64-linux-android -j${Runtime.getRuntime().availableProcessors()} release",
+            "export PATH=/usr/bin:\$PATH && make -f scripts/build-aarch64-linux-android -j$processors release",
         )
     } else {
-        commandLine(file("${rootDir}/scripts/build-aarch64-linux-android").absolutePath, "-j${Runtime.getRuntime().availableProcessors()}", "release")
+        commandLine(file("${rootDir}/scripts/build-aarch64-linux-android").absolutePath, "-j$processors", "release")
     }
 
     environment("ANDROID_NDK_HOME", ndkDir.replace("\\", "/"))
@@ -158,9 +168,7 @@ tasks.register<Exec>("buildNativeDependencies") {
             }
             logger.lifecycle("[aTox Build] Окружение MSYS2 полностью готово! Начинаем компиляцию нативных библиотек...")
         } else {
-            ant.withGroovyBuilder {
-                "chmod"("file" to file("${rootDir}/scripts/build-aarch64-linux-android").absolutePath, "perm" to "+x")
-            }
+            file("${rootDir}/scripts/build-aarch64-linux-android").setExecutable(true)
         }
     }
 }
@@ -170,21 +178,26 @@ tasks.named("preBuild") {
 }
 
 dependencies {
-    implementation(project(":domain"))
+    api(project(":domain"))
+    implementation(libs.androidx.core.ktx)
     implementation(libs.javax.inject)
     api(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.datastore.preferences)
     api(libs.androidx.room.runtime)
     api(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.paging)
+    implementation(libs.androidx.paging.runtime)
     ksp(libs.androidx.room.compiler)
 
-    testImplementation(kotlin("test-junit"))
+    val testJunit = kotlin("test-junit")
+    testImplementation(testJunit)
+    testImplementation(testFixtures(project(":core")))
     testImplementation(libs.konsist.junit5)
     testImplementation(libs.kotlinx.coroutines.test) {
         exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-debug")
     }
 
-    androidTestImplementation(kotlin("test-junit"))
+    androidTestImplementation(testJunit)
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.rules)
     androidTestImplementation(libs.test.junit.ext)

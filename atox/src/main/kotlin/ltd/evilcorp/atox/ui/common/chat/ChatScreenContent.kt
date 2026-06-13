@@ -27,13 +27,13 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.paging.compose.LazyPagingItems
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,8 +44,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,13 +54,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.chat.components.TypingBubble
@@ -80,7 +76,7 @@ data class MessageBubbleConfig(
 @Suppress("FunctionNaming", "UnstableCollections", "ComposableParamOrder")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun <T> ChatScreenContent(
+fun <T : Any> ChatScreenContent(
     messages: List<T>,
     toMessage: (T) -> Message,
     getBubbleConfig: (T) -> MessageBubbleConfig,
@@ -105,6 +101,8 @@ fun <T> ChatScreenContent(
     onCancelReply: () -> Unit = {},
 
     // Optional parameters
+    modifier: Modifier = Modifier,
+    pagedMessages: LazyPagingItems<T>? = null,
     isTypingFlow: StateFlow<Boolean>? = null, // null for group chats
     showConversationContent: Boolean = true,
     onCallHistoryClick: () -> Unit = {},
@@ -113,7 +111,6 @@ fun <T> ChatScreenContent(
     onForwardClick: (Message) -> Unit = {},
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
-    modifier: Modifier = Modifier,
     listState: LazyListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() },
 ) {
     val context = LocalContext.current
@@ -135,17 +132,17 @@ fun <T> ChatScreenContent(
         }
     }
 
-    val activeFtIdToSave = remember { mutableStateOf(-1) }
+    val activeFtIdToSave = remember { mutableIntStateOf(-1) }
     val saveFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("*/*")
     ) { uri: Uri? ->
-        if (uri != null && activeFtIdToSave.value != -1) {
-            onSaveFt(activeFtIdToSave.value, uri)
+        if (uri != null && activeFtIdToSave.intValue != -1) {
+            onSaveFt(activeFtIdToSave.intValue, uri)
         }
     }
 
     var lastSeenMessageId by remember { mutableStateOf<Long?>(null) }
-    var unreadCount by remember { mutableStateOf(0) }
+    var unreadCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(listState.firstVisibleItemIndex, mappedMessages.size) {
         if (listState.firstVisibleItemIndex <= 1) {
@@ -160,8 +157,9 @@ fun <T> ChatScreenContent(
         }
     }
 
-    LaunchedEffect(showConversationContent, messages.size) {
-        if (showConversationContent && messages.isNotEmpty()) {
+    val currentMessagesCount = pagedMessages?.itemCount ?: messages.size
+    LaunchedEffect(showConversationContent, currentMessagesCount) {
+        if (showConversationContent && currentMessagesCount > 0) {
             if (listState.firstVisibleItemIndex <= 2) {
                 listState.scrollToItem(0)
             }
@@ -191,8 +189,8 @@ fun <T> ChatScreenContent(
                 if (isTypingFlow != null) {
                     item(key = "typing_bubble") {
                         val isTyping by isTypingFlow.collectAsState(initial = false)
-                        Box(modifier = Modifier.animateContentSize()) {
-                            androidx.compose.animation.AnimatedVisibility(
+                        Column(modifier = Modifier.animateContentSize()) {
+                            AnimatedVisibility(
                                 visible = showConversationContent && isTyping
                             ) {
                                 TypingBubble()
@@ -202,78 +200,95 @@ fun <T> ChatScreenContent(
                 }
 
                 if (showConversationContent) {
+                    val itemCount = pagedMessages?.itemCount ?: messages.size
                     items(
-                        count = messages.size,
-                        key = { index -> mappedMessages[messages.size - 1 - index].id }
+                        count = itemCount,
+                        key = { index ->
+                            val rawIndex = itemCount - 1 - index
+                            if (pagedMessages != null) {
+                                pagedMessages.peek(rawIndex)?.let(toMessage)?.id ?: index.toLong()
+                            } else {
+                                messages.getOrNull(rawIndex)?.let(toMessage)?.id ?: index.toLong()
+                            }
+                        }
                     ) { index ->
-                        val rawIndex = messages.size - 1 - index
-                        val item = messages[rawIndex]
-                        val msg = mappedMessages[rawIndex]
-                        val previousMsg = mappedMessages.getOrNull(rawIndex - 1)
-
-                        val currentHeader = remember(msg.timestamp, uiConfig.dateFormatPreference) {
-                            formatMessageDateHeader(
-                                context = context,
-                                timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
-                                dateFormatPreference = uiConfig.dateFormatPreference,
-                            )
+                        val rawIndex = itemCount - 1 - index
+                        val item = if (pagedMessages != null) {
+                            pagedMessages[rawIndex]
+                        } else {
+                            messages[rawIndex]
                         }
-                        val previousHeader = previousMsg?.let {
-                            remember(it.timestamp, uiConfig.dateFormatPreference) {
-                                formatMessageDateHeader(
-                                    context = context,
-                                    timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
-                                    dateFormatPreference = uiConfig.dateFormatPreference,
-                                )
-                            }
-                        }
+                        if (item != null) {
+                            val msg = toMessage(item)
+                            val prevDomainMsg = if (rawIndex > 0) {
+                                if (pagedMessages != null) pagedMessages.peek(rawIndex - 1)?.let(toMessage)
+                                else messages.getOrNull(rawIndex - 1)?.let(toMessage)
+                            } else null
 
-                        val bubbleConfig = remember(item) { getBubbleConfig(item) }
-
-                        @OptIn(ExperimentalFoundationApi::class)
-                        Column(modifier = Modifier.animateItem()) {
-                            if (rawIndex == 0 || currentHeader != previousHeader) {
-                                DateSeparator(label = currentHeader)
-                                if (bubbleConfig.showAvatar) {
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                val currentHeader = remember(msg.timestamp, uiConfig.dateFormatPreference) {
+                                    formatMessageDateHeader(
+                                        context = context,
+                                        timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
+                                        dateFormatPreference = uiConfig.dateFormatPreference,
+                                    )
                                 }
-                            }
+                                val previousHeader = prevDomainMsg?.let {
+                                    remember(it.timestamp, uiConfig.dateFormatPreference) {
+                                        formatMessageDateHeader(
+                                            context = context,
+                                            timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
+                                            dateFormatPreference = uiConfig.dateFormatPreference,
+                                        )
+                                    }
+                                }
 
-                            MessageBubble(
-                                msg = msg,
-                                messages = StableMessageList(mappedMessages),
-                                uiConfig = uiConfig,
-                                contactName = bubbleConfig.contactName,
-                                onHaptic = performHaptic,
-                                onCallHistoryClick = onCallHistoryClick,
-                                fileTransfers = StableFileTransferList(fileTransfers),
-                                onAcceptFt = onAcceptFt,
-                                onRejectFt = onRejectFt,
-                                onCancelFt = { onCancelFt(item) },
-                                onSaveAsClick = { ftId, fileName ->
-                                    activeFtIdToSave.value = ftId
-                                    saveFileLauncher.launch(fileName)
-                                },
-                                onOpenFile = onOpenFile,
-                                onCopyMessage = onCopyClick,
-                                onReplyMessage = onReplyClick,
-                                onForwardMessage = onForwardClick,
-                                onParentMessageClick = { parentMsg ->
-                                    val parentIndex = mappedMessages.indexOfFirst { it.timestamp == parentMsg.timestamp }
-                                    if (parentIndex != -1) {
-                                        val scrollIndex = mappedMessages.size - 1 - parentIndex
-                                        coroutineScope.launch {
-                                            listState.animateScrollToItem(scrollIndex)
+                                val bubbleConfig = remember(item) { getBubbleConfig(item) }
+
+                                @OptIn(ExperimentalFoundationApi::class)
+                                Column(modifier = Modifier.animateItem()) {
+                                    if (rawIndex == 0 || currentHeader != previousHeader) {
+                                        DateSeparator(label = currentHeader)
+                                        if (bubbleConfig.showAvatar) {
+                                            Spacer(modifier = Modifier.height(8.dp))
                                         }
                                     }
-                                },
-                                onJoinGroupClick = onJoinGroupClick,
-                                isJoinedGroup = isJoinedGroup,
-                                showAvatar = bubbleConfig.showAvatar,
-                                senderName = bubbleConfig.senderName,
-                                senderColor = bubbleConfig.senderColor,
-                                avatarUri = bubbleConfig.avatarUri
-                            )
+
+                                    MessageBubble(
+                                        msg = msg,
+                                        messages = StableMessageList(mappedMessages),
+                                        uiConfig = uiConfig,
+                                        contactName = bubbleConfig.contactName,
+                                        onHaptic = performHaptic,
+                                        onCallHistoryClick = onCallHistoryClick,
+                                        fileTransfers = StableFileTransferList(fileTransfers),
+                                        onAcceptFt = onAcceptFt,
+                                        onRejectFt = onRejectFt,
+                                        onCancelFt = { onCancelFt(item) },
+                                        onSaveAsClick = { ftId, fileName ->
+                                            activeFtIdToSave.intValue = ftId
+                                            saveFileLauncher.launch(fileName)
+                                        },
+                                        onOpenFile = onOpenFile,
+                                        onCopyMessage = onCopyClick,
+                                        onReplyMessage = onReplyClick,
+                                        onForwardMessage = onForwardClick,
+                                        onParentMessageClick = { parentMsg ->
+                                            val parentIndex = mappedMessages.indexOfFirst { it.timestamp == parentMsg.timestamp }
+                                            if (parentIndex != -1) {
+                                                val scrollIndex = mappedMessages.size - 1 - parentIndex
+                                                coroutineScope.launch {
+                                                    listState.animateScrollToItem(scrollIndex)
+                                                }
+                                            }
+                                        },
+                                        onJoinGroupClick = onJoinGroupClick,
+                                        isJoinedGroup = isJoinedGroup,
+                                        showAvatar = bubbleConfig.showAvatar,
+                                        senderName = bubbleConfig.senderName,
+                                        senderColor = bubbleConfig.senderColor,
+                                        avatarUri = bubbleConfig.avatarUri
+                                    )
+                                }
                         }
                     }
                 }

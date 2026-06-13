@@ -43,7 +43,8 @@ class CoreArchitectureTest {
                 packageFqName.startsWith("ltd.evilcorp.core.db") ||
                 packageFqName.startsWith("ltd.evilcorp.core.platform") ||
                 packageFqName.startsWith("ltd.evilcorp.core.repository") ||
-                packageFqName.startsWith("ltd.evilcorp.core.tox")
+                packageFqName.startsWith("ltd.evilcorp.core.tox") ||
+                packageFqName.startsWith("ltd.evilcorp.core.profile")
             }
     }
 

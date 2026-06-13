@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.firstOrNull
 import ltd.evilcorp.domain.features.contacts.model.Contact
-import ltd.evilcorp.domain.features.contacts.model.FriendRequest
 import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.features.auth.model.User
@@ -41,7 +40,6 @@ import ltd.evilcorp.domain.features.contacts.usecase.GetContactsUseCase
 import ltd.evilcorp.domain.features.contacts.usecase.GetFriendRequestsUseCase
 import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
 import ltd.evilcorp.domain.features.group.usecase.GetGroupInviteUseCase
-import ltd.evilcorp.domain.features.group.usecase.ReconnectGroupsUseCase
 import ltd.evilcorp.domain.features.contacts.usecase.GetFriendPublicKeyUseCase
 import ltd.evilcorp.domain.features.contacts.usecase.GetContactUseCase
 import ltd.evilcorp.domain.features.settings.usecase.GetToxRunningStateUseCase
@@ -53,7 +51,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 class ContactListViewModel @Inject constructor(
     private val getContactsUseCase: GetContactsUseCase,
     private val getGroupInviteUseCase: GetGroupInviteUseCase,
-    private val reconnectGroupsUseCase: ReconnectGroupsUseCase,
     private val getFriendRequestsUseCase: GetFriendRequestsUseCase,
     private val getSelfUserUseCase: GetSelfUserUseCase,
     private val getToxRunningStateUseCase: GetToxRunningStateUseCase,
@@ -116,9 +113,7 @@ class ContactListViewModel @Inject constructor(
     }
 
     init {
-        if (getToxRunningStateUseCase.execute()) {
-            reconnectGroupsUseCase.execute()
-        }
+        // Group reconnection is now handled by ToxStartupSynchronizer when Tox starts
     }
 
     private val _selectedChatSnapshot = MutableStateFlow<Contact?>(null)

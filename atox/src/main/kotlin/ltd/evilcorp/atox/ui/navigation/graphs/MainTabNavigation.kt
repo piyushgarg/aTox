@@ -21,7 +21,6 @@ fun NavGraphBuilder.mainTabGraph(
     onDisableScreenshotsChanged: (Boolean) -> Unit,
 ) {
     chatsTabRoute(navController, contactListViewModel, settings, isExpanded)
-    groupsTabRoute(navController, contactListViewModel, isExpanded)
     addContactTabRoute(navController)
     profileTabRoute(navController, settings)
     settingsTabRoute(

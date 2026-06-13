@@ -11,12 +11,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -29,12 +28,16 @@ import ltd.evilcorp.atox.ui.navigation.LocalTabPadding
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
+import ltd.evilcorp.atox.ui.theme.AToxMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.addContactTabRoute(
     navController: NavHostController
 ) {
-    composable<AppRoutes.AddContactTab> {
+    composable<AppRoutes.AddContactTab>(
+        enterTransition = { AToxMotion.fadeThroughEnter() },
+        exitTransition = { AToxMotion.fadeThroughExit() }
+    ) {
         val context = LocalContext.current
         val addContactViewModel: AddContactViewModel = hiltViewModel()
         val user by addContactViewModel.user.collectAsStateWithLifecycle()

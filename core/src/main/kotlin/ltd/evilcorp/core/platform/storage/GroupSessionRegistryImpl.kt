@@ -24,10 +24,16 @@ class GroupSessionRegistryImpl @Inject constructor() : IGroupSessionRegistry {
     }
 
     override fun setConnectionStatus(chatId: String, status: GroupConnectionStatus) {
-        _connectionStatuses.value = _connectionStatuses.value + (chatId to status)
+        _connectionStatuses.value += (chatId to status)
     }
 
     override fun removeConnectionStatus(chatId: String) {
-        _connectionStatuses.value = _connectionStatuses.value - chatId
+        _connectionStatuses.value -= chatId
+    }
+
+    override fun clear() {
+        activeGroup = ""
+        _pendingInvite.value = null
+        _connectionStatuses.value = emptyMap()
     }
 }

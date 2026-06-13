@@ -10,19 +10,24 @@ import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.domain.features.transfer.repository.IFileTransferRepository
 
 @Singleton
-class FileTransferRepositoryImpl @Inject internal constructor(private val dao: FileTransferDao) : IFileTransferRepository {
-    override suspend fun add(ft: FileTransfer): Long = dao.save(FileTransferEntity.fromDomain(ft))
+class FileTransferRepositoryImpl @Inject internal constructor(
+    private val dao: FileTransferDao,
+    private val dbProvider: javax.inject.Provider<ltd.evilcorp.core.db.Database>? = null
+) : IFileTransferRepository {
+    private val activeDao: FileTransferDao get() = dbProvider?.get()?.fileTransferDao() ?: dao
 
-    override suspend fun delete(id: Int) = dao.delete(id)
+    override suspend fun add(ft: FileTransfer): Long = activeDao.save(FileTransferEntity.fromDomain(ft))
+
+    override suspend fun delete(id: Int) = activeDao.delete(id)
 
     override fun get(publicKey: String): Flow<List<FileTransfer>> =
-        dao.load(publicKey).map { list -> list.map { it.toDomain() } }
+        activeDao.load(publicKey).map { list -> list.map { it.toDomain() } }
 
-    override fun get(id: Int): Flow<FileTransfer> = dao.load(id).map { it.toDomain() }
+    override fun get(id: Int): Flow<FileTransfer> = activeDao.load(id).map { it.toDomain() }
 
-    override suspend fun setDestination(id: Int, destination: String) = dao.setDestination(id, destination)
+    override suspend fun setDestination(id: Int, destination: String) = activeDao.setDestination(id, destination)
 
-    override suspend fun updateProgress(id: Int, progress: Long) = dao.updateProgress(id, progress)
+    override suspend fun updateProgress(id: Int, progress: Long) = activeDao.updateProgress(id, progress)
 
-    override suspend fun resetTransientData() = dao.resetTransientData()
+    override suspend fun resetTransientData() = activeDao.resetTransientData()
 }

@@ -76,6 +76,7 @@ class CallManager @Inject constructor(
         audioRoutingManager.abandonCallAudioFocus()
     }
 
+    @Suppress("RedundantSuspendModifier")
     suspend fun startOutgoingCall(publicKey: PublicKey): Boolean {
         if (sessionRegistry.inCall.value != CallState.Idle) return false
 
@@ -133,7 +134,7 @@ class CallManager @Inject constructor(
         finishSession(publicKey, localHangup = true, record = CallHistoryType.Missed)
     }
 
-    suspend fun acceptIncomingCall(publicKey: PublicKey): Boolean {
+    fun acceptIncomingCall(publicKey: PublicKey): Boolean {
         val incoming = sessionRegistry.inCall.value as? CallState.IncomingRinging ?: return false
         if (incoming.contact.publicKey != publicKey.string()) return false
         return try {

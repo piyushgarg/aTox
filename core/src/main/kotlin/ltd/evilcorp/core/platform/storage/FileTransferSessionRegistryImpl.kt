@@ -10,6 +10,6 @@ import javax.inject.Singleton
 
 @Singleton
 class FileTransferSessionRegistryImpl @Inject constructor() : IFileTransferSessionRegistry {
-    override val fileTransfers: MutableList<FileTransfer> = CopyOnWriteArrayList<FileTransfer>()
-    override val outgoingFiles: MutableMap<Pair<String, Int>, OutgoingFile> = ConcurrentHashMap<Pair<String, Int>, OutgoingFile>()
+    override val fileTransfers: MutableList<FileTransfer> = CopyOnWriteArrayList()
+    override val outgoingFiles: MutableMap<Pair<String, Int>, OutgoingFile> = ConcurrentHashMap()
 }

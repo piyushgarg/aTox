@@ -13,19 +13,19 @@ import javax.inject.Singleton
 class AndroidFileStorageProvider @Inject constructor() : IFileStorageProvider {
     override fun exists(uriString: String): Boolean = try {
         getFile(uriString)?.exists() ?: false
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         false
     }
 
     override fun lastModified(uriString: String): Long = try {
         getFile(uriString)?.lastModified() ?: 0L
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         0L
     }
 
     override fun size(uriString: String): Long = try {
         getFile(uriString)?.length() ?: 0L
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         0L
     }
 
@@ -42,11 +42,11 @@ class AndroidFileStorageProvider @Inject constructor() : IFileStorageProvider {
                 uriString
             }
             File(path)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             try {
                 val cleanPath = uriString.replace("file://", "").substringBefore("?")
                 File(cleanPath)
-            } catch (ex: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }

@@ -57,9 +57,9 @@ private fun findAudioRecord(sampleRate: Int, channels: Int): AudioRecord? {
 private const val MS_PER_SECOND = 1000.0
 
 class AudioCapture private constructor(
-    private val sampleRate: Int,
-    private val channels: Int,
-    private val frameLengthMs: Int,
+    sampleRate: Int,
+    channels: Int,
+    frameLengthMs: Int,
     private val audioRecord: AudioRecord,
     private val effects: List<android.media.audiofx.AudioEffect>,
 ) {

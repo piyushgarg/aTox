@@ -1,12 +1,10 @@
 package ltd.evilcorp.core.tox
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.runtime.ToxWrapper
 import ltd.evilcorp.domain.core.model.PublicKey
-import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.domain.core.network.save.SaveOptions
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.domain.features.settings.model.ProxyType

@@ -5,18 +5,14 @@
 package ltd.evilcorp.atox.infrastructure.service
 
 import android.content.Context
-import android.util.Log
 import androidx.core.app.NotificationManagerCompat
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.infrastructure.tox.ToxBootstrapper
-import ltd.evilcorp.atox.infrastructure.util.PermissionManager
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.model.FriendRequest
 import ltd.evilcorp.domain.features.auth.repository.IUserRepository

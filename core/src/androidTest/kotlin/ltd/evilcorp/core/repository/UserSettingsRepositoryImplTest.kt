@@ -28,7 +28,7 @@ class UserSettingsRepositoryImplTest {
     @BeforeTest
     fun setUp() = runTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        repository = UserSettingsRepositoryImpl(context)
+        repository = UserSettingsRepositoryImpl(context, this)
     }
 
     private suspend fun awaitSetting(predicate: (UserSettings) -> Boolean): UserSettings {

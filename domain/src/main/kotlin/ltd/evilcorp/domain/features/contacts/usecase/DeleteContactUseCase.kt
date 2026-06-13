@@ -1,8 +1,9 @@
 package ltd.evilcorp.domain.features.contacts.usecase
 
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.features.call.CallManager
 import ltd.evilcorp.domain.features.chat.ChatManager
@@ -17,8 +18,9 @@ class DeleteContactUseCase @Inject constructor(
     private val contactManager: ContactManager,
     private val chatManager: ChatManager,
     private val fileTransferManager: FileTransferManager,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
-    suspend fun execute(publicKey: PublicKey) = withContext(Dispatchers.IO) {
+    suspend fun execute(publicKey: PublicKey) = withContext(ioDispatcher) {
         callManager.endCall(publicKey)
         notificationHelper.dismissNotifications(publicKey)
         notificationHelper.dismissCallNotification(publicKey)
@@ -27,3 +29,4 @@ class DeleteContactUseCase @Inject constructor(
         fileTransferManager.deleteAll(publicKey)
     }
 }
+

@@ -9,17 +9,22 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.dataStoreFile
+import ltd.evilcorp.core.profile.ProfileManager
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
 import ltd.evilcorp.domain.features.settings.model.BackupDestination
@@ -36,26 +41,73 @@ import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
 
 private const val MAX_VOLUME = 100
 
-private val Context.userSettingsDataStore by preferencesDataStore(
-    name = "user_settings",
-    produceMigrations = { context ->
-        listOf(
-            SharedPreferencesMigration(
-                context = context,
-                sharedPreferencesName = "${context.packageName}_preferences",
+private val dataStoreInstances = java.util.concurrent.ConcurrentHashMap<String, androidx.datastore.core.DataStore<Preferences>>()
+
+private fun getUserSettingsDataStore(context: Context): androidx.datastore.core.DataStore<Preferences> {
+    val activeProfileId = ProfileManager.getActiveProfileId(context)
+    return dataStoreInstances.getOrPut(activeProfileId) {
+        val storeName = if (activeProfileId == ProfileManager.DEFAULT_PROFILE_ID) {
+            "user_settings.preferences_pb"
+        } else {
+            "user_settings_$activeProfileId.preferences_pb"
+        }
+        PreferenceDataStoreFactory.create(
+            migrations = listOf(
+                SharedPreferencesMigration(
+                    context = context,
+                    sharedPreferencesName = "${context.packageName}_preferences",
+                )
             ),
+            produceFile = { context.dataStoreFile(storeName) }
         )
-    },
-)
+    }
+}
+
+private val Context.dataStore get() = getUserSettingsDataStore(this)
 
 @Singleton
 class UserSettingsRepositoryImpl @Inject constructor(
     private val context: Context,
+    private val scope: CoroutineScope,
 ) : IUserSettingsRepository {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    override val settings: StateFlow<UserSettings> = context.userSettingsDataStore.data
-        .map(::toUserSettings)
+    private val activeProfileIdFlow = callbackFlow {
+        val prefs = context.getSharedPreferences("atox_multi_profiles", Context.MODE_PRIVATE)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "active_profile_id") {
+                val profileId = ProfileManager.getActiveProfileId(context)
+                trySend(profileId)
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        // Emit initial value
+        trySend(ProfileManager.getActiveProfileId(context))
+        awaitClose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override val settings: StateFlow<UserSettings> = activeProfileIdFlow
+        .flatMapLatest { profileId ->
+            val storeName = if (profileId == ProfileManager.DEFAULT_PROFILE_ID) {
+                "user_settings.preferences_pb"
+            } else {
+                "user_settings_$profileId.preferences_pb"
+            }
+            val datastore = dataStoreInstances.getOrPut(profileId) {
+                PreferenceDataStoreFactory.create(
+                    migrations = listOf(
+                        SharedPreferencesMigration(
+                            context = context,
+                            sharedPreferencesName = "${context.packageName}_preferences",
+                        )
+                    ),
+                    produceFile = { context.dataStoreFile(storeName) }
+                )
+            }
+            datastore.data.map(::toUserSettings)
+        }
         .stateIn(
             scope = scope,
             started = SharingStarted.Eagerly,
@@ -122,9 +174,6 @@ class UserSettingsRepositoryImpl @Inject constructor(
 
     override suspend fun updateAutoSaveDirectoryUri(uri: String) = update(Keys.autoSaveDirectoryUri, uri)
 
-    override suspend fun updateBackupEncryptionEnabled(enabled: Boolean) = update(Keys.backupEncryptionEnabled, enabled)
-
-    override suspend fun updateBackupEndToEndEncryptionEnabled(enabled: Boolean) = update(Keys.backupEndToEndEncryptionEnabled, enabled)
 
     override suspend fun updateAutomaticBackupEnabled(enabled: Boolean) = update(Keys.automaticBackupEnabled, enabled)
 
@@ -138,15 +187,23 @@ class UserSettingsRepositoryImpl @Inject constructor(
         update(Keys.backupDestinationOrdinals, ordinals.map(Int::toString).toSet())
     }
 
+    override suspend fun updateLastLocalBackupTimeMs(timeMs: Long) = update(Keys.lastLocalBackupTimeMs, timeMs)
+
+    override suspend fun updateLastLocalBackupSizeKb(sizeKb: Long) = update(Keys.lastLocalBackupSizeKb, sizeKb)
+
+    override suspend fun updateLastGoogleBackupTimeMs(timeMs: Long) = update(Keys.lastGoogleBackupTimeMs, timeMs)
+
+    override suspend fun updateLastGoogleBackupSizeKb(sizeKb: Long) = update(Keys.lastGoogleBackupSizeKb, sizeKb)
+
     private suspend fun <T> update(key: Preferences.Key<T>, value: T) {
-        context.userSettingsDataStore.edit { preferences ->
+        context.dataStore.edit { preferences ->
             preferences[key] = value
         }
     }
 
     companion object {
         fun readBlocking(context: Context): UserSettings = runBlocking {
-            toUserSettings(context.userSettingsDataStore.data.first())
+            toUserSettings(context.dataStore.data.first())
         }
 
         @Suppress("CyclomaticComplexMethod")
@@ -190,8 +247,6 @@ class UserSettingsRepositoryImpl @Inject constructor(
                 hapticEnabled = preferences[Keys.hapticEnabled] ?: true,
                 autoSaveToDownloads = preferences[Keys.autoSaveToDownloads] ?: true,
                 autoSaveDirectoryUri = preferences[Keys.autoSaveDirectoryUri] ?: "",
-                backupEncryptionEnabled = preferences[Keys.backupEncryptionEnabled] ?: false,
-                backupEndToEndEncryptionEnabled = preferences[Keys.backupEndToEndEncryptionEnabled] ?: false,
                 automaticBackupEnabled = preferences[Keys.automaticBackupEnabled] ?: false,
                 backupFrequency = BackupFrequency.entries[
                     preferences[Keys.backupFrequencyOrdinal] ?: BackupFrequency.Off.ordinal
@@ -204,6 +259,10 @@ class UserSettingsRepositoryImpl @Inject constructor(
                     ?.toSet()
                     ?.takeIf { it.isNotEmpty() }
                     ?: setOf(BackupDestination.Local.ordinal),
+                lastLocalBackupTimeMs = preferences[Keys.lastLocalBackupTimeMs] ?: 0L,
+                lastLocalBackupSizeKb = preferences[Keys.lastLocalBackupSizeKb] ?: 0L,
+                lastGoogleBackupTimeMs = preferences[Keys.lastGoogleBackupTimeMs] ?: 0L,
+                lastGoogleBackupSizeKb = preferences[Keys.lastGoogleBackupSizeKb] ?: 0L,
                 enableReplies = preferences[Keys.enableReplies] ?: true,
             )
     }
@@ -239,13 +298,15 @@ class UserSettingsRepositoryImpl @Inject constructor(
         val hapticEnabled = booleanPreferencesKey("haptic_enabled")
         val autoSaveToDownloads = booleanPreferencesKey("auto_save_to_downloads")
         val autoSaveDirectoryUri = stringPreferencesKey("auto_save_directory_uri")
-        val backupEncryptionEnabled = booleanPreferencesKey("backup_encryption_enabled")
-        val backupEndToEndEncryptionEnabled = booleanPreferencesKey("backup_end_to_end_encryption_enabled")
         val automaticBackupEnabled = booleanPreferencesKey("automatic_backup_enabled")
         val backupFrequencyOrdinal = intPreferencesKey("backup_frequency")
         val backupGoogleAccount = stringPreferencesKey("backup_google_account")
         val backupUseCellular = booleanPreferencesKey("backup_use_cellular")
         val backupDestinationOrdinals = stringSetPreferencesKey("backup_destination_ordinals")
+        val lastLocalBackupTimeMs = longPreferencesKey("last_local_backup_time_ms")
+        val lastLocalBackupSizeKb = longPreferencesKey("last_local_backup_size_kb")
+        val lastGoogleBackupTimeMs = longPreferencesKey("last_google_backup_time_ms")
+        val lastGoogleBackupSizeKb = longPreferencesKey("last_google_backup_size_kb")
         val enableReplies = booleanPreferencesKey("enable_replies")
     }
 }

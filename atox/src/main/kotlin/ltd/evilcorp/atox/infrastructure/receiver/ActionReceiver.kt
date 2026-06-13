@@ -5,10 +5,8 @@
 
 package ltd.evilcorp.atox.infrastructure.receiver
 
-import ltd.evilcorp.atox.App
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
-import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent

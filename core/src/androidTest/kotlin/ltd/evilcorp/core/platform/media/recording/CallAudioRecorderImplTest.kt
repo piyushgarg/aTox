@@ -8,7 +8,6 @@ import android.Manifest
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.core.network.ToxID
@@ -38,6 +37,7 @@ class CallAudioRecorderImplTest {
         override var started: Boolean = true
         override var isBootstrapNeeded: Boolean = false
         override val password: String? = null
+        override val sessionId: String? = null
         override val toxId: ToxID = ToxID("76518406F6A9F2217E8DC487CC783C25CC16A15EB36FF32E335A235342C48A39000000008BE4")
         override val publicKey: PublicKey = PublicKey("76518406F6A9F2217E8DC487CC783C25CC16A15EB36FF32E335A235342C48A39")
         override var nospam: Int = 0
@@ -49,7 +49,7 @@ class CallAudioRecorderImplTest {
         override fun getSaveData(): ByteArray = byteArrayOf()
 
         override fun getContacts(): List<Pair<PublicKey, Int>> = emptyList()
-        override fun acceptFriendRequest(publicKey: PublicKey) {}
+        override fun acceptFriendRequest(publicKey: PublicKey): Result<Unit> = Result.success(Unit)
         override fun addFriendNoRequest(publicKey: PublicKey): Int = 0
         override fun startFileTransfer(pk: PublicKey, fileNumber: Int) {}
         override fun stopFileTransfer(pk: PublicKey, fileNumber: Int) {}

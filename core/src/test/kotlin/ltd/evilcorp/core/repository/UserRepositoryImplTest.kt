@@ -1,5 +1,6 @@
 package ltd.evilcorp.core.repository
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -32,7 +33,7 @@ class UserRepositoryImplTest {
     @BeforeTest
     fun setUp() {
         dao = FakeUserDao()
-        repository = UserRepositoryImpl(dao)
+        repository = UserRepositoryImpl(dao, Dispatchers.Unconfined)
     }
 
     @Test

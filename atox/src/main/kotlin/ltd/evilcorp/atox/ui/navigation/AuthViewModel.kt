@@ -9,9 +9,14 @@ import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
 import ltd.evilcorp.domain.features.settings.usecase.GetToxRunningStateUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
+import ltd.evilcorp.domain.core.di.IoDispatcher
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfAvatarUseCase
+import ltd.evilcorp.domain.features.auth.usecase.ProfileRegistryUseCase
+import ltd.evilcorp.domain.features.auth.usecase.GetSelfNameUseCase
+import ltd.evilcorp.domain.features.auth.model.ProfileInfo
 
 sealed interface LaunchUiState {
     object Loading : LaunchUiState
@@ -33,6 +38,10 @@ class AuthViewModel @Inject constructor(
     private val getSelfUserUseCase: GetSelfUserUseCase,
     private val getToxRunningStateUseCase: GetToxRunningStateUseCase,
     private val toxStarter: ToxStarter,
+    private val getSelfAvatarUseCase: GetSelfAvatarUseCase,
+    private val profileRegistryUseCase: ProfileRegistryUseCase,
+    private val getSelfNameUseCase: GetSelfNameUseCase,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
     val publicKey by lazy { getSelfUserUseCase.publicKey }
 
@@ -53,8 +62,11 @@ class AuthViewModel @Inject constructor(
         launchState.value = LaunchUiState.Loading
         try {
             withTimeout(LOAD_TIMEOUT_MS) {
-                val result = withContext(Dispatchers.IO) {
+                val result = withContext(ioDispatcher) {
                     toxStarter.tryLoadTox(password)
+                }
+                if (result == ToxSaveStatus.Ok) {
+                    syncProfile()
                 }
                 launchState.value = LaunchUiState.Success(result)
             }
@@ -67,16 +79,33 @@ class AuthViewModel @Inject constructor(
 
     suspend fun unlockProfileAsync(password: String): Boolean {
         unlockState.value = UnlockUiState.Loading
-        val success = withContext(Dispatchers.IO) {
+        val success = withContext(ioDispatcher) {
             toxStarter.tryLoadTox(password) == ToxSaveStatus.Ok
         }
         if (success) {
+            syncProfile()
             unlockState.value = UnlockUiState.Success
             return true
         } else {
             unlockState.value = UnlockUiState.Error
             return false
         }
+    }
+
+    private fun syncProfile() {
+        val activeId = profileRegistryUseCase.getActiveProfileId()
+        val name = getSelfNameUseCase.execute().takeIf { it.isNotBlank() } ?: "My Profile"
+        val avatarFile = getSelfAvatarUseCase.execute()
+        val avatarUri = if (avatarFile.exists() && avatarFile.length() > 0L) avatarFile.toURI().toString() else null
+        
+        val profiles = profileRegistryUseCase.getProfiles()
+        val existing = profiles.find { it.id == activeId }
+        val updatedProfile = if (existing != null) {
+            existing.copy(name = name, avatarUri = avatarUri)
+        } else {
+            ProfileInfo(id = activeId, name = name, avatarUri = avatarUri)
+        }
+        profileRegistryUseCase.addOrUpdateProfile(updatedProfile)
     }
 
     fun enableBiometric(context: android.content.Context, password: String): Boolean {

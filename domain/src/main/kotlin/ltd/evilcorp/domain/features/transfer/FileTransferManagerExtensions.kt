@@ -1,6 +1,5 @@
 package ltd.evilcorp.domain.features.transfer
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
@@ -18,7 +17,8 @@ private fun String.fingerprint() = take(FINGERPRINT_LEN)
 
 fun FileTransferManager.reset() = synchronized(fileTransfers) {
     fileTransfers.clear()
-    scope.launch(Dispatchers.IO) {
+    outgoingFiles.clear()
+    scope.launch(ioDispatcher) {
         fileTransferRepository.resetTransientData()
     }
 }
@@ -33,14 +33,15 @@ fun FileTransferManager.resetForContact(pk: String) = synchronized(fileTransfers
             outgoingFiles.remove(Pair(pk, ft.fileNumber))?.inputStream?.close()
             platformHelper.releaseFilePermission(uriStr)
         } else {
-            scope.launch(Dispatchers.IO) {
+            scope.launch(ioDispatcher) {
                 fileStorageHelper.deleteFile(ft.destination)
             }
         }
     }
 }
 
-suspend fun FileTransferManager.sendAvatar(pkStr: String) = withContext(Dispatchers.IO) {
+@Suppress("RedundantSuspendModifier")
+suspend fun FileTransferManager.sendAvatar(pkStr: String) = withContext(ioDispatcher) {
     val avatarInfo = fileStorageHelper.getSelfAvatarInfo() ?: return@withContext
     val avatarUriStr = avatarInfo.first
     val size = avatarInfo.second
@@ -76,7 +77,7 @@ suspend fun FileTransferManager.sendAvatar(pkStr: String) = withContext(Dispatch
     outgoingFiles[Pair(pkStr, fileNo)] = OutgoingFile(inputStream, mutableListOf())
 }
 
-suspend fun FileTransferManager.broadcastAvatar() = withContext(Dispatchers.IO) {
+suspend fun FileTransferManager.broadcastAvatar() = withContext(ioDispatcher) {
     for ((publicKey, _) in toxProfile.getContacts()) {
         val pkStr = publicKey.string()
         val contact = contactRepository.get(pkStr).firstOrNull()
@@ -120,7 +121,7 @@ fun FileTransferManager.clearCache() {
     fileStorageHelper.clearCache()
 }
 
-suspend fun FileTransferManager.deleteAll(publicKey: PublicKey) = withContext(Dispatchers.IO) {
+suspend fun FileTransferManager.deleteAll(publicKey: PublicKey) = withContext(ioDispatcher) {
     fileTransferRepository.get(publicKey.string()).take(1).collect { fts ->
         fts.forEach { delete(it.id) }
     }

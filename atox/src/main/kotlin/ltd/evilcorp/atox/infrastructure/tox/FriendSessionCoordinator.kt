@@ -9,6 +9,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import ltd.evilcorp.domain.features.contacts.IToxFriendEventBus
 import ltd.evilcorp.domain.features.contacts.model.ToxFriendEvent
@@ -21,6 +23,7 @@ import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
 import ltd.evilcorp.domain.features.group.GroupConnectionService
 
 private const val TAG = "FriendSessionCoordinator"
+private const val INVITE_SWEEP_INTERVAL_MS = 60_000L
 
 @Singleton
 class FriendSessionCoordinator @Inject constructor(
@@ -32,6 +35,8 @@ class FriendSessionCoordinator @Inject constructor(
     private val groupSyncManager: GroupSyncManager,
     private val groupConnectionService: GroupConnectionService,
 ) {
+    private var inviteSweepJob: Job? = null
+
     init {
         scope.launch {
             eventBus.events.collect { event ->
@@ -63,9 +68,33 @@ class FriendSessionCoordinator @Inject constructor(
             is ToxFriendEvent.SelfConnectionStatus -> {
                 if (event.status != ConnectionStatus.None) {
                     groupConnectionService.reconnectAll()
+                    startPeriodicInviteSweep()
+                } else {
+                    inviteSweepJob?.cancel()
+                    inviteSweepJob = null
                 }
             }
             else -> {}
+        }
+    }
+
+    /**
+     * Layer 4: Periodically check connected groups and send invites to online friends
+     * who should be in those groups. Runs every 60 seconds while Tox is connected.
+     */
+    private fun startPeriodicInviteSweep() {
+        inviteSweepJob?.cancel()
+        inviteSweepJob = scope.launch(Dispatchers.IO) {
+            // Wait initial delay before first sweep
+            delay(INVITE_SWEEP_INTERVAL_MS)
+            while (true) {
+                try {
+                    groupSyncManager.periodicInviteSweep()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Periodic invite sweep error: $e")
+                }
+                delay(INVITE_SWEEP_INTERVAL_MS)
+            }
         }
     }
 }

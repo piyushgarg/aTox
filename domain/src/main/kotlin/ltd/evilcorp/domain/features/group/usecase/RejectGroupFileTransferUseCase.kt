@@ -9,7 +9,7 @@ import javax.inject.Inject
 class RejectGroupFileTransferUseCase @Inject constructor(
     private val fileTransferManager: FileTransferManager,
 ) {
-    suspend fun execute(fileNumber: Int) {
+    fun execute(fileNumber: Int) {
         fileTransferManager.reject(fileNumber)
     }
 }

@@ -3,12 +3,15 @@ package ltd.evilcorp.domain.features.settings.usecase
 import ltd.evilcorp.domain.core.network.bootstrap.IBootstrapNodeRegistry
 import ltd.evilcorp.domain.features.settings.model.BackupFrequency
 import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
+import ltd.evilcorp.domain.features.settings.model.ProxyType
 import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
 import javax.inject.Inject
 
 sealed interface UpdateAction {
     data class UdpEnabled(val enabled: Boolean) : UpdateAction
     data class ProxyPort(val port: Int) : UpdateAction
+    data class ProxyTypeAction(val type: ProxyType) : UpdateAction
+    data class ProxyAddressAction(val address: String) : UpdateAction
     data class BootstrapNodeSourceAction(val source: BootstrapNodeSource) : UpdateAction
     data class BackupFrequencyAction(val frequency: BackupFrequency) : UpdateAction
     data class BackupDestinationOrdinals(val ordinals: Set<Int>) : UpdateAction
@@ -20,7 +23,7 @@ sealed interface UpdateAction {
 }
 
 /**
- * Use case to update various user setting parameters.
+ * Use case to toggle run-at-startup preferences and configure receiver components.
  */
 class UpdateUserSettingsUseCase @Inject constructor(
     private val userSettingsRepository: IUserSettingsRepository,
@@ -30,6 +33,8 @@ class UpdateUserSettingsUseCase @Inject constructor(
         when (action) {
             is UpdateAction.UdpEnabled -> userSettingsRepository.updateUdpEnabled(action.enabled)
             is UpdateAction.ProxyPort -> userSettingsRepository.updateProxyPort(action.port)
+            is UpdateAction.ProxyTypeAction -> userSettingsRepository.updateProxyType(action.type)
+            is UpdateAction.ProxyAddressAction -> userSettingsRepository.updateProxyAddress(action.address)
             is UpdateAction.BootstrapNodeSourceAction -> {
                 userSettingsRepository.updateBootstrapNodeSource(action.source)
                 nodeRegistry.reset()

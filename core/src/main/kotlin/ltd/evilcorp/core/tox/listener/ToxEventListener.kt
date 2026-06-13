@@ -143,56 +143,67 @@ class ToxEventListener @Inject constructor() {
     var groupJoinFailHandler: GroupJoinFailHandler = { _, _ -> }
     var groupModerationHandler: GroupModerationHandler = { _, _, _, _ -> }
 
-    private fun keyFor(friendNo: Int) = contactMapping.find { it.second == friendNo }!!.first.string()
+    private fun keyFor(friendNo: Int): String? {
+        return contactMapping.find { it.second == friendNo }?.first?.string()
+    }
+
+    private inline fun withKey(friendNo: Int, block: (String) -> Unit) {
+        val key = keyFor(friendNo)
+        if (key != null) {
+            block(key)
+        } else {
+            android.util.Log.w("ToxEventListener", "Callback received for unmapped friend #$friendNo")
+        }
+    }
 
     // ===================================================================================
     // JNI Callbacks (Called directly from the native C++ layer NativeToxCore.cpp via JNI)
     // ===================================================================================
 
     fun onFriendMessage(friendNo: Int, type: Int, timeDelta: Int, message: ByteArray) =
-        friendDispatcher.onFriendMessage(keyFor(friendNo), type, timeDelta, message)
+        withKey(friendNo) { key -> friendDispatcher.onFriendMessage(key, type, timeDelta, message) }
 
     fun onFriendRequest(publicKey: ByteArray, timeDelta: Int, message: ByteArray) =
         friendDispatcher.onFriendRequest(publicKey, timeDelta, message)
 
     fun onFriendConnectionStatus(friendNo: Int, status: Int) =
-        friendDispatcher.onFriendConnectionStatus(keyFor(friendNo), status)
+        withKey(friendNo) { key -> friendDispatcher.onFriendConnectionStatus(key, status) }
 
     fun onSelfConnectionStatus(status: Int) =
         friendDispatcher.onSelfConnectionStatus(status)
 
     fun onFriendStatus(friendNo: Int, status: Int) =
-        friendDispatcher.onFriendStatus(keyFor(friendNo), status)
+        withKey(friendNo) { key -> friendDispatcher.onFriendStatus(key, status) }
 
     fun onFriendStatusMessage(friendNo: Int, message: ByteArray) =
-        friendDispatcher.onFriendStatusMessage(keyFor(friendNo), message)
+        withKey(friendNo) { key -> friendDispatcher.onFriendStatusMessage(key, message) }
 
     fun onFriendName(friendNo: Int, name: ByteArray) =
-        friendDispatcher.onFriendName(keyFor(friendNo), name)
+        withKey(friendNo) { key -> friendDispatcher.onFriendName(key, name) }
 
     fun onFriendTyping(friendNo: Int, isTyping: Boolean) =
-        friendDispatcher.onFriendTyping(keyFor(friendNo), isTyping)
+        withKey(friendNo) { key -> friendDispatcher.onFriendTyping(key, isTyping) }
 
     fun onFriendReadReceipt(friendNo: Int, messageId: Int) =
-        friendDispatcher.onFriendReadReceipt(keyFor(friendNo), messageId)
+        withKey(friendNo) { key -> friendDispatcher.onFriendReadReceipt(key, messageId) }
 
     fun onFileRecv(friendNo: Int, fileNo: Int, kind: Int, fileSize: Long, filename: ByteArray) =
-        fileDispatcher.onFileRecv(keyFor(friendNo), fileNo, kind, fileSize, filename)
+        withKey(friendNo) { key -> fileDispatcher.onFileRecv(key, fileNo, kind, fileSize, filename) }
 
     fun onFileRecvControl(friendNo: Int, fileNo: Int, control: Int) =
-        fileDispatcher.onFileRecvControl(keyFor(friendNo), fileNo, control)
+        withKey(friendNo) { key -> fileDispatcher.onFileRecvControl(key, fileNo, control) }
 
     fun onFileRecvChunk(friendNo: Int, fileNo: Int, position: Long, data: ByteArray) =
-        fileDispatcher.onFileRecvChunk(keyFor(friendNo), fileNo, position, data)
+        withKey(friendNo) { key -> fileDispatcher.onFileRecvChunk(key, fileNo, position, data) }
 
     fun onFileChunkRequest(friendNo: Int, fileNo: Int, position: Long, length: Int) =
-        fileDispatcher.onFileChunkRequest(keyFor(friendNo), fileNo, position, length)
+        withKey(friendNo) { key -> fileDispatcher.onFileChunkRequest(key, fileNo, position, length) }
 
     fun onFriendLosslessPacket(friendNo: Int, data: ByteArray) =
-        friendDispatcher.onFriendLosslessPacket(keyFor(friendNo), data)
+        withKey(friendNo) { key -> friendDispatcher.onFriendLosslessPacket(key, data) }
 
     fun onFriendLossyPacket(friendNo: Int, data: ByteArray) =
-        friendDispatcher.onFriendLossyPacket(keyFor(friendNo), data)
+        withKey(friendNo) { key -> friendDispatcher.onFriendLossyPacket(key, data) }
 
     // JNI callbacks for legacy group chats (conferences)
     fun onConferenceInvite(friendNo: Int, type: Int, cookie: ByteArray) =

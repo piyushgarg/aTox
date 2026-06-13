@@ -89,15 +89,24 @@ fun seededColorScheme(seedArgb: Int, darkTheme: Boolean): ColorScheme {
         surfaceContainerHigh = materialDynamicColors.surfaceContainerHigh().asComposeColor(scheme),
         surfaceContainerHighest = materialDynamicColors.surfaceContainerHighest().asComposeColor(scheme),
         surfaceContainerLow = materialDynamicColors.surfaceContainerLow().asComposeColor(scheme),
-        surfaceContainerLowest = materialDynamicColors.surfaceContainerLowest().asComposeColor(scheme)
+        surfaceContainerLowest = materialDynamicColors.surfaceContainerLowest().asComposeColor(scheme),
+        primaryFixed = materialDynamicColors.primaryFixed().asComposeColor(scheme),
+        primaryFixedDim = materialDynamicColors.primaryFixedDim().asComposeColor(scheme),
+        onPrimaryFixed = materialDynamicColors.onPrimaryFixed().asComposeColor(scheme),
+        onPrimaryFixedVariant = materialDynamicColors.onPrimaryFixedVariant().asComposeColor(scheme),
+        secondaryFixed = materialDynamicColors.secondaryFixed().asComposeColor(scheme),
+        secondaryFixedDim = materialDynamicColors.secondaryFixedDim().asComposeColor(scheme),
+        onSecondaryFixed = materialDynamicColors.onSecondaryFixed().asComposeColor(scheme),
+        onSecondaryFixedVariant = materialDynamicColors.onSecondaryFixedVariant().asComposeColor(scheme),
+        tertiaryFixed = materialDynamicColors.tertiaryFixed().asComposeColor(scheme),
+        tertiaryFixedDim = materialDynamicColors.tertiaryFixedDim().asComposeColor(scheme),
+        onTertiaryFixed = materialDynamicColors.onTertiaryFixed().asComposeColor(scheme),
+        onTertiaryFixedVariant = materialDynamicColors.onTertiaryFixedVariant().asComposeColor(scheme)
     )
 }
 
 fun accentPreviewColor(seedArgb: Int, darkTheme: Boolean): Color =
     seededColorScheme(seedArgb, darkTheme).primary
-
-fun accentPreviewContentColor(seedArgb: Int, darkTheme: Boolean): Color =
-    seededColorScheme(seedArgb, darkTheme).onPrimary
 
 private const val LUMINANCE_THRESHOLD = 0.5f
 

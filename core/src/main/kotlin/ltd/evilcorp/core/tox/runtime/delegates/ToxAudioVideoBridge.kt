@@ -8,39 +8,47 @@ import ltd.evilcorp.domain.core.network.enums.ToxavCallControl
 class ToxAudioVideoBridge(
     private val nativeTox: NativeTox,
     private val nativeToxAv: NativeToxAv,
-    private val lock: Any,
-    private val toxPtrProvider: () -> Long,
+    lock: Any,
+    toxPtrProvider: () -> Long,
     private val toxavPtrProvider: () -> Long,
-) {
-    private fun contactByKey(pk: PublicKey): Int {
-        return nativeTox.toxFriendByPublicKey(toxPtrProvider(), pk.bytes())
+) : BaseToxBridge(lock, toxPtrProvider) {
+    private fun contactByKey(ptr: Long, pk: PublicKey): Int {
+        return nativeTox.toxFriendByPublicKey(ptr, pk.bytes())
     }
 
-    fun startCall(pk: PublicKey, audioBitrate: Int) = synchronized(lock) {
-        nativeToxAv.toxavCall(toxavPtrProvider(), contactByKey(pk), audioBitrate, 0)
+    private inline fun <T> withToxAv(block: (Long, Long) -> T): T = synchronized(lock) {
+        val ptr = toxPtrProvider()
+        val avPtr = toxavPtrProvider()
+        check(ptr != 0L) { "Tox native pointer is null." }
+        check(avPtr != 0L) { "Toxav native pointer is null." }
+        block(ptr, avPtr)
     }
 
-    fun answerCall(pk: PublicKey, audioBitrate: Int) = synchronized(lock) {
-        nativeToxAv.toxavAnswer(toxavPtrProvider(), contactByKey(pk), audioBitrate, 0)
+    fun startCall(pk: PublicKey, audioBitrate: Int) = withToxAv { ptr, avPtr ->
+        nativeToxAv.toxavCall(avPtr, contactByKey(ptr, pk), audioBitrate, 0)
     }
 
-    fun endCall(pk: PublicKey) = synchronized(lock) {
-        nativeToxAv.toxavCallControl(toxavPtrProvider(), contactByKey(pk), ToxavCallControl.CANCEL.ordinal)
+    fun answerCall(pk: PublicKey, audioBitrate: Int) = withToxAv { ptr, avPtr ->
+        nativeToxAv.toxavAnswer(avPtr, contactByKey(ptr, pk), audioBitrate, 0)
     }
 
-    fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) = synchronized(lock) {
-        nativeToxAv.toxavAudioSendFrame(toxavPtrProvider(), contactByKey(pk), pcm, pcm.size, channels, samplingRate)
+    fun endCall(pk: PublicKey) = withToxAv { ptr, avPtr ->
+        nativeToxAv.toxavCallControl(avPtr, contactByKey(ptr, pk), ToxavCallControl.CANCEL.ordinal)
     }
 
-    fun sendVideoFrame(pk: PublicKey, width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray): Boolean = synchronized(lock) {
-        nativeToxAv.toxavVideoSendFrame(toxavPtrProvider(), contactByKey(pk), width, height, y, u, v)
+    fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) = withToxAv { ptr, avPtr ->
+        nativeToxAv.toxavAudioSendFrame(avPtr, contactByKey(ptr, pk), pcm, pcm.size, channels, samplingRate)
     }
 
-    fun audioSetBitRate(pk: PublicKey, bitrate: Int): Boolean = synchronized(lock) {
-        nativeToxAv.toxavAudioSetBitRate(toxavPtrProvider(), contactByKey(pk), bitrate)
+    fun sendVideoFrame(pk: PublicKey, width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray): Boolean = withToxAv { ptr, avPtr ->
+        nativeToxAv.toxavVideoSendFrame(avPtr, contactByKey(ptr, pk), width, height, y, u, v)
     }
 
-    fun videoSetBitRate(pk: PublicKey, bitrate: Int): Boolean = synchronized(lock) {
-        nativeToxAv.toxavVideoSetBitRate(toxavPtrProvider(), contactByKey(pk), bitrate)
+    fun audioSetBitRate(pk: PublicKey, bitrate: Int): Boolean = withToxAv { ptr, avPtr ->
+        nativeToxAv.toxavAudioSetBitRate(avPtr, contactByKey(ptr, pk), bitrate)
+    }
+
+    fun videoSetBitRate(pk: PublicKey, bitrate: Int): Boolean = withToxAv { ptr, avPtr ->
+        nativeToxAv.toxavVideoSetBitRate(avPtr, contactByKey(ptr, pk), bitrate)
     }
 }

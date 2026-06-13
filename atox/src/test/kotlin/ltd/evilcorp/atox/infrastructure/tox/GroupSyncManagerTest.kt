@@ -14,24 +14,16 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import ltd.evilcorp.domain.core.model.PublicKey
-import ltd.evilcorp.domain.core.network.ITox
-import ltd.evilcorp.domain.core.network.IToxGroupManager
-import ltd.evilcorp.domain.core.network.IToxProfile
-import ltd.evilcorp.domain.core.network.ToxID
-import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
+import ltd.evilcorp.core.tox.FakeTox
+import ltd.evilcorp.core.tox.FakeMessageRepository
 import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
-import ltd.evilcorp.domain.core.network.enums.ToxMessageType
 import ltd.evilcorp.domain.features.chat.ChatManager
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.domain.features.contacts.model.Contact
-import ltd.evilcorp.domain.features.chat.model.Message
-import ltd.evilcorp.domain.features.transfer.model.FileKind
 import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
-import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
 import ltd.evilcorp.domain.features.group.GroupConnectionStatus
 import ltd.evilcorp.domain.features.group.GroupManager
 import ltd.evilcorp.domain.features.group.GroupDataRepositories
@@ -58,12 +50,12 @@ import kotlin.test.assertFalse
 class GroupSyncManagerTest {
 
     private val testDispatcher = StandardTestDispatcher()
-    private val testScope = CoroutineScope(testDispatcher)
+    private var testScope = CoroutineScope(testDispatcher)
 
     private val fakeGroupRepository = FakeGroupRepository()
     private val fakeContactRepository = FakeContactRepository()
     private val fakeMessageRepository = FakeMessageRepository()
-    private val fakeTox = FakeTox()
+    private val fakeTox = FakeToxSync()
     private val fakeConnectionScheduler = FakeConnectionScheduler()
     private val fakeSessionRegistry = FakeGroupSessionRegistry()
 
@@ -72,6 +64,7 @@ class GroupSyncManagerTest {
 
     @BeforeTest
     fun setUp() {
+        testScope = CoroutineScope(testDispatcher)
         Dispatchers.setMain(testDispatcher)
 
         val groupDataRepositories = GroupDataRepositories(
@@ -91,15 +84,17 @@ class GroupSyncManagerTest {
             scope = testScope,
             sessionCoordinator = groupSessionCoordinator,
             groupRepository = fakeGroupRepository,
-            toxServices = groupToxServices
+            toxServices = groupToxServices,
+            ioDispatcher = testDispatcher
         )
+        val groupEventBus = ltd.evilcorp.domain.features.group.GroupEventBus()
         val groupMessagingService = ltd.evilcorp.domain.features.group.GroupMessagingService(
             scope = testScope,
-            groupRepository = fakeGroupRepository,
-            messageRepository = fakeMessageRepository,
-            contactRepository = fakeContactRepository,
+            repositories = groupDataRepositories,
             toxServices = groupToxServices,
-            sessionCoordinator = groupSessionCoordinator
+            sessionCoordinator = groupSessionCoordinator,
+            groupEventBus = groupEventBus,
+            ioDispatcher = testDispatcher
         )
         val groupServices = ltd.evilcorp.domain.features.group.GroupServices(
             connection = groupConnectionService,
@@ -108,7 +103,7 @@ class GroupSyncManagerTest {
         groupManager = GroupManager(
             scope = testScope,
             repositories = groupDataRepositories,
-            chatManager = ChatManager(testScope, fakeContactRepository, fakeMessageRepository, fakeTox),
+            chatManager = ChatManager(testScope, fakeContactRepository, fakeMessageRepository, fakeTox, testDispatcher),
             toxServices = groupToxServices,
             sessionCoordinator = groupSessionCoordinator,
             services = groupServices
@@ -117,13 +112,16 @@ class GroupSyncManagerTest {
         groupSyncManager = GroupSyncManager(
             scope = testScope,
             groupRepository = fakeGroupRepository,
+            contactRepository = fakeContactRepository,
             tox = fakeTox,
-            groupManager = groupManager
+            groupManager = groupManager,
+            groupEventBus = groupEventBus
         )
     }
 
     @AfterTest
     fun tearDown() {
+        testScope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         Dispatchers.resetMain()
     }
 
@@ -152,11 +150,11 @@ class GroupSyncManagerTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Verify reconnect attempt
-        assertTrue(fakeTox.reconnectedGroups.contains(42))
+        assertEquals(listOf(42), fakeConnectionScheduler.scheduled)
 
         // Verify summary packet was sent
-        assertEquals(1, fakeTox.sentPackets.size)
-        val packet = fakeTox.sentPackets.first()
+        assertEquals(2, fakeTox.sentPackets.size)
+        val packet = fakeTox.sentPackets.first { it.second.copyOfRange(1, it.second.size).decodeToString().contains("group_sync_summary") }
         assertEquals(peerPk, packet.first.string())
         
         val payload = packet.second.copyOfRange(1, packet.second.size).decodeToString()
@@ -191,9 +189,53 @@ class GroupSyncManagerTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Should trigger reconnect
-        assertTrue(fakeTox.reconnectedGroups.contains(42))
+        assertEquals(listOf(42), fakeConnectionScheduler.scheduled)
         // Should NOT send summary to bootstrap-only friend
         assertTrue(fakeTox.sentPackets.isEmpty())
+    }
+
+    @Test
+    fun testOnGroupPeerOnline_matchesByContactName() = runTest(testDispatcher) {
+        val chatId = "test_chat_id"
+        // Real personal public key of the friend
+        val friendPk = "FRIEND_PERSONAL_PK"
+        // Group-specific peer public key stored in group peers table
+        val groupPeerPk = "GROUP_SPECIFIC_PEER_PK"
+        
+        // Add contact to fakeContactRepository with name "Alice"
+        val contact = Contact(
+            publicKey = friendPk,
+            name = "Alice"
+        )
+        fakeContactRepository.add(contact)
+        
+        // Setup a disconnected group with peer named "Alice" but having a group-specific PK
+        val group = Group(
+            chatId = chatId,
+            name = "Test Group",
+            connected = false,
+            groupNumber = 42
+        )
+        fakeGroupRepository.groups[chatId] = group
+        fakeGroupRepository.peers[chatId] = listOf(
+            GroupPeer(groupChatId = chatId, peerId = 0, publicKey = "OUR_PK", isOurselves = true),
+            GroupPeer(groupChatId = chatId, peerId = 1, name = "Alice", publicKey = groupPeerPk, isOurselves = false)
+        )
+        fakeGroupRepository.messageIds[chatId] = listOf(10, 11, 12)
+        
+        groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+
+        // When the friend's personal public key comes online
+        groupSyncManager.onGroupPeerOnline(friendPk)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Verify it matched by name and triggered group reconnect!
+        assertEquals(listOf(42), fakeConnectionScheduler.scheduled)
+
+        // Verify summary packet was sent to the friend's personal public key
+        assertEquals(2, fakeTox.sentPackets.size)
+        val packet = fakeTox.sentPackets.first { it.second.copyOfRange(1, it.second.size).decodeToString().contains("group_sync_summary") }
+        assertEquals(friendPk, packet.first.string())
     }
 
     @Test
@@ -426,11 +468,12 @@ class GroupSyncManagerTest {
     }
 
     private class FakeContactRepository : IContactRepository {
-        override suspend fun exists(publicKey: String): Boolean = false
-        override suspend fun add(contact: Contact) {}
-        override suspend fun update(contact: Contact) {}
-        override suspend fun delete(contact: Contact) {}
-        override fun get(publicKey: String): Flow<Contact?> = flowOf(null)
+        val contacts = ConcurrentHashMap<String, Contact>()
+        override suspend fun exists(publicKey: String): Boolean = contacts.containsKey(publicKey)
+        override suspend fun add(contact: Contact) { contacts[contact.publicKey] = contact }
+        override suspend fun update(contact: Contact) { contacts[contact.publicKey] = contact }
+        override suspend fun delete(contact: Contact) { contacts.remove(contact.publicKey) }
+        override fun get(publicKey: String): Flow<Contact?> = flowOf(contacts[publicKey])
         override fun getAll(): Flow<List<Contact>> = flowOf(emptyList())
         override suspend fun resetTransientData() {}
         override suspend fun setName(publicKey: String, name: String) {}
@@ -445,102 +488,20 @@ class GroupSyncManagerTest {
         override suspend fun setLastOnline(publicKey: String, lastOnline: Long) {}
     }
 
-    private class FakeMessageRepository : IMessageRepository {
-        override suspend fun add(message: Message) {}
-        override fun get(conversation: String): Flow<List<Message>> = flowOf(emptyList())
-        override suspend fun getPending(conversation: String): List<Message> = emptyList()
-        override suspend fun setCorrelationId(id: Long, correlationId: Int) {}
-        override suspend fun delete(conversation: String) {}
-        override suspend fun deleteMessage(id: Long) {}
-        override suspend fun setReceipt(conversation: String, correlationId: Int, timestamp: Long) {}
-        override suspend fun exists(conversation: String, message: String): Boolean = false
-    }
-
     private class FakeConnectionScheduler : IGroupConnectionScheduler {
         val bootstrapFriends = mutableSetOf<String>()
+        val scheduled = mutableListOf<Int>()
         override fun reconnectAll() {}
-        override fun scheduleAutoReconnect(chatId: String, groupNumber: Int) {}
+        override fun scheduleAutoReconnect(chatId: String, groupNumber: Int) {
+            scheduled.add(groupNumber)
+        }
         override fun cancelReconnect(chatId: String) {}
         override fun stopReconnect(chatId: String) {}
         override fun isBootstrapFriend(pk: String): Boolean = bootstrapFriends.contains(pk)
     }
 
-    private class FakeTox : ITox {
-        override val toxId: ToxID get() = throw UnsupportedOperationException()
-        override val publicKey: PublicKey = PublicKey("OUR_PK")
-        override var nospam: Int get() = 0; set(_) {}
-        override var started: Boolean = true
-        override var isBootstrapNeeded: Boolean get() = false; set(_) {}
-        override val password: String? get() = null
-
-        val sentPackets = mutableListOf<Pair<PublicKey, ByteArray>>()
-        val reconnectedGroups = mutableListOf<Int>()
-
-        override fun changePassword(new: String?) {}
-        override fun stop() {}
-        override fun getContacts(): List<Pair<PublicKey, Int>> = emptyList()
-        override fun acceptFriendRequest(publicKey: PublicKey) {}
-        override fun startFileTransfer(pk: PublicKey, fileNumber: Int) {}
-        override fun stopFileTransfer(pk: PublicKey, fileNumber: Int) {}
-        override fun sendFile(
-            pk: PublicKey,
-            fileKind: ltd.evilcorp.domain.features.transfer.model.FileKind,
-            fileSize: Long,
-            fileName: String
-        ): Int = 0
-        override fun sendFileChunk(
-            pk: PublicKey,
-            fileNo: Int,
-            pos: Long,
-            data: ByteArray
-        ): Result<Unit> = Result.success(Unit)
-        override fun getName(): String = "Me"
-        override fun setName(name: String) {}
-        override fun getStatusMessage(): String = ""
-        override fun setStatusMessage(statusMessage: String) {}
-        override fun addContact(toxId: ToxID, message: String) {}
-        override fun deleteContact(publicKey: PublicKey) {}
-        override fun sendMessage(publicKey: PublicKey, message: String, type: MessageType): Int = 0
-        override fun getSaveData(): ByteArray = byteArrayOf()
-        override fun setTyping(publicKey: PublicKey, typing: Boolean): Boolean = true
-        override fun friendGetTyping(publicKey: PublicKey): Boolean = false
-        override fun getFriendNumber(publicKey: PublicKey): Int = 0
-        override fun getFriendPublicKey(friendNumber: Int): PublicKey? = null
-        override fun friendGetLastOnline(publicKey: PublicKey): Long = 0
-        override fun getStatus(): UserStatus = UserStatus.None
-        override fun setStatus(status: UserStatus) {}
-        
-        override fun sendLosslessPacket(pk: PublicKey, packet: ByteArray): Boolean {
-            sentPackets.add(Pair(pk, packet))
-            return true
-        }
-
-        override fun startCall(pk: PublicKey): Boolean = true
-        override fun answerCall(pk: PublicKey): Boolean = true
-        override fun endCall(pk: PublicKey): Boolean = true
-        override fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int): Boolean = true
-        override fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int = 0
-        override fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int = 0
-        override fun groupLeave(groupNumber: Int): Boolean = true
-        override fun groupSendMessage(groupNumber: Int, type: ToxMessageType, message: ByteArray): Int = 0
-        override fun groupSetTopic(groupNumber: Int, topic: ByteArray): Boolean = true
-        override fun groupGetTopic(groupNumber: Int): ByteArray? = null
-        override fun groupGetName(groupNumber: Int): ByteArray? = null
-        override fun groupGetChatId(groupNumber: Int): ByteArray? = null
-        override fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean = true
-        override fun groupGetPassword(groupNumber: Int): ByteArray? = null
-        override fun groupPeerGetName(groupNumber: Int, peerId: Int): ByteArray? = null
-        override fun groupPeerGetPublicKey(groupNumber: Int, peerId: Int): ByteArray? = null
-        override fun groupSelfGetPeerId(groupNumber: Int): Int = 0
+    private class FakeToxSync : FakeTox() {
         override fun groupSelfGetRole(groupNumber: Int): ToxGroupRole = ToxGroupRole.USER
-        override fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean = true
-        override fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int = 0
-        override fun groupReconnect(groupNumber: Int): Boolean {
-            reconnectedGroups.add(groupNumber)
-            return true
-        }
-        override fun addFriendNoRequest(publicKey: PublicKey): Int = 0
-        override fun groupGetChatlist(): IntArray = intArrayOf()
     }
 
     private class FakeGroupSessionRegistry : IGroupSessionRegistry {
@@ -560,6 +521,12 @@ class GroupSyncManagerTest {
 
         override fun removeConnectionStatus(chatId: String) {
             _connectionStatuses.value = _connectionStatuses.value - chatId
+        }
+
+        override fun clear() {
+            activeGroup = ""
+            _pendingInvite.value = null
+            _connectionStatuses.value = emptyMap()
         }
     }
 }

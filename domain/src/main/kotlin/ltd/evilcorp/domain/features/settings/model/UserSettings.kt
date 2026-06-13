@@ -29,8 +29,6 @@ enum class AppSound {
 enum class BackupDestination {
     Local,
     GoogleDrive,
-    Nextcloud,
-    WebDav,
 }
 
 enum class BackupFrequency {
@@ -71,12 +69,14 @@ data class UserSettings(
     val hapticEnabled: Boolean = true,
     val autoSaveToDownloads: Boolean = true,
     val autoSaveDirectoryUri: String = "",
-    val backupEncryptionEnabled: Boolean = false,
-    val backupEndToEndEncryptionEnabled: Boolean = false,
     val automaticBackupEnabled: Boolean = false,
     val backupFrequency: BackupFrequency = BackupFrequency.Off,
     val backupGoogleAccount: String = "",
     val backupUseCellular: Boolean = false,
     val backupDestinationOrdinals: Set<Int> = setOf(BackupDestination.Local.ordinal),
+    val lastLocalBackupTimeMs: Long = 0L,
+    val lastLocalBackupSizeKb: Long = 0L,
+    val lastGoogleBackupTimeMs: Long = 0L,
+    val lastGoogleBackupSizeKb: Long = 0L,
     val enableReplies: Boolean = true,
 )

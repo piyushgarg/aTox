@@ -2,12 +2,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+@file:Suppress("DEPRECATION")
 package ltd.evilcorp.atox.ui.settings
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import androidx.activity.result.ActivityResultLauncher
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
@@ -19,6 +17,7 @@ import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.domain.features.settings.model.UserSettings
 import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
 import ltd.evilcorp.domain.features.settings.model.ProxyType
+import ltd.evilcorp.domain.features.settings.model.BackupFrequency
 import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsViewModel
 import ltd.evilcorp.atox.ui.settings.common.SettingsDestination
 import ltd.evilcorp.atox.ui.settings.common.SettingsRootContent
@@ -39,7 +38,8 @@ import ltd.evilcorp.atox.ui.settings.screens.ThemeSettingsScreen
     "ComplexMethod",
     "LongMethod",
     "UnstableCollections",
-    "ViewModelForwarding"
+    "ViewModelForwarding",
+    "UnusedParameter"
 )
 @Composable
 internal fun SettingsScreenContent(
@@ -91,25 +91,35 @@ internal fun SettingsScreenContent(
             onConnectionClick = { state.destination = SettingsDestination.Connection },
             onBackupClick = { state.destination = SettingsDestination.Backup }
         )
-        SettingsDestination.Appearance -> SettingsAppearanceScreen(
-            paddingValues = paddingValues,
-            currentLanguageCode = currentLanguageCode,
-            languages = languages,
-            appThemeMode = appearance.themeMode,
-            timeFormatPreference = timeFormatPreference,
-            dateFormatPreference = dateFormatPreference,
-            dynamicColor = appearance.dynamicColorEnabled,
-            currentAccentSeed = appearance.accentColorSeed,
-            hapticEnabled = storedSettings.hapticEnabled,
-            performHaptic = performHaptic,
-            onLanguageClick = { state.destination = SettingsDestination.Language },
-            onThemeClick = { state.destination = SettingsDestination.Theme },
-            onDateFormatClick = { state.showDateFormatDialog = true },
-            onTimeFormatClick = { state.showTimeFormatDialog = true },
-            onDynamicColorChanged = onDynamicColorChanged,
-            onAccentColorClick = { state.showAccentColorDialog = true },
-            onHapticEnabledChanged = { settings.hapticEnabled = it }
-        )
+        SettingsDestination.Appearance -> {
+            val showProfilePicker = androidx.compose.runtime.remember {
+                androidx.compose.runtime.mutableStateOf(ltd.evilcorp.core.profile.ProfileManager.getShowProfilePicker(context))
+            }
+            SettingsAppearanceScreen(
+                paddingValues = paddingValues,
+                currentLanguageCode = currentLanguageCode,
+                languages = languages,
+                appThemeMode = appearance.themeMode,
+                timeFormatPreference = timeFormatPreference,
+                dateFormatPreference = dateFormatPreference,
+                dynamicColor = appearance.dynamicColorEnabled,
+                currentAccentSeed = appearance.accentColorSeed,
+                hapticEnabled = storedSettings.hapticEnabled,
+                showProfilePicker = showProfilePicker.value,
+                performHaptic = performHaptic,
+                onLanguageClick = { state.destination = SettingsDestination.Language },
+                onThemeClick = { state.destination = SettingsDestination.Theme },
+                onDateFormatClick = { state.showDateFormatDialog = true },
+                onTimeFormatClick = { state.showTimeFormatDialog = true },
+                onDynamicColorChanged = onDynamicColorChanged,
+                onAccentColorClick = { state.showAccentColorDialog = true },
+                onHapticEnabledChanged = { settings.hapticEnabled = it },
+                onShowProfilePickerChanged = {
+                    ltd.evilcorp.core.profile.ProfileManager.setShowProfilePicker(context, it)
+                    showProfilePicker.value = it
+                }
+            )
+        }
         SettingsDestination.Chat -> SettingsChatScreen(
             paddingValues = paddingValues,
             ftAutoAccept = ftAutoAccept,
@@ -147,7 +157,7 @@ internal fun SettingsScreenContent(
             onConfirmQuittingChanged = { settings.confirmQuitting = it },
             onConfirmCallingChanged = { settings.confirmCalling = it },
             onProxyTypeClick = { viewModel.setShowProxyDialog(true) },
-            onProxyAddressChanged = { settings.proxyAddress = it },
+            onProxyAddressChanged = viewModel::setProxyAddress,
             onProxyPortInputChanged = {
                 if (it.isEmpty() || it.all { char -> char.isDigit() }) {
                     state.proxyPortInput = it
@@ -224,35 +234,60 @@ internal fun SettingsScreenContent(
         )
         SettingsDestination.Backup -> BackupSettingsScreen(
             paddingValues = paddingValues,
-            backupProviders = backupViewModel.backupProviders,
             backupExporting = backupExporting,
             backupImporting = backupImporting,
-            backupPasswordEnabled = state.backupPasswordEnabled,
-            backupPassword = state.backupPassword,
-            backupPasswordVisible = false,
-            automaticBackupEnabled = storedSettings.automaticBackupEnabled,
             backupFrequency = storedSettings.backupFrequency,
             backupUseCellular = storedSettings.backupUseCellular,
-            backupDestinations = settings.backupDestinations,
-            backupEndToEndEncryptionEnabled = storedSettings.backupEndToEndEncryptionEnabled,
             backupGoogleAccount = storedSettings.backupGoogleAccount,
-            selectedBackupIds = state.selectedBackupIds,
-            mandatoryBackupId = mandatoryBackupId,
-            onBackupPasswordEnabledChanged = { state.backupPasswordEnabled = it },
-            onBackupPasswordChanged = { state.backupPassword = it },
-            onBackupPasswordVisibleChanged = { /* unused */ },
-            onAutomaticBackupEnabledChanged = { settings.automaticBackupEnabled = it },
-            onBackupFrequencyChanged = viewModel::setBackupFrequency,
-            onBackupUseCellularChanged = { settings.backupUseCellular = it },
-            onBackupDestinationsChanged = viewModel::setBackupDestinations,
-            onBackupEndToEndEncryptionEnabledChanged = {
-                settings.backupEndToEndEncryptionEnabled = it
+            lastLocalBackupTimeMs = storedSettings.lastLocalBackupTimeMs,
+            lastLocalBackupSizeKb = storedSettings.lastLocalBackupSizeKb,
+            lastGoogleBackupTimeMs = storedSettings.lastGoogleBackupTimeMs,
+            lastGoogleBackupSizeKb = storedSettings.lastGoogleBackupSizeKb,
+            onBackupFrequencyChanged = { freq ->
+                viewModel.setBackupFrequency(freq)
+                settings.automaticBackupEnabled = (freq != BackupFrequency.Off)
             },
-            onGoogleAccountClick = { state.showGoogleAccountDialog = true },
-            onSelectedBackupIdsChanged = { state.selectedBackupIds = it },
-            onCreateBackupClick = { launchers.backupLauncher.launch("atox-backup.zip") },
+            onBackupUseCellularChanged = { settings.backupUseCellular = it },
+            onGoogleAccountClick = {
+                state.googleSignInPurpose = GoogleSignInPurpose.Connect
+                val googleSignInOptions = ltd.evilcorp.atox.infrastructure.backup.google.GoogleDriveBackupHelper.getSignInOptions()
+                val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, googleSignInOptions)
+                val account = com.google.android.gms.auth.api.signin.GoogleSignIn.getLastSignedInAccount(context)
+                if (account != null) {
+                    client.signOut().addOnCompleteListener {
+                        launchers.googleSignInLauncher.launch(client.signInIntent)
+                    }
+                } else {
+                    launchers.googleSignInLauncher.launch(client.signInIntent)
+                }
+            },
+            onCreateBackupClick = backupViewModel::createBackup,
             onRestoreBackupClick = {
-                launchers.restoreBackupLauncher.launch(arrayOf("application/zip"))
+                state.pendingRestoreUri = null
+                state.showRestoreConfirmDialog = true
+            },
+            onRestoreGoogleBackupClick = {
+                state.googleSignInPurpose = GoogleSignInPurpose.Restore
+                val googleSignInOptions = ltd.evilcorp.atox.infrastructure.backup.google.GoogleDriveBackupHelper.getSignInOptions()
+                val account = com.google.android.gms.auth.api.signin.GoogleSignIn.getLastSignedInAccount(context)
+                val hasScopes = account != null && com.google.android.gms.auth.api.signin.GoogleSignIn.hasPermissions(
+                    account,
+                    com.google.android.gms.common.api.Scope(com.google.api.services.drive.DriveScopes.DRIVE_FILE),
+                    com.google.android.gms.common.api.Scope(com.google.api.services.drive.DriveScopes.DRIVE_APPDATA)
+                )
+                if (hasScopes) {
+                    backupViewModel.listGoogleDriveBackups()
+                    state.showGoogleDriveRestoreDialog = true
+                } else {
+                    val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, googleSignInOptions)
+                    if (account != null) {
+                        client.signOut().addOnCompleteListener {
+                            launchers.googleSignInLauncher.launch(client.signInIntent)
+                        }
+                    } else {
+                        launchers.googleSignInLauncher.launch(client.signInIntent)
+                    }
+                }
             },
             performHaptic = performHaptic
         )

@@ -1,18 +1,14 @@
 package ltd.evilcorp.core.tox
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.runtime.ToxEngine
 import ltd.evilcorp.core.tox.runtime.ToxWrapper
-import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.core.network.bootstrap.BootstrapNode
 import ltd.evilcorp.domain.core.network.bootstrap.IBootstrapNodeRegistry
 import ltd.evilcorp.domain.core.network.save.SaveOptions
@@ -81,9 +77,9 @@ class ToxEngineTest {
 
         engine.stop()
         
-        // Wait for iterate to stop with real timeout
+        // Wait for iterate to stop and callback to trigger with real timeout
         val startTime = System.currentTimeMillis()
-        while (engine.isRunning() && (System.currentTimeMillis() - startTime) < 2000) {
+        while ((engine.isRunning() || !onStoppedCalled) && (System.currentTimeMillis() - startTime) < 3000) {
             delay(10)
         }
 

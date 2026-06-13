@@ -41,10 +41,9 @@ data class MessageEntity(
         sender = sender,
         type = type,
         correlationId = correlationId,
-        timestamp = timestamp
-    ).apply {
+        timestamp = timestamp,
         id = this@MessageEntity.id
-    }
+    )
 
     companion object {
         fun fromDomain(message: Message): MessageEntity = MessageEntity(

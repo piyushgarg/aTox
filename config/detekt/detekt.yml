@@ -184,6 +184,7 @@ coroutines:
     active: false
   InjectDispatcher:
     active: true
+    excludes: ['**/*Test.kt', '**/fakes/**', '**/test/**', '**/androidTest/**']
     dispatcherNames:
       - 'IO'
       - 'Default'

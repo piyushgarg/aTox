@@ -6,38 +6,36 @@ package ltd.evilcorp.domain.features.group
 
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ltd.evilcorp.domain.features.group.repository.IGroupRepository
 import ltd.evilcorp.domain.features.group.model.GroupMessage
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.chat.model.Message
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
-import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
-import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
 import ltd.evilcorp.domain.core.network.enums.ToxMessageType
 import ltd.evilcorp.domain.core.network.Log
 
 @Singleton
 class GroupMessagingService @Inject constructor(
     private val scope: CoroutineScope,
-    private val groupRepository: IGroupRepository,
-    private val messageRepository: IMessageRepository,
-    private val contactRepository: IContactRepository,
+    private val repositories: GroupDataRepositories,
     private val toxServices: GroupToxServices,
     private val sessionCoordinator: GroupSessionCoordinator,
+    private val groupEventBus: GroupEventBus,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
     private val sessionRegistry get() = sessionCoordinator.sessionRegistry
     private val tox get() = toxServices.tox
     private val toxProfile get() = toxServices.profile
 
-    suspend fun sendMessage(chatId: String, message: String, type: MessageType = MessageType.Normal) = withContext(Dispatchers.IO) {
-        val g = groupRepository.get(chatId).firstOrNull() ?: return@withContext
+    suspend fun sendMessage(chatId: String, message: String, type: MessageType = MessageType.Normal) = withContext(ioDispatcher) {
+        val g = repositories.group.get(chatId).firstOrNull() ?: return@withContext
         val status = sessionRegistry.connectionStatuses.value[chatId] ?: GroupConnectionStatus.Disconnected
         val toxType = when (type) {
             MessageType.Normal -> ToxMessageType.NORMAL
@@ -51,6 +49,7 @@ class GroupMessagingService @Inject constructor(
                 toxType,
                 message.toByteArray(),
             )
+            Log.i("GroupMessagingService", "Message submitted to Toxcore for $chatId, msgId=$msgId")
             val groupMsg = GroupMessage(
                 groupChatId = chatId,
                 peerId = g.selfPeerId,
@@ -58,12 +57,14 @@ class GroupMessagingService @Inject constructor(
                 message = message,
                 sender = Sender.Sent,
                 type = type,
-                correlationId = if (msgId >= 0) msgId else -1,
+                correlationId = msgId,
                 timestamp = System.currentTimeMillis(),
             )
-            groupRepository.addMessage(groupMsg)
-            if (msgId < 0) {
+            repositories.group.addMessage(groupMsg)
+            if (msgId == -1) {
                 Log.w("GroupMessagingService", "sendMessage failed for $chatId, queued for resend")
+            } else {
+                groupEventBus.emit(GroupDomainEvent.LocalMessageSent(chatId))
             }
         } else {
             val groupMsg = GroupMessage(
@@ -76,15 +77,23 @@ class GroupMessagingService @Inject constructor(
                 correlationId = -1,
                 timestamp = System.currentTimeMillis(),
             )
-            groupRepository.addMessage(groupMsg)
+            repositories.group.addMessage(groupMsg)
         }
     }
 
     fun resendPendingMessages(chatId: String) {
         scope.launch {
-            val g = groupRepository.get(chatId).firstOrNull() ?: return@launch
-            val unsent = groupRepository.getUnsentMessages(chatId)
-            if (unsent.isEmpty()) return@launch
+            Log.i("GroupMessagingService", "resendPendingMessages called for $chatId")
+            val g = repositories.group.getDirect(chatId)
+            if (g == null) {
+                Log.i("GroupMessagingService", "resendPendingMessages: group is null!")
+                return@launch
+            }
+            val unsent = repositories.group.getUnsentMessages(chatId)
+            if (unsent.isEmpty()) {
+                Log.i("GroupMessagingService", "resendPendingMessages: unsent is empty!")
+                return@launch
+            }
             Log.i("GroupMessagingService", "Resending ${unsent.size} pending messages to $chatId")
             for (msg in unsent) {
                 val toxType = when (msg.type) {
@@ -97,8 +106,9 @@ class GroupMessagingService @Inject constructor(
                     toxType,
                     msg.message.toByteArray(),
                 )
-                if (newId >= 0) {
-                    groupRepository.setCorrelationId(msg.id, newId)
+                if (newId != -1) {
+                    repositories.group.setCorrelationId(msg.id, newId)
+                    groupEventBus.emit(GroupDomainEvent.LocalMessageSent(chatId))
                 } else {
                     Log.w("GroupMessagingService", "Failed to resend message ${msg.id} to $chatId")
                 }
@@ -106,14 +116,14 @@ class GroupMessagingService @Inject constructor(
         }
     }
 
-    suspend fun inviteFriend(chatId: String, friendPublicKey: String): Boolean = withContext(Dispatchers.IO) {
-        val group = groupRepository.get(chatId).firstOrNull()
+    suspend fun inviteFriend(chatId: String, friendPublicKey: String): Boolean = withContext(ioDispatcher) {
+        val group = repositories.group.get(chatId).firstOrNull()
         if (group != null && group.groupNumber >= 0) {
             val pk = PublicKey(friendPublicKey)
             val friendNumber = toxProfile.getFriendNumber(pk)
             
             val inviteText = "[GROUP_INVITE:${group.name}|${group.chatId}]"
-            messageRepository.add(
+            repositories.message.add(
                 Message(
                     publicKey = friendPublicKey.lowercase(),
                     message = inviteText,
@@ -125,7 +135,7 @@ class GroupMessagingService @Inject constructor(
             )
             
             if (friendNumber >= 0) {
-                val contact = contactRepository.get(friendPublicKey).firstOrNull()
+                val contact = repositories.contact.get(friendPublicKey).firstOrNull()
                 val isOnline = contact?.connectionStatus != ConnectionStatus.None
                 if (isOnline) {
                     tox.groupInviteSend(group.groupNumber, friendNumber)

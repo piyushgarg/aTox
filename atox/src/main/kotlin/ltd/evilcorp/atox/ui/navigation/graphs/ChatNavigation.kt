@@ -11,7 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -22,7 +22,6 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.chat.ChatScreen
 import ltd.evilcorp.atox.ui.chat.ChatViewModel
-import ltd.evilcorp.atox.ui.chat.ChatUiState
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.domain.features.contacts.model.Contact
@@ -93,6 +92,8 @@ fun NavGraphBuilder.chatGraph(
             ChatScreen(
                 uiState = finalUiState,
                 onBack = navController::popBackStack,
+                messagesFlow = viewModel.pagedMessages,
+
                 onSendMessage = { content -> viewModel.send(content, MessageType.Normal) },
                 onTypingChanged = viewModel::setTyping,
                 onSendFile = viewModel::createFt,

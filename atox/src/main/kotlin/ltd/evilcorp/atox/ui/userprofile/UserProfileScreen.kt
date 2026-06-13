@@ -8,16 +8,10 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,24 +19,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.QrCode
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -51,11 +36,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,21 +49,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.ui.common.QrCodeView
 import ltd.evilcorp.atox.ui.theme.StatusAvailable
 import ltd.evilcorp.atox.ui.theme.StatusAway
 import ltd.evilcorp.atox.ui.theme.StatusBusy
@@ -95,7 +71,6 @@ import ltd.evilcorp.atox.ui.userprofile.components.ProfileLogoutCard
 import ltd.evilcorp.atox.ui.userprofile.components.ProfileAvatarBox
 import ltd.evilcorp.domain.features.auth.model.User
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
-import ltd.evilcorp.domain.features.auth.model.initials
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,6 +89,7 @@ fun UserProfileScreen(
     onSetName: (String) -> Unit,
     onSetStatusMessage: (String) -> Unit,
     onSetStatus: (UserStatus) -> Unit,
+    onSwitchProfile: () -> Unit = {},
     onLogout: () -> Unit = {},
     onAvatarChanged: () -> Unit = {},
     onResetCropState: () -> Unit = {},
@@ -311,6 +287,7 @@ fun UserProfileScreen(
             // Logout Card
             ProfileLogoutCard(
                 onLogoutClick = { showLogoutConfirmDialog = true },
+                onSwitchProfile = onSwitchProfile,
                 modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
             )
 

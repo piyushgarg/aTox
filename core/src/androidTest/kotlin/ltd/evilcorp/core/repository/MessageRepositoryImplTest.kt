@@ -1,5 +1,6 @@
 package ltd.evilcorp.core.repository
 
+import androidx.paging.PagingSource
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -46,7 +47,7 @@ class MessageRepositoryImplTest {
         val contact = ContactEntity(publicKey = "contact_pub_key")
         db.contactDao().save(contact)
 
-        repository = MessageRepositoryImpl(db, db.messageDao())
+        repository = MessageRepositoryImpl(db)
     }
 
     @After
@@ -129,5 +130,28 @@ class MessageRepositoryImplTest {
         repository.setReceipt("contact_pub_key", 100, 7777L)
         val updated = repository.get("contact_pub_key").first()[0]
         assertEquals(7777L, updated.timestamp)
+    }
+
+    @Test
+    fun testGetPagingSource() = runTest {
+        val m1 = testMessage.copy(message = "Message 1", timestamp = 1000L)
+        val m2 = testMessage.copy(message = "Message 2", timestamp = 2000L)
+        repository.add(m1)
+        repository.add(m2)
+
+        val pagingSource = db.messageDao().loadConversationPagingSource("contact_pub_key")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = 10,
+                placeholdersEnabled = false
+            )
+        )
+
+        assertTrue(loadResult is PagingSource.LoadResult.Page)
+        val page = loadResult as PagingSource.LoadResult.Page
+        assertEquals(2, page.data.size)
+        assertEquals("Message 2", page.data[0].toDomain().message)
+        assertEquals("Message 1", page.data[1].toDomain().message)
     }
 }

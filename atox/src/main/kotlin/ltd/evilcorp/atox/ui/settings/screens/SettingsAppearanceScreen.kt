@@ -8,7 +8,6 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -27,6 +26,8 @@ import ltd.evilcorp.atox.ui.theme.AccentPresets
 import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
 import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 private val ContentPaddingTop = 16.dp
 private val ContentPaddingBottomDefault = 32.dp
@@ -42,6 +43,7 @@ fun SettingsAppearanceScreen(
     timeFormatPreference: TimeFormatPreference,
     dateFormatPreference: DateFormatPreference,
     dynamicColor: Boolean,
+    showProfilePicker: Boolean = false,
     currentAccentSeed: Int,
     hapticEnabled: Boolean,
     performHaptic: () -> Unit,
@@ -52,8 +54,11 @@ fun SettingsAppearanceScreen(
     onDynamicColorChanged: (Boolean) -> Unit,
     onAccentColorClick: () -> Unit,
     onHapticEnabledChanged: (Boolean) -> Unit,
+    onShowProfilePickerChanged: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    var localDynamicColor by androidx.compose.runtime.remember(dynamicColor) { androidx.compose.runtime.mutableStateOf(dynamicColor) }
+    
     val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
     LazyColumn(
         modifier = modifier
@@ -126,12 +131,13 @@ fun SettingsAppearanceScreen(
                     SettingsSwitchRow(
                         title = stringResource(R.string.dynamic_theme),
                         subtitle = stringResource(R.string.settings_dynamic_theme_subtitle),
-                        checked = dynamicColor
+                        checked = localDynamicColor
                     ) { checked ->
                         performHaptic()
+                        localDynamicColor = checked
                         onDynamicColorChanged(checked)
                     }
-                    if (!dynamicColor) {
+                    if (!localDynamicColor) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
                         val activePreset = AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
                         SettingsClickableRow(
@@ -163,6 +169,19 @@ fun SettingsAppearanceScreen(
                     checked = hapticEnabled
                 ) { checked ->
                     onHapticEnabledChanged(checked)
+                    performHaptic()
+                }
+            }
+        }
+
+        item {
+            SettingsGroup(title = "Профили") {
+                SettingsSwitchRow(
+                    title = "Выбор профиля при входе",
+                    subtitle = "Спрашивать, под каким профилем войти",
+                    checked = showProfilePicker
+                ) { checked ->
+                    onShowProfilePickerChanged?.invoke(checked)
                     performHaptic()
                 }
             }

@@ -4,9 +4,10 @@
 
 package ltd.evilcorp.domain.features.backup.usecase
 
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import ltd.evilcorp.domain.features.settings.ISettingsFileProcessor
 import ltd.evilcorp.domain.core.network.bootstrap.BootstrapNodeJsonParser
 
@@ -16,9 +17,11 @@ import ltd.evilcorp.domain.core.network.bootstrap.BootstrapNodeJsonParser
 class ValidateBootstrapNodesUseCase @Inject constructor(
     private val fileProcessor: ISettingsFileProcessor,
     private val nodeParser: BootstrapNodeJsonParser,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
-    suspend fun execute(uriString: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun execute(uriString: String): Boolean = withContext(ioDispatcher) {
         val bytes = fileProcessor.readBytes(uriString) ?: return@withContext false
         return@withContext nodeParser.parse(bytes.decodeToString()).isNotEmpty()
     }
 }
+

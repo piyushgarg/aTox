@@ -11,10 +11,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -39,10 +41,12 @@ import ltd.evilcorp.domain.features.chat.usecase.ClearChatHistoryUseCase
 import ltd.evilcorp.domain.features.chat.usecase.SetTypingStatusUseCase
 import ltd.evilcorp.domain.features.chat.usecase.DeleteChatMessageUseCase
 import ltd.evilcorp.domain.features.chat.usecase.GetChatMessagesUseCase
+import ltd.evilcorp.domain.features.chat.usecase.GetChatMessagesPagedUseCase
 import ltd.evilcorp.domain.features.chat.usecase.SetActiveChatUseCase
 import ltd.evilcorp.domain.features.chat.usecase.SetChatDraftUseCase
 import ltd.evilcorp.domain.features.contacts.usecase.GetContactUseCase
 import ltd.evilcorp.domain.features.settings.usecase.GetUserSettingsUseCase
+import ltd.evilcorp.domain.features.group.usecase.DeclineGroupInviteUseCase
 import ltd.evilcorp.atox.ui.common.debounceOffline
 
 private const val TAG = "ChatViewModel"
@@ -66,6 +70,7 @@ class ChatViewModel @Inject constructor(
     private val chatFileTransferDelegate: ChatFileTransferDelegate,
     private val getContactUseCase: GetContactUseCase,
     private val getChatMessagesUseCase: GetChatMessagesUseCase,
+    private val getChatMessagesPagedUseCase: GetChatMessagesPagedUseCase,
     private val getUserSettingsUseCase: GetUserSettingsUseCase,
     private val setActiveChatUseCase: SetActiveChatUseCase,
     private val setChatDraftUseCase: SetChatDraftUseCase,
@@ -74,6 +79,7 @@ class ChatViewModel @Inject constructor(
     private val clearChatHistoryUseCase: ClearChatHistoryUseCase,
     private val setTypingStatusUseCase: SetTypingStatusUseCase,
     private val deleteChatMessageUseCase: DeleteChatMessageUseCase,
+    private val declineGroupInviteUseCase: DeclineGroupInviteUseCase,
     val voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 ) : ViewModel(), IChatController {
     private var publicKey = PublicKey("")
@@ -125,6 +131,17 @@ class ChatViewModel @Inject constructor(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pagedMessages: Flow<PagingData<Message>> = activePublicKey
+        .flatMapLatest { pk ->
+            if (pk == null || pk.string().isEmpty()) {
+                flowOf(PagingData.empty())
+            } else {
+                getChatMessagesPagedUseCase.execute(pk)
+                    .cachedIn(viewModelScope)
+            }
+        }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val fileTransfers: StateFlow<List<FileTransfer>> = chatFileTransferDelegate.transfersFor(activePublicKey)
@@ -272,6 +289,13 @@ class ChatViewModel @Inject constructor(
     fun delete(msg: Message) = viewModelScope.launch {
         if (msg.type == MessageType.FileTransfer) {
             chatFileTransferDelegate.deleteFt(msg.correlationId)
+        }
+        if (msg.message.startsWith("[GROUP_INVITE:") && msg.message.contains("|") && msg.message.endsWith("]")) {
+            val payload = msg.message.removePrefix("[GROUP_INVITE:").removeSuffix("]")
+            val inviteDataHex = payload.split("|").getOrNull(1)
+            if (inviteDataHex != null) {
+                declineGroupInviteUseCase.execute(inviteDataHex)
+            }
         }
         deleteChatMessageUseCase.execute(msg.id)
     }

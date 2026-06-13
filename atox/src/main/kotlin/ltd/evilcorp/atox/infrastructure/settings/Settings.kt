@@ -5,8 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ltd.evilcorp.domain.features.settings.model.BackupDestination
@@ -24,8 +22,8 @@ import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
 class Settings @Inject constructor(
     private val ctx: Context,
     private val repository: IUserSettingsRepository,
+    private val scope: CoroutineScope,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val state: StateFlow<UserSettings> = repository.settings
 
@@ -212,17 +210,6 @@ class Settings @Inject constructor(
             scope.launch { repository.updateAutoSaveDirectoryUri(uri) }
         }
 
-    var backupEncryptionEnabled: Boolean
-        get() = repository.settings.value.backupEncryptionEnabled
-        set(enabled) {
-            scope.launch { repository.updateBackupEncryptionEnabled(enabled) }
-        }
-
-    var backupEndToEndEncryptionEnabled: Boolean
-        get() = repository.settings.value.backupEndToEndEncryptionEnabled
-        set(enabled) {
-            scope.launch { repository.updateBackupEndToEndEncryptionEnabled(enabled) }
-        }
 
     var automaticBackupEnabled: Boolean
         get() = repository.settings.value.automaticBackupEnabled
@@ -246,6 +233,30 @@ class Settings @Inject constructor(
         get() = repository.settings.value.backupUseCellular
         set(enabled) {
             scope.launch { repository.updateBackupUseCellular(enabled) }
+        }
+
+    var lastLocalBackupTimeMs: Long
+        get() = repository.settings.value.lastLocalBackupTimeMs
+        set(timeMs) {
+            scope.launch { repository.updateLastLocalBackupTimeMs(timeMs) }
+        }
+
+    var lastLocalBackupSizeKb: Long
+        get() = repository.settings.value.lastLocalBackupSizeKb
+        set(sizeKb) {
+            scope.launch { repository.updateLastLocalBackupSizeKb(sizeKb) }
+        }
+
+    var lastGoogleBackupTimeMs: Long
+        get() = repository.settings.value.lastGoogleBackupTimeMs
+        set(timeMs) {
+            scope.launch { repository.updateLastGoogleBackupTimeMs(timeMs) }
+        }
+
+    var lastGoogleBackupSizeKb: Long
+        get() = repository.settings.value.lastGoogleBackupSizeKb
+        set(sizeKb) {
+            scope.launch { repository.updateLastGoogleBackupSizeKb(sizeKb) }
         }
 
     var backupDestinations: Set<BackupDestination>

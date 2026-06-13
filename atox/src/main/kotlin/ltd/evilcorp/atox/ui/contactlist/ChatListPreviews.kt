@@ -32,14 +32,20 @@ fun EmptyChatListPreview() {
 fun ChatListTabPreview() {
     AToxTheme {
         ChatListTab(
-            contacts = previewContacts,
-            friendRequests = previewFriendRequests,
+            contacts = emptyList(),
+            groups = emptyList(),
+            connectionStatuses = emptyMap(),
+            friendRequests = listOf(
+                FriendRequest(publicKey = "F00DBABE1234567890", message = "Add me!")
+            ),
             groupInvite = null,
             groupInviteFriendName = "",
             listState = rememberLazyListState(),
             dateFormatPreference = DateFormatPreference.System,
             timeFormatPreference = TimeFormatPreference.System,
             onContactClick = {},
+            onGroupClick = {},
+            onLeaveGroup = {},
             onDeleteContact = {},
             onAcceptFriendRequest = {},
             onRejectFriendRequest = {},

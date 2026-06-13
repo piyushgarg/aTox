@@ -6,7 +6,6 @@ package ltd.evilcorp.atox.ui.userprofile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +19,8 @@ import kotlinx.coroutines.FlowPreview
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import ltd.evilcorp.domain.features.auth.model.User
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
@@ -33,6 +34,7 @@ import java.io.File
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import android.graphics.BitmapFactory
+import ltd.evilcorp.domain.features.auth.usecase.ProfileRegistryUseCase
 
 private const val DEBOUNCE_DELAY_MS = 800L
 
@@ -51,6 +53,8 @@ class UserProfileViewModel @Inject constructor(
     private val getSelfAvatarUseCase: GetSelfAvatarUseCase,
     private val saveAvatarUseCase: SaveAvatarUseCase,
     private val deleteProfileUseCase: DeleteProfileUseCase,
+    private val profileRegistryUseCase: ProfileRegistryUseCase,
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     fun deleteProfileAndData() {
@@ -86,7 +90,7 @@ class UserProfileViewModel @Inject constructor(
         @OptIn(FlowPreview::class)
         viewModelScope.launch {
             nameUpdates.debounce(DEBOUNCE_DELAY_MS).collectLatest { name ->
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     updateUserProfileUseCase.execute(ProfileAction.Name(name))
                 }
             }
@@ -95,7 +99,7 @@ class UserProfileViewModel @Inject constructor(
         @OptIn(FlowPreview::class)
         viewModelScope.launch {
             statusUpdates.debounce(DEBOUNCE_DELAY_MS).collectLatest { status ->
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     updateUserProfileUseCase.execute(ProfileAction.StatusMessage(status))
                 }
             }
@@ -104,7 +108,7 @@ class UserProfileViewModel @Inject constructor(
 
     fun loadAvatar() {
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
+            val result = withContext(ioDispatcher) {
                 val f = getSelfAvatarUseCase.execute()
                 if (f.exists() && f.length() > 0L) {
                     try {
@@ -153,8 +157,20 @@ class UserProfileViewModel @Inject constructor(
             val success = saveAvatarUseCase.execute(avatarBytes)
             if (success) {
                 loadAvatar()
+                val activeId = profileRegistryUseCase.getActiveProfileId()
+                val profile = profileRegistryUseCase.getProfiles().find { it.id == activeId }
+                if (profile != null) {
+                    val avatarFile = getSelfAvatarUseCase.execute()
+                    val avatarUri = if (avatarFile.exists() && avatarFile.length() > 0L) avatarFile.toURI().toString() else null
+                    profileRegistryUseCase.addOrUpdateProfile(profile.copy(avatarUri = avatarUri))
+                }
             }
             _cropState.value = if (success) AvatarCropUiState.Success else AvatarCropUiState.Failure
         }
+    }
+
+    @androidx.annotation.VisibleForTesting
+    fun clearForTest() {
+        super.onCleared()
     }
 }

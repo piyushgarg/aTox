@@ -38,16 +38,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
 import kotlinx.coroutines.flow.collectLatest
@@ -70,7 +70,6 @@ fun AddContactScreen(
     val errorResId by viewModel.errorResId.collectAsState()
     val errorText = errorResId?.let { context.getString(it) }.orEmpty()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(viewModel, lifecycleOwner) {
         viewModel.uiEvents
@@ -78,11 +77,9 @@ fun AddContactScreen(
             .collectLatest { event ->
                 when (event) {
                     is AddContactViewModel.AddContactUiEvent.Success -> {
-                        keyboardController?.hide()
                         onSuccess()
                     }
                     is AddContactViewModel.AddContactUiEvent.ShowError -> {
-                        keyboardController?.hide()
                         Toast.makeText(context, context.getString(event.errorResId), Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -97,7 +94,6 @@ fun AddContactScreen(
         onErrorTextChanged = { /* No-op, managed by VM errorState */ },
         onBack = onBack,
         onAddContact = { toxIdStr, message ->
-            keyboardController?.hide()
             viewModel.addContact(toxIdStr, message)
         }
     )
@@ -173,7 +169,7 @@ fun AddContactContent(
                             {
                                 Icon(
                                     imageVector = Icons.Default.Check,
-                                    contentDescription = "Valid Tox ID",
+                                    contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -186,7 +182,7 @@ fun AddContactContent(
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Tox ID Input" }
                     )
 
                     OutlinedTextField(
@@ -204,7 +200,7 @@ fun AddContactContent(
                         keyboardActions = KeyboardActions(
                             onDone = { submitContactRequest() }
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Message Input" }
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -213,7 +209,7 @@ fun AddContactContent(
                         onClick = { submitContactRequest() },
                         text = stringResource(R.string.add),
                         isLoading = isLoading,
-                        enabled = toxIdInput.isNotEmpty(),
+                        enabled = isToxIdValid,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
@@ -234,7 +230,7 @@ fun AddContactContent(
                     title = { Text(titleString, fontWeight = FontWeight.SemiBold) },
                     navigationIcon = {
                         IconButton(onClick = onBack, enabled = !isLoading) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

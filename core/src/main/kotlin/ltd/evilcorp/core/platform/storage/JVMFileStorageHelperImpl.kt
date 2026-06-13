@@ -24,7 +24,7 @@ class JVMFileStorageHelperImpl @Inject constructor(
             file.parentFile?.mkdirs()
             RandomAccessFile(file, "rwd").use { it.setLength(size) }
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -37,7 +37,7 @@ class JVMFileStorageHelperImpl @Inject constructor(
                 it.write(data)
             }
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -99,7 +99,7 @@ class JVMFileStorageHelperImpl @Inject constructor(
                 ftDir.mkdir()
             }
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -118,11 +118,11 @@ class JVMFileStorageHelperImpl @Inject constructor(
 
     override fun getPathFromUri(destinationUri: String): String? {
         if (destinationUri.startsWith("file://")) {
-            try {
-                return java.net.URI(destinationUri).path
-            } catch (e: Exception) {
+            return try {
+                java.net.URI(destinationUri).path
+            } catch (_: Exception) {
                 // fallback manual parse
-                return destinationUri.substringAfter("file://")
+                destinationUri.substringAfter("file://")
             }
         }
         return null

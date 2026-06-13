@@ -7,13 +7,14 @@ package ltd.evilcorp.atox.ui.groupchat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.domain.features.group.model.GroupPrivacyState
 import ltd.evilcorp.domain.features.group.GroupConnectionStatus
@@ -47,6 +48,7 @@ class GroupListViewModel @Inject constructor(
     private val getGroupChatIdUseCase: GetGroupChatIdUseCase,
     private val inviteFriendToGroupUseCase: InviteFriendToGroupUseCase,
     private val getGroupInviteUseCase: GetGroupInviteUseCase,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     val publicKey by lazy { getSelfUserUseCase.publicKey }
@@ -65,7 +67,7 @@ class GroupListViewModel @Inject constructor(
     suspend fun createGroup(name: String, privacyState: GroupPrivacyState, password: String? = null): Int {
         _isCreating.value = true
         return try {
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 createGroupUseCase.execute(name, privacyState, password)
             }
         } catch (e: Exception) {
@@ -76,7 +78,7 @@ class GroupListViewModel @Inject constructor(
         }
     }
 
-    suspend fun leaveGroup(group: Group) = withContext(Dispatchers.IO) {
+    suspend fun leaveGroup(group: Group) = withContext(ioDispatcher) {
         leaveGroupUseCase.execute(group.chatId)
     }
 
@@ -102,7 +104,7 @@ class GroupListViewModel @Inject constructor(
         _isJoining.value = true
         return try {
             val cleanId = chatIdHex.trim().replace("\\s".toRegex(), "")
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 joinGroupUseCase.execute(JoinAction.ByChatId(cleanId, password))
             }
         } catch (e: Exception) {
@@ -120,7 +122,7 @@ class GroupListViewModel @Inject constructor(
         getGroupChatIdUseCase.execute(ChatIdQuery.ByGroupNumber(groupNumber))
 
     suspend fun joinGroupWithBytes(friendPublicKey: String, inviteDataHex: String, password: String?): Int =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             joinGroupUseCase.execute(JoinAction.ByBytes(friendPublicKey, inviteDataHex, password))
         }
 
@@ -138,7 +140,7 @@ class GroupListViewModel @Inject constructor(
     }
 
     suspend fun joinWithPendingInvite(pending: GroupInvite): Int =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             joinGroupUseCase.execute(JoinAction.ByPendingInvite(pending))
         }
 

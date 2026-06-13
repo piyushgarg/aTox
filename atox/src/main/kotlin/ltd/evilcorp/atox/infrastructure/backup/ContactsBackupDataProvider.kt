@@ -18,7 +18,7 @@ class ContactsBackupDataProvider @Inject constructor(
     override val displayNameRes: Int = R.string.backup_module_contacts
     override val descriptionRes: Int = R.string.backup_module_contacts_description
 
-    override suspend fun serialize(): ByteArray {
+    override suspend fun serialize(outputStream: java.io.OutputStream) {
         val container = ContactsBackupContainer(
             contacts = helper.serializeContacts().map { contact ->
                 ContactBackupPayload(
@@ -35,7 +35,7 @@ class ContactsBackupDataProvider @Inject constructor(
                 )
             }
         )
-        return Json.encodeToString(container).encodeToByteArray()
+        outputStream.write(Json.encodeToString(container).encodeToByteArray())
     }
 
     override suspend fun deserialize(data: ByteArray) {

@@ -1,26 +1,16 @@
 package ltd.evilcorp.atox.infrastructure.tox
 
 import android.util.Log
-import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import ltd.evilcorp.domain.features.group.repository.IGroupRepository
 import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
 import ltd.evilcorp.domain.features.transfer.repository.IFileTransferRepository
-import ltd.evilcorp.domain.features.chat.model.Message
-import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.domain.features.group.model.GroupMessage
-import ltd.evilcorp.domain.features.group.model.GroupPeer
-import ltd.evilcorp.domain.features.chat.model.MessageType
-import ltd.evilcorp.domain.features.chat.model.Sender
-import ltd.evilcorp.domain.features.transfer.model.FileTransfer
-import ltd.evilcorp.domain.core.network.enums.ToxGroupExitType
-import ltd.evilcorp.domain.core.network.enums.ToxGroupJoinFail
 import ltd.evilcorp.domain.core.network.enums.ToxGroupModEvent
 import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
 import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
@@ -48,6 +38,7 @@ class GroupDatabaseUpdater @Inject constructor(
     internal val groupManager: GroupManager,
     private val groupEventBus: GroupEventBus,
     internal val tox: ITox,
+    internal val groupConnectionService: ltd.evilcorp.domain.features.group.GroupConnectionService,
 ) {
     init {
         scope.launch {
@@ -81,6 +72,7 @@ class GroupDatabaseUpdater @Inject constructor(
             is GroupDomainEvent.GroupConnected -> handleGroupConnected(event)
             is GroupDomainEvent.GroupJoinFail -> handleGroupJoinFail(event)
             is GroupDomainEvent.GroupModeration -> handleGroupModeration(event)
+            is GroupDomainEvent.LocalMessageSent -> { /* handled by GroupSyncManager */ }
         }
     }
 

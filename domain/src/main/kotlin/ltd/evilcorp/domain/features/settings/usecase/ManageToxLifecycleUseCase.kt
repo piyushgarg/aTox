@@ -23,7 +23,7 @@ class ManageToxLifecycleUseCase @Inject constructor(
     val started: Boolean get() = tox.started
     val password: String? get() = tox.password
 
-    suspend fun execute(action: ToxLifecycleAction) {
+    fun execute(action: ToxLifecycleAction) {
         when (action) {
             is ToxLifecycleAction.Stop -> toxStarter.stopTox()
             is ToxLifecycleAction.TryLoad -> toxStarter.tryLoadTox(action.password)

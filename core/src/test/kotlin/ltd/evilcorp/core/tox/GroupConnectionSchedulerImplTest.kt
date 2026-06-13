@@ -5,9 +5,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import ltd.evilcorp.domain.core.model.PublicKey
-import ltd.evilcorp.domain.core.network.ITox
-import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
 import ltd.evilcorp.domain.features.group.GroupConnectionStatus
@@ -21,10 +18,7 @@ import ltd.evilcorp.domain.features.group.model.GroupPeer
 import ltd.evilcorp.domain.features.group.model.GroupPrivacyState
 import ltd.evilcorp.domain.features.group.repository.IGroupRepository
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
-import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.ChatManager
-import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
-import ltd.evilcorp.domain.features.chat.model.Message
 import ltd.evilcorp.domain.features.group.GroupToxServices
 import ltd.evilcorp.domain.features.group.GroupSessionCoordinator
 import ltd.evilcorp.domain.features.group.GroupServices
@@ -39,80 +33,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class GroupConnectionSchedulerImplTest {
 
-    // Simple Fakes
-    private class FakeTox : ITox {
-        override var started: Boolean = true
-        override var isBootstrapNeeded: Boolean = false
-        override val password: String? = null
-        override val toxId: ToxID = ToxID("76518406F6A9F2217E8DC487CC783C25CC16A15EB36FF32E335A235342C48A39000000008BE4")
-        override val publicKey: PublicKey = PublicKey("76518406F6A9F2217E8DC487CC783C25CC16A15EB36FF32E335A235342C48A39")
-        override var nospam: Int = 0
 
-        val reconnectCalled = mutableListOf<Int>()
-        val joinDirectCalled = mutableListOf<String>()
-
-        override fun changePassword(new: String?) {}
-        override fun stop() {}
-        override fun getSaveData(): ByteArray = byteArrayOf()
-
-        override fun getContacts(): List<Pair<PublicKey, Int>> = emptyList()
-        override fun acceptFriendRequest(publicKey: PublicKey) {}
-        override fun addFriendNoRequest(publicKey: PublicKey): Int = 0
-        override fun startFileTransfer(pk: PublicKey, fileNumber: Int) {}
-        override fun stopFileTransfer(pk: PublicKey, fileNumber: Int) {}
-        override fun sendFile(pk: PublicKey, fileKind: ltd.evilcorp.domain.features.transfer.model.FileKind, fileSize: Long, fileName: String): Int = 0
-        override fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> = Result.success(Unit)
-        override fun getName(): String = "TestUser"
-        override fun setName(name: String) {}
-        override fun getStatusMessage(): String = ""
-        override fun setStatusMessage(statusMessage: String) {}
-        override fun addContact(toxId: ToxID, message: String) {}
-        override fun deleteContact(publicKey: PublicKey) {}
-        override fun sendMessage(publicKey: PublicKey, message: String, type: MessageType): Int = 0
-        override fun setTyping(publicKey: PublicKey, typing: Boolean): Boolean = true
-        override fun friendGetTyping(publicKey: PublicKey): Boolean = false
-        override fun getFriendNumber(publicKey: PublicKey): Int = -1
-        override fun getFriendPublicKey(friendNumber: Int): PublicKey? = null
-        override fun friendGetLastOnline(publicKey: PublicKey): Long = 0
-        override fun getStatus(): UserStatus = UserStatus.None
-        override fun setStatus(status: UserStatus) {}
-        override fun sendLosslessPacket(pk: PublicKey, packet: ByteArray): Boolean = true
-        override fun startCall(pk: PublicKey): Boolean = true
-        override fun answerCall(pk: PublicKey): Boolean = true
-        override fun endCall(pk: PublicKey): Boolean = true
-        override fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int): Boolean = true
-
-        override fun groupNew(privacyState: ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int = 0
-        override fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int = 0
-        override fun groupLeave(groupNumber: Int): Boolean = true
-        override fun groupSendMessage(groupNumber: Int, type: ltd.evilcorp.domain.core.network.enums.ToxMessageType, message: ByteArray): Int = 0
-        override fun groupSetTopic(groupNumber: Int, topic: ByteArray): Boolean = true
-        override fun groupGetTopic(groupNumber: Int): ByteArray? = null
-        override fun groupGetName(groupNumber: Int): ByteArray? = null
-        override fun groupGetChatId(groupNumber: Int): ByteArray? = byteArrayOf(1, 2, 3)
-        override fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean = true
-        override fun groupGetPassword(groupNumber: Int): ByteArray? = null
-        override fun groupPeerGetName(groupNumber: Int, peerId: Int): ByteArray? = null
-        override fun groupPeerGetPublicKey(groupNumber: Int, peerId: Int): ByteArray? = null
-        override fun groupSelfGetPeerId(groupNumber: Int): Int = 0
-        override fun groupSelfGetRole(
-            groupNumber: Int
-        ): ltd.evilcorp.domain.core.network.enums.ToxGroupRole =
-            ltd.evilcorp.domain.core.network.enums.ToxGroupRole.USER
-        override fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean = true
-        
-        override fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int {
-            joinDirectCalled.add(chatId.joinToString("") { "%02x".format(it) })
-            return 99
-        }
-        
-        override fun groupReconnect(groupNumber: Int): Boolean {
-            reconnectCalled.add(groupNumber)
-            return true
-        }
-        
-        override fun groupGetChatlist(): IntArray = intArrayOf(10)
-    }
 
     private class FakeGroupRepository : IGroupRepository {
         val groups = mutableMapOf<String, Group>()
@@ -200,16 +121,7 @@ class GroupConnectionSchedulerImplTest {
         override suspend fun setLastOnline(publicKey: String, lastOnline: Long) {}
     }
 
-    private class FakeMessageRepository : IMessageRepository {
-        override fun get(conversation: String): Flow<List<Message>> = flowOf(emptyList())
-        override suspend fun add(message: Message) {}
-        override suspend fun delete(conversation: String) {}
-        override suspend fun deleteMessage(id: Long) {}
-        override suspend fun setCorrelationId(id: Long, correlationId: Int) {}
-        override suspend fun setReceipt(conversation: String, correlationId: Int, timestamp: Long) {}
-        override suspend fun getPending(conversation: String): List<Message> = emptyList()
-        override suspend fun exists(conversation: String, message: String): Boolean = false
-    }
+
 
     private class FakeGroupSessionRegistry : IGroupSessionRegistry {
         override var activeGroup: String = ""
@@ -231,10 +143,18 @@ class GroupConnectionSchedulerImplTest {
             map.remove(chatId)
             connectionStatuses.value = map
         }
+
+        override fun clear() {
+            activeGroup = ""
+            pendingInvite.value = null
+            connectionStatuses.value = emptyMap()
+        }
     }
 
     @Test
     fun testCancelAndStopReconnect() = runTest {
+        val testScope = backgroundScope
+        val testDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
         val tox = FakeTox()
         val groupRepository = FakeGroupRepository()
         val contactRepository = FakeContactRepository()
@@ -242,7 +162,7 @@ class GroupConnectionSchedulerImplTest {
         val sessionRegistry = FakeGroupSessionRegistry()
 
         val groupDataRepositories = GroupDataRepositories(groupRepository, contactRepository, messageRepository)
-        val chatManager = ChatManager(this, contactRepository, messageRepository, tox)
+        val chatManager = ChatManager(testScope, contactRepository, messageRepository, tox, testDispatcher)
         val toxServices = GroupToxServices(tox, tox)
         
         val fakeScheduler = object : IGroupConnectionScheduler {
@@ -254,20 +174,21 @@ class GroupConnectionSchedulerImplTest {
         }
         val sessionCoordinator = GroupSessionCoordinator(fakeScheduler, sessionRegistry)
         
-        val connectionService = GroupConnectionService(this, sessionCoordinator, groupRepository, toxServices)
+        val connectionService = GroupConnectionService(testScope, sessionCoordinator, groupRepository, toxServices, testDispatcher)
+        val groupEventBus = ltd.evilcorp.domain.features.group.GroupEventBus()
         val messagingService = GroupMessagingService(
-            this,
-            groupRepository,
-            messageRepository,
-            contactRepository,
+            testScope,
+            groupDataRepositories,
             toxServices,
-            sessionCoordinator
+            sessionCoordinator,
+            groupEventBus,
+            testDispatcher
         )
         
         val services = GroupServices(connectionService, messagingService)
 
         val groupManager = GroupManager(
-            this,
+            testScope,
             groupDataRepositories,
             chatManager,
             toxServices,
@@ -278,10 +199,9 @@ class GroupConnectionSchedulerImplTest {
         val provider = Provider { groupManager }
 
         val scheduler = GroupConnectionSchedulerImpl(
-            this,
+            testScope,
             tox,
             groupRepository,
-            contactRepository,
             provider
         )
 
@@ -294,6 +214,8 @@ class GroupConnectionSchedulerImplTest {
 
     @Test
     fun testReconnectAll_triggersReconnections() = runTest {
+        val testScope = backgroundScope
+        val testDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
         val tox = FakeTox()
         val groupRepository = FakeGroupRepository()
         val contactRepository = FakeContactRepository()
@@ -301,7 +223,7 @@ class GroupConnectionSchedulerImplTest {
         val sessionRegistry = FakeGroupSessionRegistry()
 
         val groupDataRepositories = GroupDataRepositories(groupRepository, contactRepository, messageRepository)
-        val chatManager = ChatManager(this, contactRepository, messageRepository, tox)
+        val chatManager = ChatManager(testScope, contactRepository, messageRepository, tox, testDispatcher)
         val toxServices = GroupToxServices(tox, tox)
         
         val fakeScheduler = object : IGroupConnectionScheduler {
@@ -313,20 +235,21 @@ class GroupConnectionSchedulerImplTest {
         }
         val sessionCoordinator = GroupSessionCoordinator(fakeScheduler, sessionRegistry)
         
-        val connectionService = GroupConnectionService(this, sessionCoordinator, groupRepository, toxServices)
+        val connectionService = GroupConnectionService(testScope, sessionCoordinator, groupRepository, toxServices, testDispatcher)
+        val groupEventBus = ltd.evilcorp.domain.features.group.GroupEventBus()
         val messagingService = GroupMessagingService(
-            this,
-            groupRepository,
-            messageRepository,
-            contactRepository,
+            testScope,
+            groupDataRepositories,
             toxServices,
-            sessionCoordinator
+            sessionCoordinator,
+            groupEventBus,
+            testDispatcher
         )
         
         val services = GroupServices(connectionService, messagingService)
 
         val groupManager = GroupManager(
-            this,
+            testScope,
             groupDataRepositories,
             chatManager,
             toxServices,
@@ -337,10 +260,9 @@ class GroupConnectionSchedulerImplTest {
         val provider = Provider { groupManager }
 
         val scheduler = GroupConnectionSchedulerImpl(
-            this,
+            testScope,
             tox,
             groupRepository,
-            contactRepository,
             provider
         )
 
@@ -366,10 +288,10 @@ class GroupConnectionSchedulerImplTest {
         scheduler.reconnectAll()
 
         // Wait for coroutine executions
-        kotlinx.coroutines.delay(100)
+        kotlinx.coroutines.delay(400)
 
         // Check if group reconnect API was called
-        assertTrue(tox.reconnectCalled.contains(10))
+        assertTrue(tox.reconnectedGroups.contains(10))
 
         // Clean up coroutine to avoid leaks!
         scheduler.stopReconnect(g1.chatId)

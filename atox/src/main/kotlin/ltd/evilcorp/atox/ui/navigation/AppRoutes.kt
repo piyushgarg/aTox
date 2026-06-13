@@ -18,13 +18,13 @@ sealed interface AppRoutes {
     data object Launch : AppRoutes
 
     @Serializable
+    data object ProfilePicker : AppRoutes
+
+    @Serializable
     data object Unlock : AppRoutes
 
     @Serializable
     data object Chats : AppRoutes
-
-    @Serializable
-    data object Groups : AppRoutes
 
     @Serializable
     data object AddContactTab : AppRoutes
@@ -71,7 +71,6 @@ sealed interface AppRoutes {
     companion object {
         fun isMainTab(route: String?) = route != null && (
             route.endsWith("AppRoutes.Chats") ||
-            route.endsWith("AppRoutes.Groups") ||
             route.endsWith("AppRoutes.AddContactTab") ||
             route.endsWith("AppRoutes.Profile") ||
             route.endsWith("AppRoutes.Settings")

@@ -14,7 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.NavHost
@@ -219,7 +219,6 @@ fun AToxNavGraph(
                 onTabSelected = { route ->
                     val targetRoute: Any = when (route) {
                         AppRoutes.Chats::class.qualifiedName -> AppRoutes.Chats
-                        AppRoutes.Groups::class.qualifiedName -> AppRoutes.Groups
                         AppRoutes.Profile::class.qualifiedName -> AppRoutes.Profile
                         AppRoutes.Settings::class.qualifiedName -> AppRoutes.Settings
                         else -> AppRoutes.Chats
@@ -238,8 +237,7 @@ fun AToxNavGraph(
             AToxFAB(
                 currentRoute = currentRoute,
                 visible = showBottomBar && !isExpandedMode && (
-                    currentRoute?.endsWith("AppRoutes.Chats") == true ||
-                    currentRoute?.endsWith("AppRoutes.Groups") == true
+                    currentRoute?.endsWith("AppRoutes.Chats") == true
                 ),
                 hapticEnabled = settings.hapticEnabled,
                 onAddContactClick = {

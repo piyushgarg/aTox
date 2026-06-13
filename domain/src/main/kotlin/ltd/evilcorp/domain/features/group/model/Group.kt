@@ -1,22 +1,25 @@
 package ltd.evilcorp.domain.features.group.model
 
+import ltd.evilcorp.domain.core.model.Stable
+
 enum class GroupPrivacyState {
     Public,
     Private,
 }
 
+@Stable
 data class Group(
     val chatId: String,
-    var name: String = "",
-    var topic: String = "",
-    var passwordProtected: Boolean = false,
-    var privacyState: GroupPrivacyState = GroupPrivacyState.Public,
-    var peerCount: Int = 0,
-    var selfPeerId: Int = -1,
-    var selfRole: String = "User",
-    var lastMessage: Long = 0,
-    var hasUnreadMessages: Boolean = false,
-    var draftMessage: String = "",
-    var connected: Boolean = false,
-    var groupNumber: Int = -1,
+    val name: String = "",
+    val topic: String = "",
+    val passwordProtected: Boolean = false,
+    val privacyState: GroupPrivacyState = GroupPrivacyState.Public,
+    val peerCount: Int = 0,
+    val selfPeerId: Int = -1,
+    val selfRole: String = "User",
+    val lastMessage: Long = 0,
+    val hasUnreadMessages: Boolean = false,
+    val draftMessage: String = "",
+    val connected: Boolean = false,
+    val groupNumber: Int = -1,
 )

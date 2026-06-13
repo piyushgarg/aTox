@@ -12,6 +12,7 @@ class SaveGroupFileTransferUseCase @Inject constructor(
     private val platformHelper: IFileTransferPlatformHelper,
     private val fileTransferRepository: IFileTransferRepository,
 ) {
+    @Suppress("RedundantSuspendModifier")
     suspend fun execute(id: Int, targetUriString: String) {
         fileTransferRepository.get(id).take(1).collect { ft ->
             val sourceUriString = ft.destination

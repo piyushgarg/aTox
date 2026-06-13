@@ -21,6 +21,7 @@ class ToxSessionManager @Inject constructor(
     private val userManager: UserManager,
     private val fileTransferManager: FileTransferManager,
     private val startupSynchronizer: ToxStartupSynchronizer,
+    private val groupSessionRegistry: ltd.evilcorp.domain.features.group.IGroupSessionRegistry,
     private val scope: CoroutineScope,
 ) {
     fun loadSave(publicKey: PublicKey): ByteArray? {
@@ -34,6 +35,7 @@ class ToxSessionManager @Inject constructor(
     fun onToxStarted(publicKey: PublicKey) {
         startupSynchronizer.synchronizeAfterStart()
         fileTransferManager.reset()
+        groupSessionRegistry.clear()
         scope.launch {
             userManager.verifyExists(publicKey)
         }

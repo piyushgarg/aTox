@@ -3,6 +3,7 @@ package ltd.evilcorp.core.tox.runtime
 /**
  * Enum of possible errors when sending user P2P packets.
  */
+@Suppress("unused")
 enum class CustomPacketError {
     /** Successful packet transmission. */
     Success,

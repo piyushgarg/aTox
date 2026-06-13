@@ -29,7 +29,7 @@ fun testToxSave(options: SaveOptions, password: String?): ToxSaveStatus {
         }
         native.toxKill(toxPtr)
         ToxSaveStatus.Ok
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         ToxSaveStatus.BadFormat
     }
 }

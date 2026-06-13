@@ -22,8 +22,8 @@ class SendGroupMessageUseCase @Inject constructor(
             groupRepository.getMessages(chatId).take(1).collect { list ->
                 val lastMsg = list.lastOrNull { it.message == message }
                 if (lastMsg != null) {
-                    lastMsg.correlationId = correlationId
-                    groupRepository.addMessage(lastMsg)
+                    val updatedMsg = lastMsg.copy(correlationId = correlationId)
+                    groupRepository.addMessage(updatedMsg)
                 }
             }
         }

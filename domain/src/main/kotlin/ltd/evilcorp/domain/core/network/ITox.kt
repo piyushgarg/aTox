@@ -8,6 +8,7 @@ interface ITox : IToxProfile, IToxMessenger, IToxFileTransmitter, IToxCallContro
     var started: Boolean
     var isBootstrapNeeded: Boolean
     val password: String?
+    val sessionId: String?
 
     fun changePassword(new: String?)
     fun stop()

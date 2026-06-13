@@ -6,8 +6,10 @@ package ltd.evilcorp.domain.features.group
 
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineDispatcher
+import ltd.evilcorp.domain.core.di.IoDispatcher
+import java.util.Collections
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -32,16 +34,28 @@ private const val HEX_KEY_LENGTH = 64
 private const val JOIN_TIMEOUT_MS = 45000L
 
 @Singleton
+@Suppress("LargeClass")
 class GroupConnectionService @Inject constructor(
     private val scope: CoroutineScope,
     private val sessionCoordinator: GroupSessionCoordinator,
     private val groupRepository: IGroupRepository,
     private val toxServices: GroupToxServices,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
     private val connectionScheduler get() = sessionCoordinator.connectionScheduler
     private val sessionRegistry get() = sessionCoordinator.sessionRegistry
     private val tox get() = toxServices.tox
     private val toxProfile get() = toxServices.profile
+
+    // Stores groupNumbers of invites we've already joined in the background (to peek at chatId)
+    // Key: inviteData hex string, Value: groupNumber
+    private val pendingInvites = Collections.synchronizedMap(mutableMapOf<String, Int>())
+
+    data class PreJoinResult(
+        val success: Boolean,
+        val isKnownGroup: Boolean,
+        val chatId: String? = null
+    )
 
     fun reconnectAll() {
         connectionScheduler.reconnectAll()
@@ -62,7 +76,7 @@ class GroupConnectionService @Inject constructor(
     fun isBootstrapFriend(pk: String): Boolean =
         connectionScheduler.isBootstrapFriend(pk)
 
-    suspend fun leaveGroup(chatId: String) = withContext(Dispatchers.IO) {
+    suspend fun leaveGroup(chatId: String) = withContext(ioDispatcher) {
         stopReconnect(chatId)
         val g = groupRepository.get(chatId).firstOrNull()
         g?.let {
@@ -80,7 +94,7 @@ class GroupConnectionService @Inject constructor(
         groupName: String,
         selfName: String,
         password: String? = null,
-    ): Int = withContext(Dispatchers.IO) {
+    ): Int = withContext(ioDispatcher) {
         val toxPrivacyState = when (privacyState) {
             GroupPrivacyState.Public -> ToxGroupPrivacyState.PUBLIC
             GroupPrivacyState.Private -> ToxGroupPrivacyState.PRIVATE
@@ -136,36 +150,77 @@ class GroupConnectionService @Inject constructor(
         groupNumber
     }
 
+    @Suppress("LongMethod")
     suspend fun joinGroup(
         friendNo: Int,
         inviteData: ByteArray,
         selfName: String,
         password: String? = null,
-    ): Int = withContext(Dispatchers.IO) {
-        val groupNumber = tox.groupJoin(
-            friendNo,
-            inviteData,
-            selfName.toByteArray(),
-            password?.toByteArray(),
-        )
+    ): Int = withContext(ioDispatcher) {
+        val inviteHex = inviteData.bytesToHex().lowercase()
+        val pendingGn = pendingInvites.remove(inviteHex)
+
+        val groupNumber = if (pendingGn != null && pendingGn >= 0) {
+            Log.i("GroupConnectionService", "Consuming pending group number $pendingGn for invite")
+            pendingGn
+        } else {
+            tox.groupJoin(
+                friendNo,
+                inviteData,
+                selfName.toByteArray(),
+                password?.toByteArray(),
+            )
+        }
 
         if (groupNumber >= 0) {
-            var chatIdBytes = tox.groupGetChatId(groupNumber)
-            var attempts = 0
-            while (chatIdBytes == null && attempts < CHAT_ID_RETRY_ATTEMPTS) {
-                delay(CHAT_ID_RETRY_DELAY_MS)
-                chatIdBytes = tox.groupGetChatId(groupNumber)
-                attempts++
+            processJoinedGroup(groupNumber, selfName)
+        }
+
+        groupNumber
+    }
+
+    /**
+     * Cleans up a pending speculative group join when the user declines the invite.
+     */
+    fun declineInvite(inviteDataHex: String) {
+        val pendingGn = pendingInvites.remove(inviteDataHex.lowercase())
+        if (pendingGn != null && pendingGn >= 0) {
+            try {
+                Log.i("GroupConnectionService", "Layer 5: Declining invite, leaving pending group $pendingGn")
+                tox.groupLeave(pendingGn)
+            } catch (e: Exception) {
+                Log.w("GroupConnectionService", "Error leaving pending group: $e")
             }
-            val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: "unknown_$groupNumber"
-            Log.i("GroupConnectionService", "Joined group number $groupNumber, chatId = $chatId (attempts = $attempts)")
+        }
+    }
 
-            val groupNameBytes = tox.groupGetName(groupNumber)
-            val groupName = groupNameBytes?.decodeToString() ?: "Unknown Group"
+    suspend fun processJoinedGroup(groupNumber: Int, selfName: String): String = withContext(ioDispatcher) {
+        var chatIdBytes = tox.groupGetChatId(groupNumber)
+        var attempts = 0
+        while (chatIdBytes == null && attempts < CHAT_ID_RETRY_ATTEMPTS) {
+            delay(CHAT_ID_RETRY_DELAY_MS)
+            chatIdBytes = tox.groupGetChatId(groupNumber)
+            attempts++
+        }
+        val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: "unknown_$groupNumber"
+        Log.i("GroupConnectionService", "Processed group number $groupNumber, chatId = $chatId")
 
-            val selfPeerId = tox.groupSelfGetPeerId(groupNumber)
-            val selfRole = tox.groupSelfGetRole(groupNumber)
+        val groupNameBytes = tox.groupGetName(groupNumber)
+        val groupName = groupNameBytes?.decodeToString() ?: "Unknown Group"
 
+        val selfPeerId = tox.groupSelfGetPeerId(groupNumber)
+        val selfRole = tox.groupSelfGetRole(groupNumber)
+
+        val existingGroup = groupRepository.getDirect(chatId)
+        if (existingGroup != null) {
+            val oldGn = existingGroup.groupNumber
+            if (oldGn >= 0 && oldGn != groupNumber) {
+                try { tox.groupLeave(oldGn) } catch (ignored: Exception) {}
+            }
+            groupRepository.setGroupNumber(chatId, groupNumber)
+            groupRepository.setSelfPeerId(chatId, selfPeerId)
+            groupRepository.setSelfRole(chatId, selfRole.name)
+        } else {
             val group = Group(
                 chatId = chatId,
                 name = groupName,
@@ -175,8 +230,7 @@ class GroupConnectionService @Inject constructor(
                 connected = false,
             )
             groupRepository.add(group)
-            sessionRegistry.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
-
+            
             val ourPeer = GroupPeer(
                 groupChatId = chatId,
                 peerId = selfPeerId,
@@ -187,8 +241,77 @@ class GroupConnectionService @Inject constructor(
             )
             groupRepository.addPeer(ourPeer)
         }
+        sessionRegistry.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+        scheduleAutoReconnect(chatId, groupNumber)
+        chatId
+    }
 
-        groupNumber
+    /**
+     * Tries to join the group in the background to extract its chatId.
+     * If the group is known, it processes it immediately (auto-accept).
+     * If the group is unknown, it keeps the groupNumber pending so it can be consumed later when manually accepted.
+     */
+    @Suppress("ComplexCondition")
+    suspend fun preJoinInvite(friendNo: Int, friendPk: String, inviteData: ByteArray, selfName: String): PreJoinResult = withContext(ioDispatcher) {
+        try {
+            val groupNumber = tox.groupJoin(friendNo, inviteData, selfName.toByteArray(), null)
+            if (groupNumber < 0) return@withContext PreJoinResult(false, false)
+
+            var chatIdBytes = tox.groupGetChatId(groupNumber)
+            var attempts = 0
+            while (chatIdBytes == null && attempts < CHAT_ID_RETRY_ATTEMPTS) {
+                delay(CHAT_ID_RETRY_DELAY_MS)
+                chatIdBytes = tox.groupGetChatId(groupNumber)
+                attempts++
+            }
+            
+            val chatId = chatIdBytes?.bytesToHex()?.lowercase()
+            if (chatId != null) {
+                val existingGroup = groupRepository.getDirect(chatId)
+
+                if (existingGroup != null) {
+                    val status = sessionRegistry.connectionStatuses.value[chatId] ?: GroupConnectionStatus.Disconnected
+                    val count = groupRepository.peerCountDirect(chatId)
+                    
+                    if (status == GroupConnectionStatus.Connected) {
+                        if (count > 1) {
+                            // We are connected and have peers, no need to accept this invite
+                            try { tox.groupLeave(groupNumber) } catch(ignored: Exception) {}
+                            return@withContext PreJoinResult(true, true, chatId)
+                        } else {
+                            // Split-brain: we are connected but alone. The sender is also connected and alone.
+                            // If we both accept, we swap instances. Use PK tie-breaker.
+                            val myPk = toxProfile.publicKey.string().lowercase()
+                            if (friendPk < myPk) {
+                                // We win the tie-breaker, ignore their invite and wait for them to accept ours
+                                try { tox.groupLeave(groupNumber) } catch(ignored: Exception) {}
+                                // Proactively send our invite to ensure they get it
+                                val ourGroup = groupRepository.getDirect(chatId)
+                                if (ourGroup != null && ourGroup.groupNumber >= 0) {
+                                    try { tox.groupInviteSend(ourGroup.groupNumber, friendNo) } catch(ignored: Exception) {}
+                                }
+                                return@withContext PreJoinResult(true, true, chatId)
+                            }
+                        }
+                    }
+                    
+                    // It's a known group -> Auto-accept it, even if we think we're connected (heals splits)
+                    processJoinedGroup(groupNumber, selfName)
+                    PreJoinResult(true, true, chatId)
+                } else {
+                    // Unknown group -> Keep pending
+                    val inviteHex = inviteData.bytesToHex().lowercase()
+                    pendingInvites[inviteHex] = groupNumber
+                    PreJoinResult(true, false, chatId)
+                }
+            } else {
+                tox.groupLeave(groupNumber)
+                PreJoinResult(false, false)
+            }
+        } catch (e: Exception) {
+            Log.w("GroupConnectionService", "Pre-join failed: $e")
+            PreJoinResult(false, false)
+        }
     }
 
     suspend fun joinGroupWithBytes(
@@ -210,7 +333,7 @@ class GroupConnectionService @Inject constructor(
         return joinGroup(friendNo, inviteData, selfName, password)
     }
 
-    suspend fun joinByChatId(chatIdHex: String, selfName: String, password: String? = null): Int = withContext(Dispatchers.IO) {
+    suspend fun joinByChatId(chatIdHex: String, selfName: String, password: String? = null): Int = withContext(ioDispatcher) {
         if (chatIdHex.length != HEX_KEY_LENGTH) return@withContext ERROR_INVALID_KEY_LENGTH
         if (groupRepository.exists(chatIdHex)) return@withContext ERROR_EXISTS
 
@@ -246,6 +369,7 @@ class GroupConnectionService @Inject constructor(
             )
             groupRepository.add(group)
             sessionRegistry.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+            scheduleAutoReconnect(chatId, groupNumber)
 
             scope.launch {
                 delay(JOIN_TIMEOUT_MS)

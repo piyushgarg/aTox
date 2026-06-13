@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION")
 package ltd.evilcorp.atox.ui.createprofile
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -16,14 +17,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,15 +37,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -87,7 +83,14 @@ fun CreateProfileScreen(
         onRestoreBackup = { uriString, password ->
             keyboardController?.hide()
             viewModel.restoreBackup(uriString, password)
-        }
+        },
+        onRestoreFromGoogleDrive = {
+            viewModel.listGoogleDriveBackups()
+        },
+        onRestoreGoogleBackupSelected = { fileId, password ->
+            viewModel.restoreGoogleDriveBackup(fileId, password)
+        },
+        googleBackups = viewModel.googleBackups.collectAsStateWithLifecycle().value
     )
 }
 
@@ -97,15 +100,64 @@ fun CreateProfileContent(
     errorText: String,
     onErrorChanged: (String) -> Unit = {},
     onCreateProfile: (String) -> Unit = {},
-    onRestoreBackup: (String, String?) -> Unit = { _, _ -> }
+    onRestoreBackup: (String, String?) -> Unit = { _, _ -> },
+    onRestoreFromGoogleDrive: (com.google.android.gms.auth.api.signin.GoogleSignInAccount?) -> Unit = {},
+    onRestoreGoogleBackupSelected: (String, String?) -> Unit = { _, _ -> },
+
+    googleBackups: List<ltd.evilcorp.domain.features.backup.model.CloudBackupInfo> = emptyList(),
 ) {
     val context = LocalContext.current
     var nameInput by remember { mutableStateOf("") }
     var backupPassword by remember { mutableStateOf("") }
+    var showGoogleDriveRestoreDialog by remember { mutableStateOf(false) }
 
     val backupPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && !isLoading) {
             onRestoreBackup(uri.toString(), backupPassword.takeIf { it.isNotBlank() })
+        }
+    }
+
+    val googleSignInLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        if (data != null) {
+            try {
+                val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(data)
+                val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
+                if (account != null) {
+                    onRestoreFromGoogleDrive(account)
+                    showGoogleDriveRestoreDialog = true
+                    return@rememberLauncherForActivityResult
+                }
+            } catch (e: com.google.android.gms.common.api.ApiException) {
+                android.util.Log.e("CreateProfileScreen", "Google Sign-In API Exception: status code ${e.statusCode}", e)
+                val msg = when (e.statusCode) {
+                    com.google.android.gms.common.api.CommonStatusCodes.DEVELOPER_ERROR ->
+                        context.getString(R.string.google_sign_in_developer_error)
+                    else ->
+                        context.getString(R.string.google_sign_in_error_code, e.statusCode)
+                }
+                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                return@rememberLauncherForActivityResult
+            } catch (e: Exception) {
+                android.util.Log.e("CreateProfileScreen", "Google Sign-In unexpected error during parsing", e)
+            }
+        }
+
+        if (result.resultCode != android.app.Activity.RESULT_OK) {
+            android.util.Log.w("CreateProfileScreen", "Google Sign-In result not OK and no valid data: ${result.resultCode}")
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.google_sign_in_cancelled),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        } else {
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.google_sign_in_failed),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -198,8 +250,18 @@ fun CreateProfileContent(
                     shape = MaterialTheme.shapes.medium
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = stringResource(R.string.backup_restore_from_file),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
                 AtoxPasswordField(
                     value = backupPassword,
                     onValueChange = { backupPassword = it },
@@ -212,16 +274,44 @@ fun CreateProfileContent(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                AtoxLoadingButton(
+                OutlinedButton(
                     onClick = { backupPicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
-                    text = stringResource(R.string.backup_restore_from_file),
-                    isLoading = isLoading,
-                    isOutlined = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                )
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.backup_restore_from_file))
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = { 
+                        val account = com.google.android.gms.auth.api.signin.GoogleSignIn.getLastSignedInAccount(context)
+                        if (account != null) {
+                            onRestoreFromGoogleDrive(account)
+                            showGoogleDriveRestoreDialog = true
+                        } else {
+                            val googleSignInOptions = ltd.evilcorp.atox.infrastructure.backup.google.GoogleDriveBackupHelper.getSignInOptions()
+                            val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, googleSignInOptions)
+                            googleSignInLauncher.launch(client.signInIntent)
+                        }
+                    },
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.backup_restore_from_google_drive))
+                }
             }
         }
+    }
+
+    if (showGoogleDriveRestoreDialog) {
+        ltd.evilcorp.atox.ui.settings.backup.GoogleDriveRestoreDialog(
+            backups = googleBackups,
+            onBackupSelected = { backup ->
+                showGoogleDriveRestoreDialog = false
+                onRestoreGoogleBackupSelected(backup.id, backupPassword.takeIf { it.isNotBlank() })
+            },
+            onDismiss = { showGoogleDriveRestoreDialog = false }
+        )
     }
 }
 

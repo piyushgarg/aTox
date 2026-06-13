@@ -22,6 +22,9 @@ class ChatHistoryBackupHelperImpl @Inject constructor(
     override suspend fun serializeChatHistory(): List<Message> =
         messageDao.loadAllBlocking().map { it.toDomain() }
 
+    override suspend fun serializeChatHistoryPaged(limit: Int, offset: Int): List<Message> =
+        messageDao.loadPaged(limit, offset).map { it.toDomain() }
+
     override suspend fun deserializeChatHistory(messages: List<Message>) {
         messageDao.saveAll(messages.map { MessageEntity.fromDomain(it) })
     }
@@ -30,6 +33,9 @@ class ChatHistoryBackupHelperImpl @Inject constructor(
         messageDao.loadAllBlocking()
             .filter { it.correlationId == Int.MIN_VALUE }
             .map { it.toDomain() }
+
+    override suspend fun serializeCallLogPaged(limit: Int, offset: Int): List<Message> =
+        messageDao.loadCallLogPaged(limit, offset).map { it.toDomain() }
 
     override suspend fun deserializeCallLog(messages: List<Message>) {
         messageDao.saveAll(messages.map { MessageEntity.fromDomain(it) })

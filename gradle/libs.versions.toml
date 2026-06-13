@@ -1,15 +1,23 @@
 [versions]
-kotlin-compose = "2.3.21"
+kotlin-compose = "2.4.0"
 detekt = "1.23.8"
 archunit = "1.4.2"
 konsist = "0.17.3"
-detekt-compose = "0.5.9"
+detekt-compose = "0.6.0"
 
+#noinspection UnusedVersionCatalogEntry
 sdk-min = "23"
-sdk-target = "36"
+#noinspection UnusedVersionCatalogEntry
+sdk-target = "37"
 
-ksp = "2.3.6"
+kover = "0.9.8"
+turbine = "1.2.1"
+robolectric = "4.16.1"
+mockk = "1.14.11"
+
+ksp = "2.3.9"
 android-plugin = "9.2.1"
+#noinspection UnusedVersionCatalogEntry
 ndk = "30.0.14904198"
 
 coroutines = "1.11.0"
@@ -18,13 +26,26 @@ espresso = "3.7.0"
 lifecycle = "2.10.0"
 navigation = "2.9.8"
 room = "2.8.4"
+paging = "3.5.0"
+work = "2.11.2"
+hiltWork = "1.3.0"
+playServicesAuth = "21.6.0"
+googleApiClient = "2.9.0"
+googleApiDrive = "v3-rev20241027-2.0.0"
+
+#noinspection UnusedVersionCatalogEntry
 libsodium = "1.0.20-RELEASE"
+#noinspection UnusedVersionCatalogEntry
 opus = "1.4"
+#noinspection UnusedVersionCatalogEntry
 libvpx = "v1.14.1"
+#noinspection UnusedVersionCatalogEntry
 toxcore = "v0.2.20"
 compose-bom = "2026.05.01"
 biometric = "1.2.0-alpha05"
 org-json = "20260522"
+roborazzi = "1.63.0"
+
 
 
 [plugins]
@@ -35,8 +56,13 @@ androidApplication = { id = "com.android.application", version.ref = "android-pl
 androidLibrary = { id = "com.android.library", version.ref = "android-plugin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "dagger" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
+roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
+
 
 [libraries]
+androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 konsist-junit5 = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 detekt-compose = { module = "io.nlopez.compose.rules:detekt", version.ref = "detekt-compose" }
@@ -46,13 +72,14 @@ androidx-appcompat = "androidx.appcompat:appcompat:1.7.1"
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-constraintlayout = "androidx.constraintlayout:constraintlayout:2.2.1"
-androidx-core-ktx = "androidx.core:core-ktx:1.18.0" # >=1.17.0 needs compileSdk 36.
+androidx-core-ktx = "androidx.core:core-ktx:1.19.0" # >=1.17.0 needs compileSdk 36.
 androidx-datastore-preferences = "androidx.datastore:datastore-preferences:1.2.1"
 androidx-fragment = "androidx.fragment:fragment:1.8.9"
 
 androidx-navigation-fragment = { module = "androidx.navigation:navigation-fragment", version.ref = "navigation" }
 androidx-navigation-ui = { module = "androidx.navigation:navigation-ui", version.ref = "navigation" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
+androidx-navigation-testing = { module = "androidx.navigation:navigation-testing", version.ref = "navigation" }
 androidx-hilt-navigation-compose = "androidx.hilt:hilt-navigation-compose:1.3.0"
 androidx-preference = "androidx.preference:preference:1.2.1"
 
@@ -65,6 +92,11 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
+androidx-room-paging = { module = "androidx.room:room-paging", version.ref = "room" }
+androidx-paging-common = { module = "androidx.paging:paging-common", version.ref = "paging" }
+androidx-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging" }
+androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "paging" }
+
 
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
@@ -79,7 +111,17 @@ google-android-material = "com.google.android.material:material:1.14.0"
 google-dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
 google-dagger-core = { module = "com.google.dagger:dagger", version.ref = "dagger" }
 google-hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "dagger" }
-google-hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "dagger" }
+google-hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "dagger" }
+google-hilt-android-testing = { module = "com.google.dagger:hilt-android-testing", version.ref = "dagger" }
+androidx-hilt-compiler = { module = "androidx.hilt:hilt-compiler", version.ref = "hiltWork" }
+kotlin-metadata-jvm = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version.ref = "kotlin-compose" }
+androidx-compose-material3-window-size = { group = "androidx.compose.material3", name = "material3-window-size-class" }
+google-play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
+google-api-client-android = { module = "com.google.api-client:google-api-client-android", version.ref = "googleApiClient" }
+google-api-services-drive = { module = "com.google.apis:google-api-services-drive", version.ref = "googleApiDrive" }
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
+androidx-hilt-work = { module = "androidx.hilt:hilt-work", version.ref = "hiltWork" }
 
 javax-inject = "javax.inject:javax.inject:1"
 
@@ -93,13 +135,21 @@ org-json = { module = "org.json:json", version.ref = "org-json" }
 
 square-leakcanary = "com.squareup.leakcanary:leakcanary-android:2.14"
 square-picasso = "com.squareup.picasso:picasso:2.71828"
+hamcrest = "org.hamcrest:hamcrest:3.0"
 
 
 test-espresso-contrib = { module = "androidx.test.espresso:espresso-contrib", version.ref = "espresso" }
 test-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
+test-core = "androidx.test:core:1.7.0"
+test-monitor = "androidx.test:monitor:1.8.0"
 test-junit-ext = "androidx.test.ext:junit:1.3.0"
 test-rules = "androidx.test:rules:1.7.0"
 test-runner = "androidx.test:runner:1.7.0"
+test-robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+test-turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+test-mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+test-roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
+test-roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
 
 [bundles]
 compose = [

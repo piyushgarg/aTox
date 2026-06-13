@@ -12,29 +12,43 @@ import ltd.evilcorp.domain.core.network.save.ISaveManager
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.core.network.IToxStarter
 import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
+import ltd.evilcorp.core.profile.ProfileManager
+import ltd.evilcorp.domain.features.auth.model.ProfileInfo
 
 @Suppress("PrintStackTrace")
 class ProfileRepositoryImpl @Inject constructor(
     private val context: Context,
     private val toxStarter: IToxStarter,
     private val saveManager: ISaveManager,
-    private val database: Database,
+    private val dbProvider: javax.inject.Provider<Database>,
+    private val profileDbProvider: ltd.evilcorp.core.db.ProfileDatabaseProvider? = null,
+    private val toxRuntime: ltd.evilcorp.core.tox.runtime.ToxRuntime? = null,
 ) : IProfileRepository {
+    private val activeDatabase: Database get() = dbProvider.get()
+
     override suspend fun deleteProfile(publicKey: PublicKey) {
         toxStarter.stopTox()
         saveManager.delete(publicKey)
         saveManager.list().forEach {
             try {
                 saveManager.delete(PublicKey(it))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Ignore
             }
         }
-        database.clearAllTables()
+        activeDatabase.clearAllTables()
     }
 
+    override fun getActiveProfileId(): String = ProfileManager.getActiveProfileId(context)
+    override fun setActiveProfileId(id: String) = ProfileManager.setActiveProfileId(context, id)
+    override fun getShowProfilePicker(): Boolean = ProfileManager.getShowProfilePicker(context)
+    override fun setShowProfilePicker(show: Boolean) = ProfileManager.setShowProfilePicker(context, show)
+    override fun getProfiles(): List<ProfileInfo> = ProfileManager.getProfiles(context)
+    override fun addOrUpdateProfile(profile: ProfileInfo) = ProfileManager.addOrUpdateProfile(context, profile)
+    override fun removeProfile(id: String) = ProfileManager.removeProfile(context, id)
+
     override suspend fun clearDatabase() {
-        database.clearAllTables()
+        activeDatabase.clearAllTables()
     }
 
     private fun getDbFiles(ctx: Context): List<File> {
@@ -50,7 +64,7 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override suspend fun createCheckpoint(): Boolean {
         return try {
-            database.close()
+            activeDatabase.close()
             val checkpointDir = getCheckpointDir(context)
             if (checkpointDir.exists()) {
                 checkpointDir.deleteRecursively()
@@ -71,7 +85,7 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override suspend fun restoreFromCheckpoint(): Boolean {
         return try {
-            database.close()
+            activeDatabase.close()
             val checkpointDir = getCheckpointDir(context)
             if (!checkpointDir.exists()) return false
             getDbFiles(context).forEach { file ->
@@ -98,5 +112,18 @@ class ProfileRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    override suspend fun finalizeProfileCreation(oldId: String, newId: String, name: String) {
+        if (oldId != newId) {
+            profileDbProvider?.closeDatabase()
+            ProfileManager.renameProfileFiles(context, oldId, newId)
+            ProfileManager.setActiveProfileId(context, newId)
+            ProfileManager.addOrUpdateProfile(context, ProfileInfo(id = newId, name = name))
+            ProfileManager.removeProfile(context, oldId)
+        } else {
+            ProfileManager.addOrUpdateProfile(context, ProfileInfo(id = oldId, name = name))
+        }
+        toxRuntime?.save()?.join()
     }
 }

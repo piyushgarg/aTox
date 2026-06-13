@@ -5,7 +5,6 @@
 package ltd.evilcorp.core.db
 
 import androidx.room.testing.MigrationTestHelper
-import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlin.test.Test
@@ -26,14 +25,14 @@ fun Boolean.toInt() = if (this) 1 else 0
 
 private const val TEST_DB = "migration-test"
 
+@Suppress("LargeClass")
 @RunWith(AndroidJUnit4::class)
 class DatabaseMigrationTest {
     @Rule
     @JvmField
     val helper: MigrationTestHelper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(),
-        Database::class.java.canonicalName,
-        FrameworkSQLiteOpenHelperFactory(),
+        Database::class.java,
     )
 
     private val ft = FileTransfer(

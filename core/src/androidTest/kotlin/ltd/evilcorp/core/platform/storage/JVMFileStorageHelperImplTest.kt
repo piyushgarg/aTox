@@ -90,6 +90,22 @@ class JVMFileStorageHelperImplTest {
     }
 
     @Test
+    fun testMakeLocalDestinationPath_pathTraversalSecurity() {
+        // Alice attempts a path traversal injection: "../../../../etc/hosts"
+        val path = storageHelper.makeLocalDestinationPath("fingerprint", "../../../../etc/hosts")
+        
+        // Assert that parent traversal directories are completely stripped and ignored
+        assertFalse(path.contains(".."))
+        assertFalse(path.contains("etc"))
+        assertTrue(path.contains("ft/fingerprint/"))
+        
+        // Assert that the target directory and parent directory are created safely inside our secure container
+        val parentFile = File(path).parentFile
+        assertNotNull(parentFile)
+        assertTrue(parentFile.exists())
+    }
+
+    @Test
     fun testMakeWipAvatarPath_and_finalizeAvatar() {
         val wipUri = storageHelper.makeWipAvatarPath("avatar123")
         assertTrue(wipUri.startsWith("file://"))

@@ -20,7 +20,7 @@ interface IToxProfile {
     fun getStatus(): UserStatus
     fun setStatus(status: UserStatus)
     fun getContacts(): List<Pair<PublicKey, Int>>
-    fun acceptFriendRequest(publicKey: PublicKey)
+    fun acceptFriendRequest(publicKey: PublicKey): Result<Unit>
     fun addFriendNoRequest(publicKey: PublicKey): Int
     fun addContact(toxId: ToxID, message: String)
     fun deleteContact(publicKey: PublicKey)

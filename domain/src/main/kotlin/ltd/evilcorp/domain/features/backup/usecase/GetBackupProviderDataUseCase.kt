@@ -13,9 +13,8 @@ import javax.inject.Inject
 open class GetBackupProviderDataUseCase @Inject constructor(
     private val platformServices: IPlatformServices
 ) {
-    open suspend fun execute(data: ByteArray, password: String? = null, id: String): ByteArray? {
-        val decrypted = BackupCryptoHelper.decryptIfNeeded(data, password)
-        val files = platformServices.unzip(decrypted)
+    open suspend fun execute(data: ByteArray, id: String): ByteArray? {
+        val files = platformServices.unzip(data)
         return files["$id.bin"]
     }
 }

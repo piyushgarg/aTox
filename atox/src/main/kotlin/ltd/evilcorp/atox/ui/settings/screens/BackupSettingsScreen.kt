@@ -4,10 +4,6 @@
 
 package ltd.evilcorp.atox.ui.settings.screens
 
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,24 +15,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,68 +35,58 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.settings.formatSize
 import ltd.evilcorp.atox.ui.settings.common.SettingsGroup
-import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
 import ltd.evilcorp.atox.ui.settings.common.SettingsClickableRow
-import ltd.evilcorp.atox.ui.settings.backup.BackupModuleCard
+import ltd.evilcorp.atox.ui.settings.common.SettingsSwitchRow
 import ltd.evilcorp.atox.ui.settings.backup.BackupFrequencyDialog
-import ltd.evilcorp.atox.ui.settings.backup.backupFrequencyTitle
-import ltd.evilcorp.atox.ui.theme.AToxMotion
 import ltd.evilcorp.domain.features.settings.model.BackupDestination
 import ltd.evilcorp.domain.features.settings.model.BackupFrequency
-import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 
 private val ContentPaddingTop = 16.dp
 private val ContentPaddingBottomDefault = 32.dp
 private val HorizontalMargin = 16.dp
-private val SpacingSpacedBy = 12.dp
+private val SpacingSpacedBy = 16.dp
+private const val BYTES_IN_KB = 1024L
 
-@Suppress("FunctionNaming", "UnstableCollections", "UnusedParameter")
+@Suppress("FunctionNaming", "UnstableCollections", "UNUSED_PARAMETER", "MagicNumber")
 @Composable
 fun BackupSettingsScreen(
     paddingValues: PaddingValues,
-    backupProviders: List<IBackupDataProvider>,
     backupExporting: Boolean,
     backupImporting: Boolean,
-    backupPasswordEnabled: Boolean,
-    backupPassword: String,
-    backupPasswordVisible: Boolean,
-    automaticBackupEnabled: Boolean,
     backupFrequency: BackupFrequency,
     backupUseCellular: Boolean,
-    backupDestinations: Set<BackupDestination>,
-    backupEndToEndEncryptionEnabled: Boolean,
     backupGoogleAccount: String,
-    selectedBackupIds: Set<String>,
-    mandatoryBackupId: String,
-    onBackupPasswordEnabledChanged: (Boolean) -> Unit,
-    onBackupPasswordChanged: (String) -> Unit,
-    onBackupPasswordVisibleChanged: (Boolean) -> Unit,
-    onAutomaticBackupEnabledChanged: (Boolean) -> Unit,
+    lastLocalBackupTimeMs: Long,
+    lastLocalBackupSizeKb: Long,
+    lastGoogleBackupTimeMs: Long,
+    lastGoogleBackupSizeKb: Long,
     onBackupFrequencyChanged: (BackupFrequency) -> Unit,
     onBackupUseCellularChanged: (Boolean) -> Unit,
-    onBackupDestinationsChanged: (Set<BackupDestination>) -> Unit,
-    onBackupEndToEndEncryptionEnabledChanged: (Boolean) -> Unit,
     onGoogleAccountClick: () -> Unit,
-    onSelectedBackupIdsChanged: (Set<String>) -> Unit,
     onCreateBackupClick: () -> Unit,
     onRestoreBackupClick: () -> Unit,
     performHaptic: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backupProviders: List<IBackupDataProvider> = emptyList(),
+    automaticBackupEnabled: Boolean = false,
+    backupDestinations: Set<BackupDestination> = emptySet(),
+    selectedBackupIds: Set<String> = emptySet(),
+    mandatoryBackupId: String = "",
+    onAutomaticBackupEnabledChanged: (Boolean) -> Unit = {},
+    onBackupDestinationsChanged: (Set<BackupDestination>) -> Unit = {},
+    onSelectedBackupIdsChanged: (Set<String>) -> Unit = {},
+    onCreateGoogleBackupClick: () -> Unit = {},
+    onRestoreGoogleBackupClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val focusManager = LocalFocusManager.current
     var showBackupFrequencyDialog by remember { mutableStateOf(false) }
 
     val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
@@ -124,239 +103,164 @@ fun BackupSettingsScreen(
             bottom = ContentPaddingBottomDefault + bottomPadding
         )
     ) {
+        // 1. Last Backup (Material 3 Card)
         item {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shape = RoundedCornerShape(12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Warning",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.CloudUpload,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .padding(top = 2.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = stringResource(R.string.backup_last_backup_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(R.string.backup_last_backup_desc),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    val neverStr = stringResource(R.string.backup_frequency_off)
+                    val localText = if (lastLocalBackupTimeMs > 0) {
+                        val dateStr = android.text.format.DateFormat.getMediumDateFormat(context).format(lastLocalBackupTimeMs)
+                        val timeStr = android.text.format.DateFormat.getTimeFormat(context).format(lastLocalBackupTimeMs)
+                        val sizeStr = formatSize(context, lastLocalBackupSizeKb * BYTES_IN_KB)
+                        "$dateStr $timeStr • $sizeStr"
+                    } else neverStr
+
+                    val googleText = if (lastGoogleBackupTimeMs > 0) {
+                        val dateStr = android.text.format.DateFormat.getMediumDateFormat(context).format(lastGoogleBackupTimeMs)
+                        val timeStr = android.text.format.DateFormat.getTimeFormat(context).format(lastGoogleBackupTimeMs)
+                        val sizeStr = formatSize(context, lastGoogleBackupSizeKb * BYTES_IN_KB)
+                        "$dateStr $timeStr • $sizeStr"
+                    } else neverStr
+
+                    Column(
+                        modifier = Modifier.padding(start = 48.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Text(
-                            text = stringResource(R.string.backup_warning_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            text = stringResource(R.string.backup_local_label, localText),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = stringResource(R.string.backup_warning_description),
+                            text = stringResource(R.string.backup_google_label, googleText),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            performHaptic()
+                            onCreateBackupClick()
+                        },
+                        enabled = !backupExporting,
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier
+                            .padding(start = 48.dp, top = 4.dp)
+                    ) {
+                        Text(
+                            text = if (backupExporting) stringResource(R.string.backup_creating)
+                            else stringResource(R.string.backup_btn_backup),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
                         )
                     }
                 }
             }
         }
+
+        // 2. Google Drive Settings (Material 3 Card list)
         item {
-            SettingsGroup(title = stringResource(R.string.backup_security_group)) {
-                SettingsSwitchRow(
-                    title = stringResource(R.string.backup_encryption_enabled),
-                    subtitle = stringResource(R.string.backup_encryption_description),
-                    checked = backupPasswordEnabled
-                ) { checked ->
-                    performHaptic()
-                    onBackupPasswordEnabledChanged(checked)
+            SettingsGroup(title = stringResource(R.string.backup_google_settings_group)) {
+                val freqSubtitle = when (backupFrequency) {
+                    BackupFrequency.Daily -> stringResource(R.string.backup_frequency_daily)
+                    BackupFrequency.Weekly -> stringResource(R.string.backup_frequency_weekly)
+                    BackupFrequency.Monthly -> stringResource(R.string.backup_frequency_monthly)
+                    BackupFrequency.Off -> stringResource(R.string.backup_frequency_off)
                 }
-            }
-        }
-        item {
-            Text(
-                text = stringResource(R.string.backup_modules_group),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-            )
-        }
-        items(backupProviders.size) { index ->
-            val provider = backupProviders[index]
-            val mandatory = provider.id == mandatoryBackupId
-            BackupModuleCard(
-                title = stringResource(provider.displayNameRes),
-                description = stringResource(provider.descriptionRes),
-                checked = mandatory || provider.id in selectedBackupIds,
-                enabled = !mandatory,
-                onCheckedChange = { checked ->
-                    val newIds = if (checked) {
-                        selectedBackupIds + provider.id
-                    } else {
-                        selectedBackupIds - provider.id
-                    }
-                    onSelectedBackupIdsChanged(newIds)
-                }
-            )
-        }
-        item {
-            ElevatedCard(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-            ) {
-                SettingsSwitchRow(
-                    title = stringResource(R.string.backup_password_protect),
-                    subtitle = stringResource(R.string.backup_password_description),
-                    checked = backupPasswordEnabled
-                ) { checked ->
-                    performHaptic()
-                    onBackupPasswordEnabledChanged(checked)
-                }
-                AnimatedVisibility(
-                    visible = backupPasswordEnabled,
-                    enter = AToxMotion.fadeEnter(),
-                    exit = AToxMotion.fadeExit(),
+                SettingsClickableRow(
+                    title = stringResource(R.string.backup_frequency_label),
+                    subtitle = freqSubtitle,
+                    showArrow = false
                 ) {
-                    AtoxPasswordField(
-                        value = backupPassword,
-                        onValueChange = onBackupPasswordChanged,
-                        label = stringResource(R.string.password),
-                        imeAction = ImeAction.Done,
-                        keyboardActions = KeyboardActions(
-                            onDone = { focusManager.clearFocus() }
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-                    )
+                    performHaptic()
+                    showBackupFrequencyDialog = true
                 }
-            }
-        }
-        item {
-            SettingsGroup(title = stringResource(R.string.backup_auto_group)) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f), modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsClickableRow(
                     title = stringResource(R.string.backup_google_account),
                     subtitle = backupGoogleAccount.ifBlank {
                         stringResource(R.string.backup_google_account_not_selected)
-                    }
+                    },
+                    showArrow = false
                 ) {
                     performHaptic()
                     onGoogleAccountClick()
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f), modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsSwitchRow(
+                    title = stringResource(R.string.backup_use_cellular),
+                    subtitle = stringResource(R.string.backup_use_cellular_description),
+                    checked = backupUseCellular,
+                    onCheckedChange = onBackupUseCellularChanged
+                )
+            }
+        }
+
+        // 3. Advanced Restore Options (Material 3 Card list)
+        item {
+            SettingsGroup(title = stringResource(R.string.backup_restore_group)) {
                 SettingsClickableRow(
-                    title = stringResource(R.string.backup_manage_google_storage),
-                    subtitle = stringResource(R.string.backup_manage_google_storage_description),
+                    title = stringResource(R.string.backup_restore_from_file_row),
+                    subtitle = if (backupImporting) stringResource(R.string.backup_restoring) else "",
+                    showArrow = false
                 ) {
-                    performHaptic()
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://one.google.com/storage")))
+                    if (!backupImporting) {
+                        performHaptic()
+                        onRestoreBackupClick()
+                    }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                SettingsSwitchRow(
-                    title = stringResource(R.string.backup_automatic_enabled),
-                    subtitle = stringResource(R.string.backup_automatic_description),
-                    checked = automaticBackupEnabled
-                ) { checked ->
-                    performHaptic()
-                    onAutomaticBackupEnabledChanged(checked)
-                }
-                AnimatedVisibility(
-                    visible = automaticBackupEnabled,
-                    enter = AToxMotion.fadeEnter(),
-                    exit = AToxMotion.fadeExit(),
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f), modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsClickableRow(
+                    title = stringResource(R.string.backup_restore_from_google_drive),
+                    subtitle = if (backupImporting) stringResource(R.string.backup_restoring) else "",
+                    showArrow = false
                 ) {
-                    Column {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                        SettingsClickableRow(
-                            title = stringResource(R.string.backup_frequency_title),
-                            subtitle = backupFrequencyTitle(backupFrequency),
-                        ) {
-                            performHaptic()
-                            showBackupFrequencyDialog = true
-                        }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                        SettingsSwitchRow(
-                            title = stringResource(R.string.backup_use_cellular),
-                            subtitle = stringResource(R.string.backup_use_cellular_description),
-                            checked = backupUseCellular,
-                        ) { checked ->
-                            performHaptic()
-                            onBackupUseCellularChanged(checked)
-                        }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                        BackupDestination.entries.forEach { destination ->
-                            val selected = destination in backupDestinations
-                            SettingsSwitchRow(
-                                title = backupDestinationTitle(destination),
-                                subtitle = backupDestinationSubtitle(destination),
-                                checked = selected,
-                            ) { checked ->
-                                performHaptic()
-                                val current = backupDestinations
-                                val nextDests = if (checked) {
-                                    current + destination
-                                } else {
-                                    (current - destination).takeIf { it.isNotEmpty() }
-                                        ?: setOf(BackupDestination.Local)
-                                }
-                                onBackupDestinationsChanged(nextDests)
-                            }
-                            if (destination != BackupDestination.entries.last()) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            }
-                        }
+                    if (!backupImporting) {
+                        performHaptic()
+                        onRestoreGoogleBackupClick()
                     }
                 }
-            }
-        }
-        item {
-            SettingsGroup(title = stringResource(R.string.backup_e2e_group)) {
-                SettingsSwitchRow(
-                    title = stringResource(R.string.backup_e2e_title),
-                    subtitle = stringResource(R.string.backup_e2e_description),
-                    checked = backupEndToEndEncryptionEnabled,
-                ) { checked ->
-                    performHaptic()
-                    onBackupEndToEndEncryptionEnabledChanged(checked)
-                }
-            }
-        }
-        item {
-            Button(
-                onClick = {
-                    performHaptic()
-                    onCreateBackupClick()
-                },
-                enabled = !backupExporting && (!backupPasswordEnabled || backupPassword.isNotBlank()),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (backupExporting) {
-                        stringResource(R.string.backup_creating)
-                    } else {
-                        stringResource(R.string.backup_create)
-                    }
-                )
-            }
-        }
-        item {
-            OutlinedButton(
-                onClick = {
-                    performHaptic()
-                    onRestoreBackupClick()
-                },
-                enabled = !backupImporting,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (backupImporting) {
-                        stringResource(R.string.backup_restoring)
-                    } else {
-                        stringResource(R.string.backup_restore_from_file)
-                    }
-                )
             }
         }
     }
@@ -368,20 +272,4 @@ fun BackupSettingsScreen(
             onBackupFrequencyChanged = onBackupFrequencyChanged
         )
     }
-}
-
-@Composable
-private fun backupDestinationTitle(destination: BackupDestination): String = when (destination) {
-    BackupDestination.Local -> stringResource(R.string.backup_destination_local)
-    BackupDestination.GoogleDrive -> stringResource(R.string.backup_destination_google)
-    BackupDestination.Nextcloud -> stringResource(R.string.backup_destination_nextcloud)
-    BackupDestination.WebDav -> stringResource(R.string.backup_destination_webdav)
-}
-
-@Composable
-private fun backupDestinationSubtitle(destination: BackupDestination): String = when (destination) {
-    BackupDestination.Local -> stringResource(R.string.backup_destination_local_description)
-    BackupDestination.GoogleDrive -> stringResource(R.string.backup_destination_google_description)
-    BackupDestination.Nextcloud -> stringResource(R.string.backup_destination_nextcloud_description)
-    BackupDestination.WebDav -> stringResource(R.string.backup_destination_webdav_description)
 }

@@ -6,9 +6,12 @@ import ltd.evilcorp.core.tox.listener.ToxEventListener
  * Low-level JNI bridge to the native C/C++ Tox library (libnativetox).
  * Member signatures must strictly match compiled JNI headers.
  */
+@Suppress("unused")
 class NativeTox {
-    init {
-        System.loadLibrary("nativetox")
+    companion object {
+        init {
+            System.loadLibrary("nativetox")
+        }
     }
 
     external fun toxNew(savedata: ByteArray?): Long

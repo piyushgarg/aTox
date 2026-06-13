@@ -4,50 +4,13 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.CallMade
-import androidx.compose.material.icons.filled.CallReceived
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PhoneMissed
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -55,82 +18,32 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import kotlinx.coroutines.launch
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
-import ltd.evilcorp.atox.ui.chat.ChatUiConfig
-import ltd.evilcorp.atox.ui.common.ContactAvatar
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import ltd.evilcorp.atox.ui.navigation.LocalSharedTransitionScope
-import ltd.evilcorp.atox.ui.navigation.LocalAnimatedVisibilityScope
-import ltd.evilcorp.atox.ui.common.MorphingNavigationIcon
-import ltd.evilcorp.atox.ui.common.PresenceTone
-import ltd.evilcorp.atox.ui.common.formatChatTime
-import ltd.evilcorp.atox.ui.common.formatMessageDateHeader
 import ltd.evilcorp.atox.ui.common.formatPresenceText
-import ltd.evilcorp.atox.ui.theme.StatusAvailable
-import ltd.evilcorp.atox.ui.theme.StatusAway
-import ltd.evilcorp.atox.ui.theme.StatusBusy
-import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.chat.model.Message
-import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
 import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
-import androidx.activity.result.contract.ActivityResultContracts
-import android.widget.Toast
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.filled.Attachment
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.Error
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
-import ltd.evilcorp.domain.features.transfer.model.FT_NOT_STARTED
-import ltd.evilcorp.domain.features.transfer.model.FT_REJECTED
-import ltd.evilcorp.domain.features.transfer.model.isComplete
-import ltd.evilcorp.domain.features.transfer.model.isStarted
-import ltd.evilcorp.domain.features.transfer.model.isRejected
-import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.atox.ui.common.chat.ChatScreenContent
 import ltd.evilcorp.atox.ui.common.chat.MessageBubbleConfig
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import ltd.evilcorp.atox.ui.navigation.AppRoutes
-import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
+import androidx.paging.PagingData
+import androidx.paging.compose.collectAsLazyPagingItems
 import ltd.evilcorp.atox.ui.chat.components.CallConfirmDialog
 import ltd.evilcorp.atox.ui.chat.components.ChatAppBar
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -147,6 +60,7 @@ import androidx.compose.foundation.lazy.LazyListState
 fun ChatScreen(
     uiState: ChatUiState,
     onBack: () -> Unit,
+    messagesFlow: Flow<PagingData<Message>>? = null,
     onSendMessage: (String) -> Unit,
     onTypingChanged: (Boolean) -> Unit,
     onSendFile: (Uri) -> Unit,
@@ -171,6 +85,7 @@ fun ChatScreen(
 ) {
     val contact = uiState.contact
     val messages = uiState.messages
+    val pagedMessages = messagesFlow?.collectAsLazyPagingItems()
     val fileTransfers = uiState.fileTransfers
     val replyingToMessage = uiState.replyingToMessage
     val uiConfig = uiState.uiConfig ?: ChatUiConfig(
@@ -221,7 +136,9 @@ fun ChatScreen(
         null
     }
     val navBarColor = MaterialTheme.colorScheme.surfaceContainer
+    @Suppress("DEPRECATION")
     val originalNavBarColor = remember(activity) { activity?.window?.navigationBarColor ?: 0 }
+    @Suppress("DEPRECATION")
     androidx.compose.runtime.DisposableEffect(navBarColor) {
         activity?.window?.let { window ->
             window.navigationBarColor = navBarColor.toArgb()
@@ -288,6 +205,7 @@ fun ChatScreen(
             ChatScreenContent(
                 messages = messages,
                 toMessage = { it },
+                pagedMessages = pagedMessages,
                 getBubbleConfig = {
                     MessageBubbleConfig(
                         contactName = contactName

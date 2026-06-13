@@ -4,7 +4,6 @@
 
 package ltd.evilcorp.domain.core.network.bootstrap
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -20,6 +19,7 @@ import javax.inject.Singleton
 class DefaultBootstrapNodeRegistry @Inject constructor(
     private val parser: BootstrapNodeJsonParser,
     private val source: IBootstrapNodeJsonSource,
+    @ltd.evilcorp.domain.core.di.IoDispatcher private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher,
 ) : IBootstrapNodeRegistry {
     private val mutex = Mutex()
     private var nodes: List<BootstrapNode> = emptyList()
@@ -27,7 +27,7 @@ class DefaultBootstrapNodeRegistry @Inject constructor(
     /**
      * Provides a randomized selection of [n] bootstrap nodes.
      */
-    override suspend fun get(n: Int): List<BootstrapNode> = withContext(Dispatchers.IO) {
+    override suspend fun get(n: Int): List<BootstrapNode> = withContext(ioDispatcher) {
         mutex.withLock {
             if (nodes.isEmpty()) {
                 reloadNodes()
