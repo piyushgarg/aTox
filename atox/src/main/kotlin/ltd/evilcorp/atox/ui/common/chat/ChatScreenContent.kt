@@ -204,26 +204,31 @@ fun <T : Any> ChatScreenContent(
                     items(
                         count = itemCount,
                         key = { index ->
-                            val rawIndex = itemCount - 1 - index
                             if (pagedMessages != null) {
-                                pagedMessages.peek(rawIndex)?.let(toMessage)?.id ?: index.toLong()
+                                pagedMessages.peek(index)?.let(toMessage)?.id ?: index.toLong()
                             } else {
+                                val rawIndex = itemCount - 1 - index
                                 messages.getOrNull(rawIndex)?.let(toMessage)?.id ?: index.toLong()
                             }
                         }
                     ) { index ->
                         val rawIndex = itemCount - 1 - index
                         val item = if (pagedMessages != null) {
-                            pagedMessages[rawIndex]
+                            pagedMessages[index]
                         } else {
                             messages[rawIndex]
                         }
                         if (item != null) {
                             val msg = toMessage(item)
-                            val prevDomainMsg = if (rawIndex > 0) {
-                                if (pagedMessages != null) pagedMessages.peek(rawIndex - 1)?.let(toMessage)
-                                else messages.getOrNull(rawIndex - 1)?.let(toMessage)
-                            } else null
+                            val prevDomainMsg = if (pagedMessages != null) {
+                                if (index + 1 < itemCount) {
+                                    pagedMessages.peek(index + 1)?.let(toMessage)
+                                } else null
+                            } else {
+                                if (rawIndex > 0) {
+                                    messages.getOrNull(rawIndex - 1)?.let(toMessage)
+                                } else null
+                            }
 
                                 val currentHeader = remember(msg.timestamp, uiConfig.dateFormatPreference) {
                                     formatMessageDateHeader(
