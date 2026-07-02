@@ -13,6 +13,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -31,8 +33,10 @@ fun SwipeableReplyBox(
     val density = LocalDensity.current
     val maxSwipePx = with(density) { MAX_SWIPE_DP.dp.toPx() }
 
+    val haptic = LocalHapticFeedback.current
     var offsetX by remember { mutableStateOf(0f) }
-
+    var hasTriggeredHaptic by remember { mutableStateOf(false) }
+ 
     Box(
         modifier = Modifier
             .offset { IntOffset(offsetX.roundToInt(), 0) }
@@ -42,11 +46,13 @@ fun SwipeableReplyBox(
                         if (abs(offsetX) >= maxSwipePx * SWIPE_THRESHOLD) {
                             onReply()
                         }
+                        hasTriggeredHaptic = false
                         scope.launch {
                             animate(offsetX, 0f) { value, _ -> offsetX = value }
                         }
                     },
                     onDragCancel = {
+                        hasTriggeredHaptic = false
                         scope.launch {
                             animate(offsetX, 0f) { value, _ -> offsetX = value }
                         }
@@ -54,6 +60,10 @@ fun SwipeableReplyBox(
                     onHorizontalDrag = { _, dragAmount ->
                         if (dragAmount < 0f) {
                             offsetX = (offsetX + dragAmount).coerceIn(-maxSwipePx, 0f)
+                            if (abs(offsetX) >= maxSwipePx * SWIPE_THRESHOLD && !hasTriggeredHaptic) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                hasTriggeredHaptic = true
+                            }
                         }
                     }
                 )
