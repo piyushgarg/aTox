@@ -388,6 +388,17 @@ private fun VoiceMessageProgressColumn(
                     colors = SliderDefaults.colors(thumbColor = contentColor),
                     thumbSize = DpSize(10.dp, 10.dp)
                 )
+            },
+            track = { sliderState ->
+                SliderDefaults.Track(
+                    sliderState = sliderState,
+                    modifier = Modifier.height(4.dp),
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = contentColor,
+                        inactiveTrackColor = contentColor.copy(alpha = 0.2f)
+                    ),
+                    thumbTrackGapSize = 0.dp
+                )
             }
         )
 
