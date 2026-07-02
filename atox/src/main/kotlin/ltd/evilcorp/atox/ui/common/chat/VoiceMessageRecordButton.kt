@@ -25,6 +25,8 @@ import ltd.evilcorp.domain.features.call.service.IVoiceRecorder
 import ltd.evilcorp.atox.ui.common.LocalFileStorageProvider
 import kotlinx.coroutines.launch
 
+private const val MIN_RECORD_DURATION_MS = 1000L
+
 @Suppress("LoopWithTooManyJumpStatements", "UnusedParameter")
 @Composable
 fun VoiceMessageRecordButton(
@@ -105,7 +107,7 @@ fun VoiceMessageRecordButton(
                                 val filePath = voiceRecorder.stopRecording()
                                 if (filePath != null) {
                                     val recordDurationMs = System.currentTimeMillis() - startTimeMs
-                                    if (recordDurationMs < 1000L) {
+                                    if (recordDurationMs < MIN_RECORD_DURATION_MS) {
                                         Toast.makeText(context, context.getString(R.string.voice_message_too_short), Toast.LENGTH_SHORT).show()
                                     } else if (fileStorageProvider.exists(filePath) && fileStorageProvider.size(filePath) > 0) {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)

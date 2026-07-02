@@ -18,6 +18,8 @@ import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.contacts.usecase.GetContactUseCase
 import ltd.evilcorp.domain.core.model.PublicKey
 
+private const val FLOW_SUBSCRIBE_TIMEOUT_MS = 5000L
+
 @HiltViewModel
 class ContactProfileViewModel @Inject constructor(
     private val getContactUseCase: GetContactUseCase,
@@ -31,7 +33,7 @@ class ContactProfileViewModel @Inject constructor(
             getContactUseCase.execute(PublicKey(publicKey))
                 .stateIn(
                     scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5000),
+                    started = SharingStarted.WhileSubscribed(FLOW_SUBSCRIBE_TIMEOUT_MS),
                     initialValue = null
                 )
                 .collect { contact ->

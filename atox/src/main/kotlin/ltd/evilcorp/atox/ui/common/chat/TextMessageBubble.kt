@@ -21,29 +21,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.stripReplyPrefix
 import ltd.evilcorp.domain.features.chat.model.Message
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.ReplyInfo
 import ltd.evilcorp.domain.features.chat.model.Sender
-import ltd.evilcorp.domain.features.transfer.model.FileTransfer
-
-private const val MILLIS_IN_SECOND = 1000
-private const val SECONDS_IN_MINUTE = 60
 
 @Composable
 fun TextMessageBubble(
@@ -54,11 +45,8 @@ fun TextMessageBubble(
     contentColor: Color,
     isOutgoing: Boolean,
     onParentMessageClick: ((Message) -> Unit)?,
-    fileTransfers: List<FileTransfer> = emptyList(),
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-
     Column(modifier = modifier) {
         // Reply preview block inside the bubble
         if (replyInfo.isReply && onParentMessageClick != null) {
@@ -120,7 +108,7 @@ fun TextMessageBubble(
                                                 ext in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp") -> {
                                                     stringResource(R.string.photo_reply_preview)
                                                 }
-                                                !fileName.startsWith("voice_message_") && ext in setOf("mp3", "m4a", "ogg", "opus", "wav", "aac", "flac", "wma") -> {
+                                                ext in setOf("mp3", "m4a", "ogg", "opus", "wav", "aac", "flac", "wma") -> {
                                                     stringResource(R.string.audio_message)
                                                 }
                                                 else -> fileName

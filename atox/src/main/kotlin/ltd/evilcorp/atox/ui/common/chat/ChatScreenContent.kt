@@ -374,7 +374,6 @@ fun <T : Any> ChatScreenContent(
                     onCancelReply = onCancelReply,
                     onSendVoice = onSendVoice,
                     voiceRecorder = voiceRecorder,
-                    fileTransfers = fileTransfers,
                     modifier = Modifier.fillMaxWidth()
                 )
             }

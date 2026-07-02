@@ -29,7 +29,6 @@ import ltd.evilcorp.domain.features.group.usecase.DeclineGroupInviteUseCase
 import ltd.evilcorp.domain.features.settings.model.UserSettings
 import ltd.evilcorp.domain.features.settings.usecase.GetUserSettingsUseCase
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
-import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test

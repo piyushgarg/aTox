@@ -74,8 +74,9 @@ class JVMFileStorageHelperImpl @Inject constructor(
 
     override fun getSelfAvatarInfo(): Pair<String, Long>? {
         val activeProfileId = ltd.evilcorp.core.profile.ProfileManager.getActiveProfileId(context)
-        val filename = if (activeProfileId == ltd.evilcorp.core.profile.ProfileManager.DEFAULT_PROFILE_ID) "self_avatar.jpg" else "self_avatar_$activeProfileId.jpg"
-        val oldFilename = if (activeProfileId == ltd.evilcorp.core.profile.ProfileManager.DEFAULT_PROFILE_ID) "self_avatar.png" else "self_avatar_$activeProfileId.png"
+        val isDefault = activeProfileId == ltd.evilcorp.core.profile.ProfileManager.DEFAULT_PROFILE_ID
+        val filename = if (isDefault) "self_avatar.jpg" else "self_avatar_$activeProfileId.jpg"
+        val oldFilename = if (isDefault) "self_avatar.png" else "self_avatar_$activeProfileId.png"
 
         // Try new format first
         val file = File(platformHelper.getFilesDir(), filename)

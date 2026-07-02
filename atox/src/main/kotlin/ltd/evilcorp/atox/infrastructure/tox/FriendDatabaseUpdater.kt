@@ -16,7 +16,6 @@ import ltd.evilcorp.domain.features.contacts.model.ToxFriendEvent
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.model.FriendRequest
 import ltd.evilcorp.domain.features.chat.model.Message
-import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
 import ltd.evilcorp.domain.features.contacts.repository.IFriendRequestRepository

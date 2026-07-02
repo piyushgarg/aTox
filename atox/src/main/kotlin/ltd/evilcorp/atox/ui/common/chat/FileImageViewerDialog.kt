@@ -42,6 +42,8 @@ import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.LocalFileStorageProvider
 
+private const val COMPRESSION_QUALITY = 95
+
 @Composable
 fun FileImageViewerDialog(
     destination: String,
@@ -164,7 +166,7 @@ private suspend fun saveImageToGallery(context: android.content.Context, imageBi
             val insertedUri = resolver.insert(imageCollectionUri, contentValues)
             if (insertedUri != null) {
                 resolver.openOutputStream(insertedUri)?.use { outputStream ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, COMPRESSION_QUALITY, outputStream)
                 }
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
