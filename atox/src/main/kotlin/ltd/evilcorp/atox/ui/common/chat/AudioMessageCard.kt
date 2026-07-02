@@ -1,4 +1,3 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
 
 package ltd.evilcorp.atox.ui.common.chat
 
@@ -23,7 +22,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -48,8 +46,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.unit.DpSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -408,27 +404,7 @@ private fun AudioMessageProgressColumn(
                 activeTrackColor = contentColor,
                 inactiveTrackColor = contentColor.copy(alpha = 0.2f)
             ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp),
-            thumb = {
-                SliderDefaults.Thumb(
-                    interactionSource = remember { MutableInteractionSource() },
-                    colors = SliderDefaults.colors(thumbColor = contentColor),
-                    thumbSize = DpSize(10.dp, 10.dp)
-                )
-            },
-            track = { sliderState ->
-                SliderDefaults.Track(
-                    sliderState = sliderState,
-                    modifier = Modifier.height(4.dp),
-                    colors = SliderDefaults.colors(
-                        activeTrackColor = contentColor,
-                        inactiveTrackColor = contentColor.copy(alpha = 0.2f)
-                    ),
-                    thumbTrackGapSize = 0.dp
-                )
-            }
+            modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(4.dp))
