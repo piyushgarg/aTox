@@ -16,7 +16,7 @@ robolectric = "4.16.1"
 mockk = "1.14.11"
 
 ksp = "2.3.9"
-android-plugin = "9.2.1"
+android-plugin = "9.1.0"
 #noinspection UnusedVersionCatalogEntry
 ndk = "30.0.14904198"
 

@@ -84,7 +84,9 @@ fun BackupSettingsScreen(
     onBackupDestinationsChanged: (Set<BackupDestination>) -> Unit = {},
     onSelectedBackupIdsChanged: (Set<String>) -> Unit = {},
     onCreateGoogleBackupClick: () -> Unit = {},
-    onRestoreGoogleBackupClick: () -> Unit = {}
+    onRestoreGoogleBackupClick: () -> Unit = {},
+    localBackupDirectoryUri: String = "",
+    onLocalBackupDirectoryClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var showBackupFrequencyDialog by remember { mutableStateOf(false) }
@@ -199,7 +201,25 @@ fun BackupSettingsScreen(
             }
         }
 
-        // 2. Google Drive Settings (Material 3 Card list)
+        // 2. Local Backup Settings
+        item {
+            SettingsGroup(title = stringResource(R.string.backup_local_settings_group)) {
+                SettingsClickableRow(
+                    title = stringResource(R.string.backup_local_directory),
+                    subtitle = if (localBackupDirectoryUri.isBlank()) {
+                        stringResource(R.string.backup_local_directory_default)
+                    } else {
+                        stringResource(R.string.backup_local_directory_custom)
+                    },
+                    showArrow = false
+                ) {
+                    performHaptic()
+                    onLocalBackupDirectoryClick()
+                }
+            }
+        }
+
+        // 3. Google Drive Settings (Material 3 Card list)
         item {
             SettingsGroup(title = stringResource(R.string.backup_google_settings_group)) {
                 val freqSubtitle = when (backupFrequency) {
@@ -237,7 +257,7 @@ fun BackupSettingsScreen(
             }
         }
 
-        // 3. Advanced Restore Options (Material 3 Card list)
+        // 4. Advanced Restore Options (Material 3 Card list)
         item {
             SettingsGroup(title = stringResource(R.string.backup_restore_group)) {
                 SettingsClickableRow(

@@ -47,7 +47,7 @@ class ChatHistoryBackupHelperImplTest {
         val domainMsg = Message("user3", "Howdy", Sender.Sent, MessageType.Normal, 5, 3000L, id = 20L)
         backupHelper.deserializeChatHistory(listOf(domainMsg))
 
-        val loaded = messageDao.loadAllBlocking()
+        val loaded = messageDao.loadAll()
         assertEquals(1, loaded.size)
         assertEquals("user3", loaded[0].publicKey)
         assertEquals("Howdy", loaded[0].message)
@@ -75,7 +75,7 @@ class ChatHistoryBackupHelperImplTest {
         val callMsg = Message("user4", "Call log entry", Sender.Received, MessageType.Normal, Int.MIN_VALUE, 4000L, id = 4L)
         backupHelper.deserializeCallLog(listOf(callMsg))
 
-        val loaded = messageDao.loadAllBlocking()
+        val loaded = messageDao.loadAll()
         assertEquals(1, loaded.size)
         assertEquals("user4", loaded[0].publicKey)
         assertEquals(Int.MIN_VALUE, loaded[0].correlationId)

@@ -92,6 +92,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.fragment)
+    implementation("androidx.documentfile:documentfile:1.0.1")
 
     implementation(libs.google.android.material)
 

@@ -66,7 +66,7 @@ class FileTransferDaoTest {
         val t2 = testTransfer.copy(fileName = "file2.png")
         dao.saveAll(listOf(t1, t2))
 
-        val loaded = dao.loadAllBlocking()
+        val loaded = dao.loadAll()
         assertEquals(2, loaded.size)
         assertTrue(loaded.any { it.fileName == "file1.txt" })
         assertTrue(loaded.any { it.fileName == "file2.png" })
@@ -75,10 +75,10 @@ class FileTransferDaoTest {
     @Test
     fun testDelete() = runTest {
         val id = dao.save(testTransfer).toInt()
-        assertEquals(1, dao.loadAllBlocking().size)
+        assertEquals(1, dao.loadAll().size)
 
         dao.delete(id)
-        assertTrue(dao.loadAllBlocking().isEmpty())
+        assertTrue(dao.loadAll().isEmpty())
     }
 
     @Test
@@ -98,23 +98,23 @@ class FileTransferDaoTest {
 
         // Update progress to 5000L
         dao.updateProgress(id, 5000L)
-        assertEquals(5000L, dao.loadAllBlocking()[0].progress)
+        assertEquals(5000L, dao.loadAll()[0].progress)
 
         // If progress is already rejected, it should not be updated
         // First reject it manually (Room updateProgress has a guard)
-        dao.save(dao.loadAllBlocking()[0].copy(progress = FT_REJECTED).apply { this.id = id })
-        assertEquals(FT_REJECTED, dao.loadAllBlocking()[0].progress)
+        dao.save(dao.loadAll()[0].copy(progress = FT_REJECTED).apply { this.id = id })
+        assertEquals(FT_REJECTED, dao.loadAll()[0].progress)
 
         dao.updateProgress(id, 8000L) // this update should be ignored due to where progress != :rejected
-        assertEquals(FT_REJECTED, dao.loadAllBlocking()[0].progress)
+        assertEquals(FT_REJECTED, dao.loadAll()[0].progress)
     }
 
     @Test
     fun testSetDestination() = runTest {
         val id = dao.save(testTransfer).toInt()
-        
+
         dao.setDestination(id, "/new/final/path.mp4")
-        assertEquals("/new/final/path.mp4", dao.loadAllBlocking()[0].destination)
+        assertEquals("/new/final/path.mp4", dao.loadAll()[0].destination)
     }
 
     @Test
@@ -122,13 +122,13 @@ class FileTransferDaoTest {
         // Reset transient data should set all uncompleted file transfers (progress < file_size) to FT_REJECTED
         val completed = testTransfer.copy(progress = 10000L) // 10000L/10000L
         val active = testTransfer.copy(progress = 5000L) // 5000L/10000L
-        
+
         val completedId = dao.save(completed).toInt()
         val activeId = dao.save(active).toInt()
 
         dao.resetTransientData(FT_REJECTED)
 
-        val all = dao.loadAllBlocking()
+        val all = dao.loadAll()
         val completedSaved = all.first { it.id == completedId }
         val activeSaved = all.first { it.id == activeId }
 

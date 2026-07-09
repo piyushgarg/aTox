@@ -65,7 +65,7 @@ class FakeMessageDao : MessageDao {
         }
     }
 
-    override suspend fun loadAllBlocking(): List<MessageEntity> {
+    override suspend fun loadAll(): List<MessageEntity> {
         return messages.value
     }
 

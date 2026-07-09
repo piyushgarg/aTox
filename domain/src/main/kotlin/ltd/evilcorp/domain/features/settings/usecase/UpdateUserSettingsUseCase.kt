@@ -20,6 +20,7 @@ sealed interface UpdateAction {
     data class NotificationSoundUri(val uri: String) : UpdateAction
     data class ActiveChatSoundUri(val uri: String) : UpdateAction
     data class AutoSaveDirectoryUri(val uri: String) : UpdateAction
+    data class LocalBackupDirectoryUri(val uri: String) : UpdateAction
 }
 
 /**
@@ -46,6 +47,7 @@ class UpdateUserSettingsUseCase @Inject constructor(
             is UpdateAction.NotificationSoundUri -> userSettingsRepository.updateNotificationSoundUri(action.uri)
             is UpdateAction.ActiveChatSoundUri -> userSettingsRepository.updateActiveChatSoundUri(action.uri)
             is UpdateAction.AutoSaveDirectoryUri -> userSettingsRepository.updateAutoSaveDirectoryUri(action.uri)
+            is UpdateAction.LocalBackupDirectoryUri -> userSettingsRepository.updateLocalBackupDirectoryUri(action.uri)
         }
     }
 }

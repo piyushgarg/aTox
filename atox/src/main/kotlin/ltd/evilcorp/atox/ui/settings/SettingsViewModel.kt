@@ -230,6 +230,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setLocalBackupDirectoryUri(uri: String) {
+        viewModelScope.launch(ioDispatcher) {
+            updateUserSettingsUseCase.execute(UpdateAction.LocalBackupDirectoryUri(uri))
+        }
+    }
+
     fun getCacheSize(): Long = getCacheSizeUseCase.execute()
     fun clearCache() = clearCacheUseCase.execute()
 
