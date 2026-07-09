@@ -15,6 +15,7 @@ import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import androidx.paging.PagingData
 import kotlinx.coroutines.flow.flowOf
+import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
 import ltd.evilcorp.domain.features.chat.usecase.GetChatMessagesPagedUseCase
 import ltd.evilcorp.domain.features.chat.usecase.ClearChatHistoryUseCase
 import ltd.evilcorp.domain.features.chat.usecase.DeleteChatMessageUseCase
@@ -52,6 +53,7 @@ class ChatViewModelTest {
     private val mockSetTypingStatusUseCase = mockk<SetTypingStatusUseCase>(relaxed = true)
     private val mockDeleteChatMessageUseCase = mockk<DeleteChatMessageUseCase>(relaxed = true)
     private val mockDeclineGroupInviteUseCase = mockk<DeclineGroupInviteUseCase>(relaxed = true)
+    private val mockMessageRepository = mockk<IMessageRepository>(relaxed = true)
     private val mockVoiceRecorder = mockk<IVoiceRecorder>(relaxed = true)
 
     private fun createViewModel(): ChatViewModel {
@@ -79,6 +81,7 @@ class ChatViewModelTest {
             mockSetTypingStatusUseCase,
             mockDeleteChatMessageUseCase,
             mockDeclineGroupInviteUseCase,
+            mockMessageRepository,
             mockVoiceRecorder
         )
     }
@@ -87,9 +90,9 @@ class ChatViewModelTest {
     fun `setActiveChat clears notifications and sets active chat`() = runTest {
         val viewModel = createViewModel()
         val pk = PublicKey("AABBCC")
-        
+
         viewModel.setActiveChat(pk)
-        
+
         coVerify { mockNotificationHelper.dismissNotifications(pk) }
         coVerify { mockSetActiveChatUseCase.execute(pk) }
     }
@@ -99,7 +102,7 @@ class ChatViewModelTest {
         val viewModel = createViewModel()
         val pk = PublicKey("AABBCC")
         viewModel.setActiveChat(pk)
-        
+
         val replyMessage = Message(
             publicKey = pk.string(),
             message = "original message",
@@ -110,9 +113,9 @@ class ChatViewModelTest {
             id = 10
         )
         viewModel.setReplyingTo(replyMessage)
-        
+
         viewModel.sendMessage("reply", MessageType.Normal)
-        
+
         coVerify { mockSendChatMessageUseCase.execute(pk, "reply", MessageType.Normal, "original message".hashCode()) }
         assertEquals(null, viewModel.replyingToMessage.value)
     }
@@ -122,9 +125,9 @@ class ChatViewModelTest {
         val viewModel = createViewModel()
         val pk = PublicKey("AABBCC")
         viewModel.setActiveChat(pk)
-        
+
         viewModel.clearHistory()
-        
+
         coVerify { mockClearChatHistoryUseCase.execute(pk) }
         coVerify { mockChatFileTransferDelegate.clearTransfers(pk) }
     }

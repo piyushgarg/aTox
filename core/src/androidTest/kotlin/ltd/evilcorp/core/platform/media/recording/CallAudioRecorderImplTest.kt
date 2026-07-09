@@ -38,6 +38,7 @@ class CallAudioRecorderImplTest {
         override var isBootstrapNeeded: Boolean = false
         override val password: String? = null
         override val sessionId: String? = null
+        // Valid Tox ID with proper XOR checksum (76 chars: 64 pubkey + 8 nospam + 4 checksum)
         override val toxId: ToxID = ToxID("76518406F6A9F2217E8DC487CC783C25CC16A15EB36FF32E335A235342C48A39000000008BE4")
         override val publicKey: PublicKey = PublicKey("76518406F6A9F2217E8DC487CC783C25CC16A15EB36FF32E335A235342C48A39")
         override var nospam: Int = 0

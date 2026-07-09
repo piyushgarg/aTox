@@ -49,6 +49,8 @@ class CreateProfileViewModel @Inject constructor(
     private val downloadCloudBackupUseCase: ltd.evilcorp.domain.features.backup.usecase.DownloadCloudBackupUseCase,
     private val tox: ltd.evilcorp.domain.core.network.ITox,
     private val profileRegistryUseCase: ProfileRegistryUseCase,
+    private val saveAvatarUseCase: ltd.evilcorp.domain.features.auth.usecase.SaveAvatarUseCase,
+    private val getSelfAvatarUseCase: ltd.evilcorp.domain.features.auth.usecase.GetSelfAvatarUseCase,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CreateProfileUiState>(CreateProfileUiState.Idle)
@@ -135,19 +137,49 @@ class CreateProfileViewModel @Inject constructor(
         }
     }
 
-    fun createProfile(name: String) {
+    fun createProfile(name: String, statusMessage: String = "", avatarBytes: ByteArray? = null) {
         viewModelScope.launch {
             _uiState.value = CreateProfileUiState.Loading
             val status = withContext(ioDispatcher) {
                 val status = startTox()
                 if (status == ToxSaveStatus.Ok) {
-                    create(User(publicKey = getSelfUserUseCase.publicKey.string(), name = name))
+                    val finalStatusMessage = statusMessage.ifBlank { "Brought to you live, by aTox" }
+
+                    // First, set the values in Tox BEFORE creating the user
+                    tox.setName(name)
+                    tox.setStatusMessage(finalStatusMessage)
+
+                    // Now create the user with these values
+                    create(User(
+                        publicKey = getSelfUserUseCase.publicKey.string(),
+                        name = name,
+                        statusMessage = finalStatusMessage
+                    ))
                 }
                 status
             }
 
             if (status == ToxSaveStatus.Ok) {
                 finalizeProfileCreation(name)
+
+                // Save avatar AFTER finalization so it's saved with the correct profile ID
+                withContext(ioDispatcher) {
+                    avatarBytes?.let { bytes ->
+                        saveAvatarUseCase.execute(bytes)
+                    }
+
+                    // Update profile registry with avatar URI after avatar is saved
+                    val activeId = profileRegistryUseCase.getActiveProfileId()
+                    val profile = profileRegistryUseCase.getProfiles().find { it.id == activeId }
+                    if (profile != null && avatarBytes != null) {
+                        val avatarFile = getSelfAvatarUseCase.execute()
+                        val avatarUri = if (avatarFile.exists() && avatarFile.length() > 0L) {
+                            avatarFile.toURI().toString()
+                        } else null
+                        profileRegistryUseCase.addOrUpdateProfile(profile.copy(avatarUri = avatarUri))
+                    }
+                }
+
                 _uiState.value = CreateProfileUiState.Success
             } else {
                 val errorResId = when (status) {
