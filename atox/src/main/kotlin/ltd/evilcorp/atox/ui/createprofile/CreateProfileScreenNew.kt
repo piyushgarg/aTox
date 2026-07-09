@@ -48,6 +48,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -58,6 +59,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarSourceDialog
+import ltd.evilcorp.atox.ui.userprofile.components.AvatarEditDialog
+import ltd.evilcorp.atox.ui.userprofile.AvatarCropUtils
 
 @Composable
 fun CreateProfileScreenNew(
@@ -108,32 +111,29 @@ fun CreateProfileContentNew(
     val context = LocalContext.current
     var nameInput by remember { mutableStateOf("") }
     var bioInput by remember { mutableStateOf("") }
-    var avatarUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var avatarBytes by remember { mutableStateOf<ByteArray?>(null) }
     var showAvatarSourceDialog by remember { mutableStateOf(false) }
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
-            avatarUri = it
-            try {
-                val inputStream = context.contentResolver.openInputStream(it)
-                avatarBytes = inputStream?.readBytes()
-                inputStream?.close()
-            } catch (e: Exception) {
-                android.util.Log.e("CreateProfile", "Failed to read avatar", e)
-            }
+            selectedImageUri = it
         }
     }
 
+    val tempCameraUri = remember {
+        val tempFile = java.io.File(context.cacheDir, "temp_avatar_${System.currentTimeMillis()}.jpg")
+        tempFile.createNewFile()
+        androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            tempFile
+        )
+    }
+
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && avatarUri != null) {
-            try {
-                val inputStream = context.contentResolver.openInputStream(avatarUri!!)
-                avatarBytes = inputStream?.readBytes()
-                inputStream?.close()
-            } catch (e: Exception) {
-                android.util.Log.e("CreateProfile", "Failed to read camera photo", e)
-            }
+        if (success) {
+            selectedImageUri = tempCameraUri
         }
     }
 
@@ -142,17 +142,37 @@ fun CreateProfileContentNew(
             onDismissRequest = { showAvatarSourceDialog = false },
             onCameraClick = {
                 showAvatarSourceDialog = false
-                val tempUri = androidx.core.content.FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    java.io.File(context.cacheDir, "temp_avatar_${System.currentTimeMillis()}.jpg").also { it.createNewFile() }
-                )
-                avatarUri = tempUri
-                cameraLauncher.launch(tempUri)
+                cameraLauncher.launch(tempCameraUri)
             },
             onGalleryClick = {
                 showAvatarSourceDialog = false
                 galleryLauncher.launch("image/*")
+            }
+        )
+    }
+
+    // Avatar crop dialog
+    if (selectedImageUri != null) {
+        AvatarEditDialog(
+            imageUri = selectedImageUri!!,
+            onDismiss = { selectedImageUri = null },
+            onConfirm = { originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth ->
+                val cropped = AvatarCropUtils.cropAvatar(
+                    bitmap = originalBitmap,
+                    scale = scale,
+                    offsetX = offsetX,
+                    offsetY = offsetY,
+                    rotation = rotation,
+                    viewportWidth = viewportWidth
+                )
+                val bytes = AvatarCropUtils.compressToJpeg(cropped, 64 * 1024)
+                if (bytes != null) {
+                    avatarBytes = bytes
+                    selectedImageUri = null
+                } else {
+                    android.util.Log.e("CreateProfile", "Failed to compress avatar")
+                    selectedImageUri = null
+                }
             }
         )
     }
@@ -206,59 +226,98 @@ fun CreateProfileContentNew(
                 // Avatar
                 Box(
                     modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable(enabled = !isLoading) { showAvatarSourceDialog = true },
+                        .size(120.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (avatarUri != null) {
-                        val bitmap = remember(avatarUri) {
-                            try {
-                                val inputStream = context.contentResolver.openInputStream(avatarUri!!)
-                                val bmp = android.graphics.BitmapFactory.decodeStream(inputStream)
-                                inputStream?.close()
-                                bmp?.asImageBitmap()
-                            } catch (e: Exception) {
-                                null
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable(enabled = !isLoading) { showAvatarSourceDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (avatarBytes != null) {
+                            val bitmap = remember(avatarBytes) {
+                                try {
+                                    val bmp = android.graphics.BitmapFactory.decodeByteArray(avatarBytes, 0, avatarBytes!!.size)
+                                    bmp?.asImageBitmap()
+                                } catch (e: Exception) {
+                                    null
+                                }
                             }
-                        }
 
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap,
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = stringResource(R.string.profile_avatar_change),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                // Fallback icon with dark overlay
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = stringResource(R.string.profile_avatar_change),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.4f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_camera),
+                                        contentDescription = stringResource(R.string.profile_avatar_change),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            // No avatar selected: show camera icon with dark overlay
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
                                 contentDescription = stringResource(R.string.profile_avatar_change),
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+                                modifier = Modifier.size(64.dp)
                             )
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.3f)),
+                                    .background(Color.Black.copy(alpha = 0.4f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    painter = painterResource(R.drawable.ic_camera),
                                     contentDescription = stringResource(R.string.profile_avatar_change),
                                     tint = Color.White,
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(48.dp)
                                 )
                             }
-                        } else {
+                        }
+                    }
+
+                    // Edit button in bottom-right corner when avatar is selected
+                    if (avatarBytes != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .align(Alignment.BottomEnd)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .clickable(enabled = !isLoading) { showAvatarSourceDialog = true },
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.AccountCircle,
+                                imageVector = Icons.Default.Edit,
                                 contentDescription = stringResource(R.string.profile_avatar_change),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(64.dp)
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = stringResource(R.string.profile_avatar_change),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(64.dp)
-                        )
                     }
                 }
 
