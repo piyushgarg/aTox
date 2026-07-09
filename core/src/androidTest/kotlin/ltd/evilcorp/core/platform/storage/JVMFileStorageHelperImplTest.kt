@@ -1,5 +1,6 @@
 package ltd.evilcorp.core.platform.storage
 
+import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import ltd.evilcorp.domain.core.io.IInputStream
@@ -21,6 +22,7 @@ class JVMFileStorageHelperImplTest {
     private lateinit var tempDir: File
     private lateinit var platformHelper: IFileTransferPlatformHelper
     private lateinit var storageHelper: JVMFileStorageHelperImpl
+    private lateinit var context: Context
 
     private class FakeFileTransferPlatformHelper(private val dir: File) : IFileTransferPlatformHelper {
         override fun getFilesDir(): String = dir.absolutePath
@@ -36,12 +38,12 @@ class JVMFileStorageHelperImplTest {
 
     @Before
     fun setUp() {
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        tempDir = File(appContext.cacheDir, "test_file_storage_helper_${System.currentTimeMillis()}")
+        context = InstrumentationRegistry.getInstrumentation().targetContext
+        tempDir = File(context.cacheDir, "test_file_storage_helper_${System.currentTimeMillis()}")
         tempDir.mkdirs()
-        
+
         platformHelper = FakeFileTransferPlatformHelper(tempDir)
-        storageHelper = JVMFileStorageHelperImpl(platformHelper)
+        storageHelper = JVMFileStorageHelperImpl(platformHelper, context)
     }
 
     @After

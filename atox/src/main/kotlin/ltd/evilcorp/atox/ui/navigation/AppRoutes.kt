@@ -24,6 +24,9 @@ sealed interface AppRoutes {
     data object Unlock : AppRoutes
 
     @Serializable
+    data object Welcome : AppRoutes
+
+    @Serializable
     data object Chats : AppRoutes
 
     @Serializable
@@ -37,6 +40,9 @@ sealed interface AppRoutes {
 
     @Serializable
     data object CreateProfile : AppRoutes
+
+    @Serializable
+    data object RestoreBackup : AppRoutes
 
     @Serializable
     data class Chat(val publicKey: String) : AppRoutes

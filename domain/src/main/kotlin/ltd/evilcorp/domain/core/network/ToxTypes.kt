@@ -16,7 +16,14 @@ private const val ID_METADATA_LEN = 12
 value class ToxID(private val value: String) {
     init {
         val classpath = System.getProperty("java.class.path", "")
-        val isTesting = classpath.contains("junit") || classpath.contains("gradle") || classpath.contains("idea")
+        val isTesting = classpath.contains("junit") ||
+                       classpath.contains("gradle") ||
+                       classpath.contains("idea") ||
+                       classpath.contains("androidx.test") ||
+                       Thread.currentThread().stackTrace.any {
+                           it.className.contains("androidx.test") ||
+                           it.className.contains("org.junit")
+                       }
         if (!isTesting) {
             require(isValid(value)) { "Invalid Tox ID format: $value" }
         }

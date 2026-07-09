@@ -114,9 +114,9 @@ class LiveGroupManagerIntegrationTest {
             toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.selfGetDhtId())
             toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.selfGetDhtId())
 
-            // Wait up to 5 seconds to establish local connection
+            // Wait up to 30 seconds to establish local connection (increased for slower devices like Samsung A21s)
             val startTime = System.currentTimeMillis()
-            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 5000L) {
+            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 30000L) {
                 delay(100)
             }
 

@@ -110,7 +110,7 @@ class UserSettingsRepositoryImpl @Inject constructor(
         }
         .stateIn(
             scope = scope,
-            started = SharingStarted.Eagerly,
+            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000),
             initialValue = UserSettings(),
         )
 

@@ -36,7 +36,7 @@ fun NavGraphBuilder.authGraph(
                     val target: Any = when (status) {
                         ToxSaveStatus.Ok -> AppRoutes.Chats
                         ToxSaveStatus.Encrypted -> AppRoutes.Unlock
-                        else -> AppRoutes.CreateProfile
+                        else -> AppRoutes.Welcome
                     }
                     navController.navigate(target) {
                         popUpTo(AppRoutes.Launch) { inclusive = true }
@@ -109,6 +109,21 @@ fun NavGraphBuilder.authGraph(
         )
     }
 
+    composable<AppRoutes.Welcome>(
+        enterTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXEnter(forward = true) },
+        exitTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXExit(forward = true) },
+        popEnterTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXEnter(forward = false) },
+        popExitTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXExit(forward = false) }
+    ) {
+        ltd.evilcorp.atox.ui.welcome.WelcomeScreen(
+            onGetStarted = {
+                navController.navigate(AppRoutes.CreateProfile) {
+                    popUpTo(AppRoutes.Welcome) { inclusive = true }
+                }
+            }
+        )
+    }
+
     composable<AppRoutes.CreateProfile>(
         enterTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXEnter(forward = true) },
         exitTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXExit(forward = true) },
@@ -116,12 +131,35 @@ fun NavGraphBuilder.authGraph(
         popExitTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXExit(forward = false) }
     ) {
         val viewModel: CreateProfileViewModel = hiltViewModel()
-        CreateProfileScreen(
+        ltd.evilcorp.atox.ui.createprofile.CreateProfileScreenNew(
             viewModel = viewModel,
             onSuccess = {
                 navController.navigate(AppRoutes.Chats) {
                     popUpTo(navController.graph.startDestinationId) { inclusive = true }
                 }
+            },
+            onRestoreBackup = {
+                navController.navigate(AppRoutes.RestoreBackup)
+            }
+        )
+    }
+
+    composable<AppRoutes.RestoreBackup>(
+        enterTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXEnter(forward = true) },
+        exitTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXExit(forward = true) },
+        popEnterTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXEnter(forward = false) },
+        popExitTransition = { ltd.evilcorp.atox.ui.theme.AToxMotion.sharedAxisXExit(forward = false) }
+    ) {
+        val viewModel: CreateProfileViewModel = hiltViewModel()
+        ltd.evilcorp.atox.ui.createprofile.RestoreBackupScreen(
+            viewModel = viewModel,
+            onSuccess = {
+                navController.navigate(AppRoutes.Chats) {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                }
+            },
+            onBack = {
+                navController.popBackStack()
             }
         )
     }

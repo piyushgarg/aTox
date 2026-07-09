@@ -131,6 +131,19 @@
         <item>@string/status_away</item>
         <item>@string/status_busy</item>
     </string-array>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_intro_title">Welcome to aTox</string>
+    <string name="welcome_intro_description">aTox is a free, open-source messenger using the Tox protocol. Secure communication without intermediaries or surveillance.</string>
+    <string name="welcome_privacy_title">Privacy and Security</string>
+    <string name="welcome_privacy_description">End-to-end encryption protects your conversations — only you and your recipient see the messages. No central servers means your data cannot be transferred to third parties or intercepted.</string>
+    <string name="welcome_opensource_title">Open Source</string>
+    <string name="welcome_opensource_description">The ability to distribute, study, and modify the code as you wish. Complete transparency in how the application works.</string>
+    <string name="welcome_get_started">Get Started</string>
+    <string name="welcome_skip">Skip</string>
+    <string name="welcome_next">Next</string>
+    <string name="welcome_previous">Previous</string>
+
     <string name="from">From</string>
     <!-- Status dialog -->
     <string name="status_dialog_edit_user_status">Edit your status</string>

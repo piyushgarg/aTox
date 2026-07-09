@@ -15,7 +15,13 @@ fun testToxSave(options: SaveOptions, password: String?): ToxSaveStatus {
     val native = NativeTox()
     return try {
         val rawSaveData = options.saveData
-        val saveData = if (rawSaveData != null && native.getSalt(rawSaveData) != null) {
+
+        // Null or empty save data is invalid for testing existing profiles
+        if (rawSaveData == null || rawSaveData.isEmpty()) {
+            return ToxSaveStatus.BadFormat
+        }
+
+        val saveData = if (native.getSalt(rawSaveData) != null) {
             if (password == null) {
                 return ToxSaveStatus.Encrypted
             }

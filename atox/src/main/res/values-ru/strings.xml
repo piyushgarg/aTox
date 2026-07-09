@@ -570,5 +570,17 @@
         <item>@string/status_away</item>
         <item>@string/status_busy</item>
     </string-array>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_intro_title">Добро пожаловать в aTox</string>
+    <string name="welcome_intro_description">aTox — это бесплатный мессенджер с открытым исходным кодом, использующий протокол Tox. Безопасное общение без посредников и слежки.</string>
+    <string name="welcome_privacy_title">Приватность и безопасность</string>
+    <string name="welcome_privacy_description">Сквозное шифрование защищает ваши беседы — только вы и ваш собеседник видите сообщения. Отсутствие центральных серверов означает, что ваши данные не могут быть переданы третьим лицам или перехвачены.</string>
+    <string name="welcome_opensource_title">Открытый исходный код</string>
+    <string name="welcome_opensource_description">Возможность распространять, изучать и изменять код по вашему желанию. Полная прозрачность работы приложения.</string>
+    <string name="welcome_get_started">Начать</string>
+    <string name="welcome_skip">Пропустить</string>
+    <string name="welcome_next">Далее</string>
+    <string name="welcome_previous">Назад</string>
 </resources>
 
