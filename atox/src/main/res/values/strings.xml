@@ -503,6 +503,10 @@
     <string name="backup_local_label">Local: %1$s</string>
     <string name="backup_google_label">Google Drive: %1$s</string>
     <string name="backup_size_label">Size: %1$s</string>
+    <string name="backup_local_settings_group">Local backup settings</string>
+    <string name="backup_local_directory">Backup directory</string>
+    <string name="backup_local_directory_default">Download/aTox (default)</string>
+    <string name="backup_local_directory_custom">Custom directory</string>
     <string name="backup_google_settings_group">Google Drive settings</string>
     <string name="backup_frequency_label">Back up to Google Drive</string>
     <string name="backup_network_label">Back up over</string>

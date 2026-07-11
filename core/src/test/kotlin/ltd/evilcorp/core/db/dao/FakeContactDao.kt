@@ -34,7 +34,7 @@ class FakeContactDao : ContactDao {
         return contacts.map { it.values.toList() }
     }
 
-    override fun loadAllBlocking(): List<ContactEntity> {
+    override suspend fun loadAllBlocking(): List<ContactEntity> {
         return contacts.value.values.toList()
     }
 

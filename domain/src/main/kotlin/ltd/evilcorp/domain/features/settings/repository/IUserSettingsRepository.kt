@@ -50,6 +50,7 @@ interface IUserSettingsRepository {
     suspend fun updateBackupGoogleAccount(account: String)
     suspend fun updateBackupUseCellular(enabled: Boolean)
     suspend fun updateBackupDestinationOrdinals(ordinals: Set<Int>)
+    suspend fun updateLocalBackupDirectoryUri(uri: String)
     suspend fun updateLastLocalBackupTimeMs(timeMs: Long)
     suspend fun updateLastLocalBackupSizeKb(sizeKb: Long)
     suspend fun updateLastGoogleBackupTimeMs(timeMs: Long)

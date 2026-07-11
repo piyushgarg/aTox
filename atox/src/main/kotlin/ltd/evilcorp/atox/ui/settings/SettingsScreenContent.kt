@@ -387,6 +387,10 @@ internal fun SettingsScreenContent(
                     }
                 }
             },
+            localBackupDirectoryUri = storedSettings.localBackupDirectoryUri,
+            onLocalBackupDirectoryClick = {
+                launchers.localBackupDirectoryLauncher.launch(null)
+            },
             performHaptic = performHaptic
         )
     }

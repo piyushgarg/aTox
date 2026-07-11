@@ -41,7 +41,7 @@ class FakeFileTransferDao : FileTransferDao {
         return transfers.map { list -> list.first { it.id == id } }
     }
 
-    override suspend fun loadAllBlocking(): List<FileTransferEntity> {
+    override suspend fun loadAll(): List<FileTransferEntity> {
         return transfers.value
     }
 

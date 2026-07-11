@@ -467,6 +467,10 @@
     <string name="backup_local_label">Локально: %1$s</string>
     <string name="backup_google_label">Google Диск: %1$s</string>
     <string name="backup_size_label">Размер: %1$s</string>
+    <string name="backup_local_settings_group">Настройки локальных бэкапов</string>
+    <string name="backup_local_directory">Директория для бэкапов</string>
+    <string name="backup_local_directory_default">Download/aTox (по умолчанию)</string>
+    <string name="backup_local_directory_custom">Пользовательская директория</string>
     <string name="backup_google_settings_group">Настройки Google Диска</string>
     <string name="backup_frequency_label">Резервное копирование на Google Диск</string>
     <string name="backup_network_label">Использовать</string>

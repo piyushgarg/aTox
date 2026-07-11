@@ -26,7 +26,7 @@ interface FileTransferDao {
     fun load(id: Int): Flow<FileTransferEntity>
 
     @Query("SELECT * FROM file_transfers")
-    suspend fun loadAllBlocking(): List<FileTransferEntity>
+    suspend fun loadAll(): List<FileTransferEntity>
 
     @Query("UPDATE file_transfers SET progress = :progress WHERE id == :id AND progress != :rejected")
     suspend fun updateProgress(id: Int, progress: Long, rejected: Long = FT_REJECTED)

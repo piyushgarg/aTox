@@ -33,7 +33,7 @@ interface ContactDao {
     fun loadAll(): Flow<List<ContactEntity>>
 
     @Query("SELECT * FROM contacts")
-    fun loadAllBlocking(): List<ContactEntity>
+    suspend fun loadAllBlocking(): List<ContactEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveAll(contacts: List<ContactEntity>)

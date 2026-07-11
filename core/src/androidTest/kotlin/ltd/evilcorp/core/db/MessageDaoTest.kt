@@ -68,7 +68,7 @@ class MessageDaoTest {
         val m2 = testMessage.copy(message = "Two")
         dao.saveAll(listOf(m1, m2))
 
-        val loaded = dao.loadAllBlocking()
+        val loaded = dao.loadAll()
         assertEquals(2, loaded.size)
         assertTrue(loaded.any { it.message == "One" })
         assertTrue(loaded.any { it.message == "Two" })
@@ -88,11 +88,11 @@ class MessageDaoTest {
     @Test
     fun testSetCorrelationId() = runTest {
         dao.save(testMessage)
-        val all = dao.loadAllBlocking()
+        val all = dao.loadAll()
         val savedId = all[0].id
 
         dao.setCorrelationId(savedId, 9999)
-        val updated = dao.loadAllBlocking()[0]
+        val updated = dao.loadAll()[0]
         assertEquals(9999, updated.correlationId)
     }
 
@@ -102,10 +102,10 @@ class MessageDaoTest {
         val m2 = testMessage.copy(publicKey = "chatB")
         dao.saveAll(listOf(m1, m2))
 
-        assertEquals(2, dao.loadAllBlocking().size)
+        assertEquals(2, dao.loadAll().size)
 
         dao.delete("chatA")
-        val remaining = dao.loadAllBlocking()
+        val remaining = dao.loadAll()
         assertEquals(1, remaining.size)
         assertEquals("chatB", remaining[0].publicKey)
     }
@@ -113,10 +113,10 @@ class MessageDaoTest {
     @Test
     fun testDeleteMessage() = runTest {
         dao.save(testMessage)
-        val savedId = dao.loadAllBlocking()[0].id
+        val savedId = dao.loadAll()[0].id
 
         dao.deleteMessage(savedId)
-        assertTrue(dao.loadAllBlocking().isEmpty())
+        assertTrue(dao.loadAll().isEmpty())
     }
 
     @Test
@@ -130,10 +130,10 @@ class MessageDaoTest {
     @Test
     fun testSetReceipt() = runTest {
         dao.save(testMessage)
-        assertEquals(0L, dao.loadAllBlocking()[0].timestamp)
+        assertEquals(0L, dao.loadAll()[0].timestamp)
 
         dao.setReceipt("conversation123", 1234, 9999L)
-        assertEquals(9999L, dao.loadAllBlocking()[0].timestamp)
+        assertEquals(9999L, dao.loadAll()[0].timestamp)
     }
 
     @Test

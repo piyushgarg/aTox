@@ -20,6 +20,7 @@ internal class SettingsLaunchers(
     val ringtonePickerLauncher: ActivityResultLauncher<Intent>,
     val autoSaveDirectoryLauncher: ActivityResultLauncher<Uri?>,
     val googleSignInLauncher: ActivityResultLauncher<Intent>,
+    val localBackupDirectoryLauncher: ActivityResultLauncher<Uri?>,
 )
 
 @Composable
@@ -124,17 +125,32 @@ internal fun rememberSettingsLaunchers(
         }
     }
 
+    val localBackupDirectoryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+            }
+            viewModel.setLocalBackupDirectoryUri(uri.toString())
+        }
+    }
+
     return remember(
         restoreBackupLauncher,
         ringtonePickerLauncher,
         autoSaveDirectoryLauncher,
-        googleSignInLauncher
+        googleSignInLauncher,
+        localBackupDirectoryLauncher
     ) {
         SettingsLaunchers(
             restoreBackupLauncher = restoreBackupLauncher,
             ringtonePickerLauncher = ringtonePickerLauncher,
             autoSaveDirectoryLauncher = autoSaveDirectoryLauncher,
-            googleSignInLauncher = googleSignInLauncher
+            googleSignInLauncher = googleSignInLauncher,
+            localBackupDirectoryLauncher = localBackupDirectoryLauncher
         )
     }
 }

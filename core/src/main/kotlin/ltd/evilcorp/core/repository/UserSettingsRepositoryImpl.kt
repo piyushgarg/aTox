@@ -187,6 +187,8 @@ class UserSettingsRepositoryImpl @Inject constructor(
         update(Keys.backupDestinationOrdinals, ordinals.map(Int::toString).toSet())
     }
 
+    override suspend fun updateLocalBackupDirectoryUri(uri: String) = update(Keys.localBackupDirectoryUri, uri)
+
     override suspend fun updateLastLocalBackupTimeMs(timeMs: Long) = update(Keys.lastLocalBackupTimeMs, timeMs)
 
     override suspend fun updateLastLocalBackupSizeKb(sizeKb: Long) = update(Keys.lastLocalBackupSizeKb, sizeKb)
@@ -259,6 +261,7 @@ class UserSettingsRepositoryImpl @Inject constructor(
                     ?.toSet()
                     ?.takeIf { it.isNotEmpty() }
                     ?: setOf(BackupDestination.Local.ordinal),
+                localBackupDirectoryUri = preferences[Keys.localBackupDirectoryUri] ?: "",
                 lastLocalBackupTimeMs = preferences[Keys.lastLocalBackupTimeMs] ?: 0L,
                 lastLocalBackupSizeKb = preferences[Keys.lastLocalBackupSizeKb] ?: 0L,
                 lastGoogleBackupTimeMs = preferences[Keys.lastGoogleBackupTimeMs] ?: 0L,
@@ -303,6 +306,7 @@ class UserSettingsRepositoryImpl @Inject constructor(
         val backupGoogleAccount = stringPreferencesKey("backup_google_account")
         val backupUseCellular = booleanPreferencesKey("backup_use_cellular")
         val backupDestinationOrdinals = stringSetPreferencesKey("backup_destination_ordinals")
+        val localBackupDirectoryUri = stringPreferencesKey("local_backup_directory_uri")
         val lastLocalBackupTimeMs = longPreferencesKey("last_local_backup_time_ms")
         val lastLocalBackupSizeKb = longPreferencesKey("last_local_backup_size_kb")
         val lastGoogleBackupTimeMs = longPreferencesKey("last_google_backup_time_ms")

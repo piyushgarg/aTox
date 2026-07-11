@@ -20,7 +20,7 @@ class ChatHistoryBackupHelperImpl @Inject constructor(
     private val messageDao: MessageDao,
 ) : IChatHistoryBackupHelper {
     override suspend fun serializeChatHistory(): List<Message> =
-        messageDao.loadAllBlocking().map { it.toDomain() }
+        messageDao.loadAll().map { it.toDomain() }
 
     override suspend fun serializeChatHistoryPaged(limit: Int, offset: Int): List<Message> =
         messageDao.loadPaged(limit, offset).map { it.toDomain() }
@@ -30,7 +30,7 @@ class ChatHistoryBackupHelperImpl @Inject constructor(
     }
 
     override suspend fun serializeCallLog(): List<Message> =
-        messageDao.loadAllBlocking()
+        messageDao.loadAll()
             .filter { it.correlationId == Int.MIN_VALUE }
             .map { it.toDomain() }
 
@@ -59,7 +59,7 @@ class FileTransferBackupHelperImpl @Inject constructor(
     private val fileTransferDao: FileTransferDao,
 ) : IFileTransferBackupHelper {
     override suspend fun serializeFileTransfers(): List<FileTransfer> =
-        fileTransferDao.loadAllBlocking().map { it.toDomain() }
+        fileTransferDao.loadAll().map { it.toDomain() }
 
     override suspend fun deserializeFileTransfers(transfers: List<FileTransfer>) {
         fileTransferDao.saveAll(transfers.map { FileTransferEntity.fromDomain(it) })

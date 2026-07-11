@@ -47,7 +47,7 @@ class FileTransferBackupHelperImplTest {
         val domainTransfer = FileTransfer("user3", 3, 0, 3072L, "archive.zip", false, 0L, "/path/3").apply { id = 200 }
         backupHelper.deserializeFileTransfers(listOf(domainTransfer))
 
-        val loaded = fileTransferDao.loadAllBlocking()
+        val loaded = fileTransferDao.loadAll()
         assertEquals(1, loaded.size)
         assertEquals("user3", loaded[0].publicKey)
         assertEquals("archive.zip", loaded[0].fileName)
@@ -61,7 +61,7 @@ class FileTransferBackupHelperImplTest {
 
         backupHelper.setDestination(50, "/final/destination/path")
 
-        val loaded = fileTransferDao.loadAllBlocking()
+        val loaded = fileTransferDao.loadAll()
         assertEquals(1, loaded.size)
         assertEquals("/final/destination/path", loaded[0].destination)
     }

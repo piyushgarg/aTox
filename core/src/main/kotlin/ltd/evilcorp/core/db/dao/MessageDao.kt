@@ -23,7 +23,7 @@ interface MessageDao {
     fun loadConversationPagingSource(conversation: String): PagingSource<Int, MessageEntity>
 
     @Query("SELECT * FROM messages")
-    suspend fun loadAllBlocking(): List<MessageEntity>
+    suspend fun loadAll(): List<MessageEntity>
 
     @Query("SELECT * FROM messages ORDER BY id LIMIT :limit OFFSET :offset")
     suspend fun loadPaged(limit: Int, offset: Int): List<MessageEntity>

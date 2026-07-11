@@ -74,6 +74,7 @@ data class UserSettings(
     val backupGoogleAccount: String = "",
     val backupUseCellular: Boolean = false,
     val backupDestinationOrdinals: Set<Int> = setOf(BackupDestination.Local.ordinal),
+    val localBackupDirectoryUri: String = "",
     val lastLocalBackupTimeMs: Long = 0L,
     val lastLocalBackupSizeKb: Long = 0L,
     val lastGoogleBackupTimeMs: Long = 0L,
