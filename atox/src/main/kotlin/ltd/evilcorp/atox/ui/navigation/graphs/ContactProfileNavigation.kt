@@ -36,10 +36,14 @@ fun NavGraphBuilder.contactProfileRoute(
         }
 
         val contact by viewModel.contact.collectAsStateWithLifecycle()
+        val dateFormatPreference by viewModel.dateFormatPreference.collectAsStateWithLifecycle()
+        val timeFormatPreference by viewModel.timeFormatPreference.collectAsStateWithLifecycle()
 
         ContactProfileScreen(
             contact = contact,
             publicKey = route.publicKey,
+            dateFormatPreference = dateFormatPreference,
+            timeFormatPreference = timeFormatPreference,
             onBack = { navController.popBackStack() },
             onShareContact = {
                 contact?.let { c ->

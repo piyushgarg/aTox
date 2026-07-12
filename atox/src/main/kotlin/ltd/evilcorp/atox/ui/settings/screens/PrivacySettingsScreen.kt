@@ -71,7 +71,7 @@ fun PrivacySettingsScreen(
                     performHaptic()
                     onConfirmCallingChanged(checked)
                 }
-                if (isBiometricHardwareAvailable) {
+                if (isBiometricHardwareAvailable && hasPassword) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
                     SettingsSwitchRow(
                         title = stringResource(R.string.pref_biometric_login),

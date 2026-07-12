@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
@@ -68,6 +70,22 @@ class BackupSettingsViewModel @Inject constructor(
 
     private val _uiEvents = MutableSharedFlow<BackupUiEvent>()
     val uiEvents = _uiEvents.asSharedFlow()
+
+    private var backupTimeoutJob: Job? = null
+
+    private fun startBackupTimeout() {
+        backupTimeoutJob?.cancel()
+        backupTimeoutJob = viewModelScope.launch {
+            delay(15_000L)
+            if (_backupExporting.value) {
+                val workManager = androidx.work.WorkManager.getInstance(context)
+                workManager.cancelUniqueWork("ManualLocalBackup")
+                workManager.cancelUniqueWork("ManualGoogleBackup")
+                _backupExporting.value = false
+                _uiEvents.emit(BackupUiEvent.ShowToast(R.string.backup_export_timeout))
+            }
+        }
+    }
 
     init {
         viewModelScope.launch {
@@ -167,6 +185,7 @@ class BackupSettingsViewModel @Inject constructor(
                 }
             }
             _uiEvents.emit(BackupUiEvent.ShowToast(R.string.backup_creating))
+            startBackupTimeout()
         }
     }
 
@@ -185,6 +204,7 @@ class BackupSettingsViewModel @Inject constructor(
                 )
             }
             _uiEvents.emit(BackupUiEvent.ShowToast(R.string.backup_creating))
+            startBackupTimeout()
         }
     }
 

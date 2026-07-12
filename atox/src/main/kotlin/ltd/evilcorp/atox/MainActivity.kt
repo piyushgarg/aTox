@@ -178,7 +178,8 @@ class MainActivity : AppCompatActivity() {
                 AToxTheme(
                     darkTheme = isDarkTheme,
                     dynamicColor = appearance.dynamicColorEnabled,
-                    accentColorSeedArgb = appearance.accentColorSeed
+                    accentColorSeedArgb = appearance.accentColorSeed,
+                    appearance = appearance
                 ) {
                     val surfaceContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
                     LaunchedEffect(isDarkTheme, surfaceContainerColor) {

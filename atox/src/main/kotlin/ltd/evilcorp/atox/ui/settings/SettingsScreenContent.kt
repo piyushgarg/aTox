@@ -276,8 +276,8 @@ internal fun SettingsScreenContent(
             paddingValues = paddingValues,
             appThemeMode = appearance.themeMode,
             onThemeSelect = { themeMode ->
-                state.destination = SettingsDestination.Appearance
                 onThemeChanged(themeMode)
+                state.destination = SettingsDestination.Appearance
             }
         )
         SettingsDestination.Search -> SettingsSearchPopup(

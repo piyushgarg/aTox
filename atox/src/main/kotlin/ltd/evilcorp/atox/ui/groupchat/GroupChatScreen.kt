@@ -73,6 +73,12 @@ fun GroupChatScreen(
     val messages = messagesState.value ?: emptyList()
     val peers = peersState.value ?: emptyList()
     val connStatus = connectionStatusState.value
+    // Group with only 1 peer (yourself) is always considered online
+    val effectiveConnStatus = if (group != null && group.peerCount == 1 && connStatus != GroupConnectionStatus.Connected) {
+        GroupConnectionStatus.Connected
+    } else {
+        connStatus
+    }
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -142,12 +148,12 @@ fun GroupChatScreen(
         }
     }
 
-    LaunchedEffect(group, connStatus) {
+    LaunchedEffect(group, effectiveConnStatus) {
         onGroupInfoChanged(
             group?.name.orEmpty(),
             group?.topic.orEmpty(),
             group?.peerCount ?: 0,
-            connStatus
+            effectiveConnStatus
         )
     }
 
@@ -226,7 +232,7 @@ fun GroupChatScreen(
                 GroupChatAppBar(
                     group = group,
                     peers = peers,
-                    connStatus = connStatus,
+                    connStatus = effectiveConnStatus,
                     uiConfig = uiConfig,
                     onBack = onBack,
                     onInviteClick = { showInviteDialog = true },
@@ -238,8 +244,8 @@ fun GroupChatScreen(
             }
         }
     ) { paddingValues ->
-        val isOffline = connStatus != GroupConnectionStatus.Connected
-        val isReconnecting = connStatus == GroupConnectionStatus.Reconnecting
+        val isOffline = effectiveConnStatus != GroupConnectionStatus.Connected
+        val isReconnecting = effectiveConnStatus == GroupConnectionStatus.Reconnecting
 
         Column(
             modifier = Modifier

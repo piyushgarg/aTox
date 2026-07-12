@@ -424,6 +424,7 @@
     <string name="backup_creating">Создание бэкапа…</string>
     <string name="backup_export_success">Бэкап экспортирован</string>
     <string name="backup_export_failure">Не удалось экспортировать бэкап</string>
+    <string name="backup_export_timeout">Бэкап не создался, время вышло. Пожалуйста, попробуйте позже.</string>
     <string name="backup_restore_from_file">Восстановить из бэкапа</string>
     <string name="backup_restoring">Восстановление бэкапа…</string>
     <string name="backup_import_success">Бэкап восстановлен</string>
