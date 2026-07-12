@@ -35,6 +35,10 @@ android {
         versionCode = 14
         versionName = "1.0.0"
         testInstrumentationRunner = "ltd.evilcorp.atox.HiltTestRunner"
+        //noinspection ChromeOSAbiSupport
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
     signingConfigs {
         getByName("debug") {
@@ -51,6 +55,7 @@ android {
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
+            isCrunchPngs = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("debug")
         }

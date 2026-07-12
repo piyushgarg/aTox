@@ -45,6 +45,8 @@ opus_CONFIGURE		:= --prefix=$(PREFIX) --host=$(TARGET) --with-sysroot=$(SYSROOT)
 libvpx_CONFIGURE	:= --prefix=$(PREFIX) --libc=$(SYSROOT) --target=$(VPX_TARGET) --disable-examples --disable-unit-tests --enable-pic --disable-neon-asm --extra-cflags="--sysroot=$(SYSROOT) -fPIC" --extra-cxxflags="--sysroot=$(SYSROOT) -fPIC" --extra-ldflags="--sysroot=$(SYSROOT) -llog"
 toxcore_CONFIGURE	:= -DCMAKE_INSTALL_PREFIX:PATH=$(PREFIX) -DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) -DANDROID_CPU_FEATURES=$(NDK_HOME)/sources/android/cpufeatures/cpu-features.c -DENABLE_STATIC=ON -DENABLE_SHARED=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 
+.PHONY: build test
+
 build: $(PREFIX)/toxcore.stamp
 
 test: build
@@ -61,7 +63,13 @@ $(NDK_HOME):
 $(TOOLCHAIN_FILE): scripts/android.mk | $(NDK_HOME)
 	@$(PRE_RULE)
 	mkdir -p $(@D)
-	echo 'set(CMAKE_SYSTEM_NAME Linux)' > $@
+	echo 'set(CMAKE_SYSTEM_NAME Android)' > $@
+	echo >> $@
+	echo 'set(CMAKE_SYSTEM_VERSION $(NDK_API))' >> $@
+	echo >> $@
+	echo 'set(CMAKE_ANDROID_NDK $(NDK_HOME))' >> $@
+	echo >> $@
+	echo 'set(CMAKE_ANDROID_ARCH_ABI arm64-v8a)' >> $@
 	echo >> $@
 	echo 'set(CMAKE_BUILD_TYPE Release CACHE STRING "")' >> $@
 	echo >> $@
