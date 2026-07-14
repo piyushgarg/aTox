@@ -22,6 +22,7 @@ import com.google.android.material.color.utilities.MaterialDynamicColors
 import com.google.android.material.color.utilities.SchemeTonalSpot
 
 val LocalAToxThemeIsDark = staticCompositionLocalOf { false }
+val LocalAppAppearance = staticCompositionLocalOf { ltd.evilcorp.atox.appearance.AppAppearance() }
 
 private val materialDynamicColors = MaterialDynamicColors()
 
@@ -30,6 +31,7 @@ fun AToxTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     accentColorSeedArgb: Int = 0xFF3F51B5.toInt(),
+    appearance: ltd.evilcorp.atox.appearance.AppAppearance = ltd.evilcorp.atox.appearance.AppAppearance(),
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -41,7 +43,10 @@ fun AToxTheme(
         else -> seededColorScheme(accentColorSeedArgb, darkTheme)
     }
 
-    CompositionLocalProvider(LocalAToxThemeIsDark provides darkTheme) {
+    CompositionLocalProvider(
+        LocalAToxThemeIsDark provides darkTheme,
+        LocalAppAppearance provides appearance
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

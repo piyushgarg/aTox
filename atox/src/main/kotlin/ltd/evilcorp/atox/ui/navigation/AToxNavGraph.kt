@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -137,7 +138,7 @@ fun AToxNavGraph(
         bottom = animatedBottomPadding
     )
 
-    val navHostContent = remember(navController, isExpandedMode) {
+    val navHostContent = remember(navController, isExpandedMode, appearance) {
         androidx.compose.runtime.movableContentOf {
             NavHost(
                 navController = navController,

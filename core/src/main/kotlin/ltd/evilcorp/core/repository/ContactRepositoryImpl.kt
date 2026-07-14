@@ -6,6 +6,9 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import ltd.evilcorp.core.db.dao.ContactDao
 import ltd.evilcorp.core.db.entity.ContactEntity
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
@@ -22,12 +25,14 @@ class ContactRepositoryImpl @Inject constructor(
 ) : IContactRepository {
     private val internalCache = ConcurrentHashMap<String, Contact>()
     private var cachedProfileId: String? = null
+    private val profileIdFlow = MutableStateFlow(context?.let { ProfileManager.getActiveProfileId(it) } ?: ProfileManager.DEFAULT_PROFILE_ID)
 
     private val cache: ConcurrentHashMap<String, Contact> get() {
         val currentProfileId = context?.let { ProfileManager.getActiveProfileId(it) } ?: ProfileManager.DEFAULT_PROFILE_ID
         if (cachedProfileId != currentProfileId) {
             internalCache.clear()
             cachedProfileId = currentProfileId
+            profileIdFlow.value = currentProfileId
         }
         return internalCache
     }
@@ -53,22 +58,28 @@ class ContactRepositoryImpl @Inject constructor(
         activeDao.delete(ContactEntity.fromDomain(contact))
     }
 
-    override fun get(publicKey: String): Flow<Contact?> = activeDao.load(publicKey)
-        .map { it?.toDomain() }
-        .onEach { contact ->
-            if (contact != null) {
-                cache[publicKey] = contact
-            } else {
-                cache.remove(publicKey)
-            }
+    override fun get(publicKey: String): Flow<Contact?> = profileIdFlow
+        .flatMapLatest {
+            activeDao.load(publicKey)
+                .map { it?.toDomain() }
+                .onEach { contact ->
+                    if (contact != null) {
+                        cache[publicKey] = contact
+                    } else {
+                        cache.remove(publicKey)
+                    }
+                }
         }
 
-    override fun getAll(): Flow<List<Contact>> = activeDao.loadAll()
-        .map { list -> list.map { it.toDomain() } }
-        .onEach { list ->
-            list.forEach { contact ->
-                cache[contact.publicKey] = contact
-            }
+    override fun getAll(): Flow<List<Contact>> = profileIdFlow
+        .flatMapLatest {
+            activeDao.loadAll()
+                .map { list -> list.map { it.toDomain() } }
+                .onEach { list ->
+                    list.forEach { contact ->
+                        cache[contact.publicKey] = contact
+                    }
+                }
         }
 
     override suspend fun resetTransientData() {
