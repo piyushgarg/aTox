@@ -55,8 +55,6 @@ fun SettingsAppearanceScreen(
     onHapticEnabledChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var localDynamicColor by androidx.compose.runtime.remember(dynamicColor) { androidx.compose.runtime.mutableStateOf(dynamicColor) }
-    
     val bottomPadding = ltd.evilcorp.atox.ui.navigation.LocalTabPadding.current.calculateBottomPadding()
     LazyColumn(
         modifier = modifier
@@ -129,15 +127,16 @@ fun SettingsAppearanceScreen(
                     SettingsSwitchRow(
                         title = stringResource(R.string.dynamic_theme),
                         subtitle = stringResource(R.string.settings_dynamic_theme_subtitle),
-                        checked = localDynamicColor
+                        checked = dynamicColor
                     ) { checked ->
                         performHaptic()
-                        localDynamicColor = checked
                         onDynamicColorChanged(checked)
                     }
-                    if (!localDynamicColor) {
+                    if (!dynamicColor) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                        val activePreset = AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
+                        val activePreset = androidx.compose.runtime.remember(currentAccentSeed) {
+                            AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
+                        }
                         SettingsClickableRow(
                             title = stringResource(R.string.accent_color),
                             subtitle = activePreset.name
@@ -147,7 +146,9 @@ fun SettingsAppearanceScreen(
                         }
                     }
                 } else {
-                    val activePreset = AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
+                    val activePreset = androidx.compose.runtime.remember(currentAccentSeed) {
+                        AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
+                    }
                     SettingsClickableRow(
                         title = stringResource(R.string.accent_color),
                         subtitle = activePreset.name

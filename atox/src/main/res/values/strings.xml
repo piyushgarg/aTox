@@ -460,6 +460,7 @@
     <string name="backup_creating">Creating backup…</string>
     <string name="backup_export_success">Backup exported</string>
     <string name="backup_export_failure">Backup export failed</string>
+    <string name="backup_export_timeout">Backup timed out. Please try again later.</string>
     <string name="backup_restore_from_file">Restore from backup</string>
     <string name="backup_restoring">Restoring backup…</string>
     <string name="backup_import_success">Backup restored</string>

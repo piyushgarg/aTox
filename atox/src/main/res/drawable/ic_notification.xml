@@ -1,11 +1,42 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-        android:width="108dp"
-        android:height="108dp"
-        android:viewportWidth="256"
-        android:viewportHeight="256">
-    <group>
-        <path
-                android:pathData="M128.06,-0.25C97.04,-0.25 66,20.5 66,62l0,30 -16,0c-17.94,0 -29,12.35 -29,30l0,104c0,18.08 11.94,29.94 30,30l154,0.5c17.98,0.06 30,-12.48 30,-30.5l0,-104c0,-17.94 -12.07,-30.58 -30,-30l-15,0 0.03,-30C190.08,20.5 159.08,-0.25 128.06,-0.25ZM128,25c21.06,0 36,15.48 36,35 0,20.47 -8,40 -36,50 5,-8 7,-11 8,-19C107,94 92,78.8 92,60 92,41.2 106.94,25 128,25ZM128,121c14.86,0 27,11.87 27,27 0,15.13 -12,24 -17.44,25.25 0,0 25.44,7.75 25.44,34.75l0,11c0,6 -4,10 -10,10l-51,0c-6,0 -10,-4 -10,-10l0,-11c0,-27 26.38,-34.72 26.38,-34.72C112.99,172.01 101,163 101,148c0,-15 12.14,-27 27,-27z"
-                android:fillColor="#FFFFFF"/>
-    </group>
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outlined chat bubble (solid white outline, transparent inside) -->
+    <path
+        android:pathData="M54,32 C42,32 32,41 32,53 C32,59.5 35,65.5 40,69 L38,80 L49,76.5 C50.5,77 52.2,77.5 54,77.5 C66,77.5 76,66.5 76,53 C76,41 66,32 54,32 Z"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Connection lines -->
+    <path
+        android:pathData="M54,52 L54,42 M54,52 L45,59 M54,52 L63,59"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+
+    <!-- Center node dot -->
+    <path
+        android:pathData="M54,52m-3.5,0a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Top node dot -->
+    <path
+        android:pathData="M54,42m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Bottom-Left node dot -->
+    <path
+        android:pathData="M45,59m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Bottom-Right node dot -->
+    <path
+        android:pathData="M63,59m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0"
+        android:fillColor="#FFFFFF" />
 </vector>

@@ -59,12 +59,18 @@ import ltd.evilcorp.atox.ui.userprofile.components.QrCodeDialog
 import ltd.evilcorp.atox.ui.contactprofile.components.ContactIdShareCard
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
+import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
+import ltd.evilcorp.atox.ui.common.formatPresenceText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactProfileScreen(
     contact: Contact?,
     publicKey: String,
+    dateFormatPreference: DateFormatPreference = DateFormatPreference.System,
+    timeFormatPreference: TimeFormatPreference = TimeFormatPreference.System,
     onBack: () -> Unit = {},
     onShareContact: () -> Unit = {},
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
@@ -123,6 +129,21 @@ fun ContactProfileScreen(
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
+
+            // Last seen / Status text
+            if (contact != null) {
+                val presenceText = formatPresenceText(
+                    context = context,
+                    contact = contact,
+                    dateFormatPreference = dateFormatPreference,
+                    timeFormatPreference = timeFormatPreference
+                )
+                Text(
+                    text = presenceText.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             // Status message Card (if exists)
             if (!contact?.statusMessage.isNullOrEmpty() && contact?.statusMessage != "...") {
@@ -218,9 +239,10 @@ private fun ContactAvatarBox(
 
         // Status indicator
         if (contact != null) {
-            val statusColor = when (contact.status) {
-                UserStatus.Away -> StatusAway
-                UserStatus.Busy -> StatusBusy
+            val statusColor = when {
+                contact.connectionStatus == ConnectionStatus.None -> MaterialTheme.colorScheme.outline
+                contact.status == UserStatus.Away -> StatusAway
+                contact.status == UserStatus.Busy -> StatusBusy
                 else -> StatusAvailable
             }
 
